@@ -16,6 +16,7 @@ public class SettingsHandlerButtons : MonoBehaviour
     public SettingsHandlerLights lightsHandler;
     public SettingsHandlerAccessory accessoryHandler;
     public SettingsHandlerBigScreen bigScreenHandler;
+    public SettingsHandlerPPT ppt;
 
     public VRMLoader vrmLoader;
     public GameObject uniWindowControllerObject;
@@ -45,6 +46,8 @@ public class SettingsHandlerButtons : MonoBehaviour
         bigScreenHandler?.ApplySettings();
         SaveLoadHandler.Instance.SaveToDisk();
         SaveLoadHandler.ApplyAllSettingsToAllAvatars();
+        ppt?.ApplySettings();
+
     }
 
     private void OnResetClicked()

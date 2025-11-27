@@ -14,7 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_GroupName: Default Local Group
   m_GUID: da47376fc21048246a6d81428534a2ed
-  m_SerializeEntries: []
+  m_SerializeEntries:
+  - m_GUID: a4e34fd8ee26854418dbb4465103c6ed
+    m_Address: Assets/MATE ENGINE - Scripts/ThemeManager/Ui Category.mat
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: 37cf34e903206ac4d9ee2b41196ddd69, type: 2}
   m_SchemaSet:

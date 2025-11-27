@@ -168,17 +168,36 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   chatContainer: {fileID: 574025143}
+  inputContainer: {fileID: 0}
   playerColor: {r: 0.31764707, g: 0.6431373, b: 0.31764707, a: 1}
   aiColor: {r: 0.11372549, g: 0.11372549, b: 0.28627452, a: 1}
   fontColor: {r: 1, g: 1, b: 1, a: 1}
   font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
   fontSize: 16
   bubbleWidth: 600
-  llmCharacter: {fileID: 1844795171}
   textPadding: 10
   bubbleSpacing: 10
-  sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
-  stopButton: {fileID: 600245850}
+  bottomPadding: 10
+  sprite: {fileID: 0}
+  roundedSprite16: {fileID: 0}
+  roundedSprite32: {fileID: 0}
+  roundedSprite64: {fileID: 0}
+  llmCharacter: {fileID: 1844795171}
+  inputPlaceholder: Message me
+  streamAudioSource: {fileID: 0}
+  playerMaterial: {fileID: 0}
+  aiMaterial: {fileID: 0}
+  playerTextMaterial: {fileID: 0}
+  aiTextMaterial: {fileID: 0}
+  scrollRect: {fileID: 0}
+  autoScrollOnNewMessage: 1
+  respectUserScroll: 1
+  maxMessages: 100
+  trimOnlyWhenAtBottom: 1
+  enableOffscreenTrim: 0
+  playerFontColor: {r: 1, g: 1, b: 1, a: 1}
+  aiFontColor: {r: 1, g: 1, b: 1, a: 1}
+  cornerRadius: 16
 --- !u!1 &507661347
 GameObject:
   m_ObjectHideFlags: 0
@@ -663,7 +682,7 @@ MonoBehaviour:
   dontDestroyOnLoad: 1
   contextSize: 8192
   batchSize: 512
-  model: gemma-3-1b-it-Q4_K_M.gguf
+  model: DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
   chatTemplate: chatml
   lora: 
   loraWeights: 
@@ -674,9 +693,9 @@ MonoBehaviour:
   SSLKey: 
   SSLKeyPath: 
   minContextLength: 0
-  maxContextLength: 32768
+  maxContextLength: 131072
   embeddingsOnly: 0
-  embeddingLength: 1152
+  embeddingLength: 1536
 --- !u!1 &1051131186
 GameObject:
   m_ObjectHideFlags: 0
@@ -1148,6 +1167,7 @@ MonoBehaviour:
   numPredict: -1
   slot: -1
   grammar: 
+  grammarJSON: 
   cachePrompt: 1
   seed: 0
   temperature: 1
@@ -1193,6 +1213,7 @@ MonoBehaviour:
   setNKeepToPrompt: 1
   chat: []
   grammarString: 
+  grammarJSONString: 
 --- !u!1 &2011827136
 GameObject:
   m_ObjectHideFlags: 0

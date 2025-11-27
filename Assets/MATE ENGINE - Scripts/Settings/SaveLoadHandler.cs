@@ -177,6 +177,8 @@ public class SaveLoadHandler : MonoBehaviour
         public bool enableFeedSystem = false;
         public bool enableRandomAvatar = false;
 
+        public bool enablePPT = true;
+
         //ALARM
         [Serializable]
         public class AlarmEntry

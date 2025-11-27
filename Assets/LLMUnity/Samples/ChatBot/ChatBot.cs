@@ -22,7 +22,7 @@ namespace LLMUnitySamples
         public int fontSize = 16;
 
         [Header("Bubble Layout")]
-        public int bubbleWidth = 600;
+        public int bubbleWidth = 400;
         public float textPadding = 10f;
         public float bubbleSpacing = 10f;
         public float bottomPadding = 10f;       
@@ -30,6 +30,12 @@ namespace LLMUnitySamples
         public Sprite roundedSprite16;
         public Sprite roundedSprite32;
         public Sprite roundedSprite64;
+
+        // 新增：左右边距控制
+        [Header("Bubble Margins")]
+        public float leftMargin = 20f;    // AI气泡左边距
+        public float rightMargin = 20f;   // 玩家气泡右边距
+        public float sideIndent = 80f;   // 侧边缩进量，让气泡不要贴边
 
         [Header("LLM")]
         public LLMCharacter llmCharacter;
@@ -76,6 +82,7 @@ namespace LLMUnitySamples
         private Animator lastAvatarAnimator;
         private static readonly int isTalkingHash = Animator.StringToHash("isTalking");
 
+        public SmartWindowsTTS smartWindowsTTS;
 
         void Start()
         {
@@ -94,7 +101,7 @@ namespace LLMUnitySamples
                 fontColor = playerFontColor,
                 bubbleColor = playerColor,
                 bottomPosition = 0,
-                leftPosition = 0,
+                leftPosition = 1,
                 textPadding = textPadding,
                 bubbleOffset = bubbleSpacing,
                 bubbleWidth = bubbleWidth,
@@ -109,7 +116,7 @@ namespace LLMUnitySamples
                 fontColor = aiFontColor,
                 bubbleColor = aiColor,
                 bottomPosition = 0,
-                leftPosition = 1,
+                leftPosition = 0,
                 textPadding = textPadding,
                 bubbleOffset = bubbleSpacing,
                 bubbleWidth = bubbleWidth,
@@ -280,6 +287,16 @@ namespace LLMUnitySamples
                     if (streamAudioSource != null && streamAudioSource.isPlaying)
                         StartCoroutine(FadeOutStreamAudio());
 
+                    //调用tts
+                    Debug.Log("开始调用tts");
+                    smartWindowsTTS.SpeakAsync(aiBubble.GetText(), (success) => {
+                        if (!success)
+                        {
+                            Debug.LogWarning($"⚠ 语音播放失败: {aiBubble.GetText()}");
+                        }
+                    });
+                    Debug.Log("完成调用tts");
+
                     AllowInput();
                 }
             );
@@ -336,13 +353,16 @@ namespace LLMUnitySamples
             }
         }
 
-        public void UpdateBubblePositions()
+        /*public void UpdateBubblePositions()
         {
             float y = bottomPadding;
             for (int i = chatBubbles.Count - 1; i >= 0; i--)
             {
                 Bubble bubble = chatBubbles[i];
                 RectTransform childRect = bubble.GetRectTransform();
+
+                childRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, bubbleWidth);
+
                 childRect.anchoredPosition = new Vector2(childRect.anchoredPosition.x, y);
 
                 if (enableOffscreenTrim)
@@ -358,6 +378,78 @@ namespace LLMUnitySamples
             }
             var contentRect = chatContainer.GetComponent<RectTransform>();
             contentRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, y + bottomPadding);
+        }*/
+        public void UpdateBubblePositions()
+        {
+            float y = bottomPadding;
+            float containerWidth = chatContainer.GetComponent<RectTransform>().rect.width;
+
+            for (int i = chatBubbles.Count - 1; i >= 0; i--)
+            {
+                Bubble bubble = chatBubbles[i];
+                RectTransform childRect = bubble.GetRectTransform();
+
+                // 设置气泡宽度
+                childRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, bubbleWidth);
+
+                // 获取气泡类型
+                bool isPlayerBubble = bubble.bubbleUI.leftPosition == 1;
+
+                // 微信风格错开布局
+                float xPosition;
+                if (isPlayerBubble)
+                {
+                    // 玩家气泡：右侧，从容器右边界向左偏移
+                    xPosition = containerWidth - bubbleWidth - rightMargin - sideIndent;
+                }
+                else
+                {
+                    // AI气泡：左侧，从容器左边界向右偏移
+                    xPosition = leftMargin + sideIndent;
+                }
+
+                childRect.anchoredPosition = new Vector2(xPosition, y);
+
+                if (enableOffscreenTrim)
+                {
+                    float containerHeight = chatContainer.GetComponent<RectTransform>().rect.height;
+                    if (y > containerHeight && lastBubbleOutsideFOV == -1)
+                    {
+                        lastBubbleOutsideFOV = i;
+                    }
+                }
+
+                y += bubble.GetSize().y + bubbleSpacing;
+            }
+            var contentRect = chatContainer.GetComponent<RectTransform>();
+            contentRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, y + bottomPadding);
+            DebugBubblePositions();
+        }
+        public void DebugBubblePositions()
+        {
+            float containerWidth = chatContainer.GetComponent<RectTransform>().rect.width;
+            Debug.Log($"容器宽度: {containerWidth}");
+
+            for (int i = 0; i < chatBubbles.Count; i++)
+            {
+                Bubble bubble = chatBubbles[i];
+                RectTransform rect = bubble.GetRectTransform();
+                bool isPlayer = bubble.bubbleUI.leftPosition == 1;
+                Debug.Log($"{(isPlayer ? "玩家" : "AI")}气泡 - 位置: {rect.anchoredPosition}, 锚点: {rect.anchorMin}");
+            }
+        }
+        public void UpdateAllBulesWidth()
+        {
+            foreach(Bubble bubble in chatBubbles)
+            {
+                 RectTransform bubbleRect = bubble.GetRectTransform();
+                if (bubbleRect != null)
+                {
+                    bubbleRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, bubbleWidth);
+                    LayoutRebuilder.ForceRebuildLayoutImmediate(bubbleRect);
+                }
+            }
+            MarkLayoutDirty();
         }
 
         void Update()
