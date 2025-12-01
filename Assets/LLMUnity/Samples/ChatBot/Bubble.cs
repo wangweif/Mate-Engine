@@ -183,9 +183,17 @@ namespace LLMUnitySamples
 
     class InputBubble : Bubble
     {
+        private static Sprite defaultButtonSprite;
         protected GameObject inputFieldObject;
         protected InputField inputField;
         protected GameObject placeholderObject;
+        protected GameObject voiceInputButton;
+        protected GameObject keyboardButton;
+        protected GameObject holdToSpeakButton;
+        protected Button voiceButtonComponent;
+        protected Button keyboardButtonComponent;
+        protected Button holdToSpeakButtonComponent;
+        protected bool isVoiceMode = false;
 
         public InputBubble(Transform parent, BubbleUI ui, string name, string message, int lineHeight = 4) :
             base(parent, ui, name, emptyLines(message, lineHeight))
@@ -202,6 +210,11 @@ namespace LLMUnitySamples
             if (textCanvas != null)
             {
                 textCanvas.sortingOrder = 2;
+                // 确保Canvas有GraphicRaycaster以接收UI事件
+                if (bubbleObject.GetComponent<UnityEngine.UI.GraphicRaycaster>() == null)
+                {
+                    bubbleObject.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+                }
             }
 
             Canvas imgCanvas = imageObject.GetComponent<Canvas>();
@@ -209,6 +222,9 @@ namespace LLMUnitySamples
             {
                 imgCanvas.sortingOrder = 2;
             }
+
+            // 创建语音输入按钮和按住说话按钮
+            CreateVoiceInputButtons(bubbleRectTransform);
         }
 
 
@@ -245,7 +261,21 @@ namespace LLMUnitySamples
             inputField.shouldActivateOnSelect = true;
             RectTransform inputFieldRect = inputFieldObject.GetComponent<RectTransform>();
             inputFieldRect.localScale = Vector3.one;
-            SyncParentRectTransform(inputFieldRect);
+            
+            // 设置输入框的RectTransform，为右侧按钮留出空间（约50像素）
+            inputFieldRect.anchorMin = Vector2.zero;
+            inputFieldRect.anchorMax = new Vector2(1f, 1f);
+            inputFieldRect.pivot = new Vector2(0.5f, 0.5f);
+            inputFieldRect.offsetMin = new Vector2(0f, 0f);
+            inputFieldRect.offsetMax = new Vector2(-50f, 0f); // 右侧留出50像素给按钮
+            
+            // 确保输入框的Canvas不会遮挡按钮（降低层级）
+            Canvas inputFieldCanvas = inputFieldObject.GetComponent<Canvas>();
+            if (inputFieldCanvas != null)
+            {
+                inputFieldCanvas.sortingOrder = 1; // 低于按钮的层级
+            }
+            
             return inputFieldObject;
         }
 
@@ -263,23 +293,39 @@ namespace LLMUnitySamples
 
         public void AddSubmitListener(UnityEngine.Events.UnityAction<string> onInputFieldSubmit)
         {
-            inputField.onSubmit.AddListener(onInputFieldSubmit);
+            if (inputField != null)
+            {
+                inputField.onSubmit.AddListener(onInputFieldSubmit);
+            }
         }
 
         public void AddValueChangedListener(UnityEngine.Events.UnityAction<string> onValueChanged)
         {
-            inputField.onValueChanged.AddListener(onValueChanged);
+            if (inputField != null)
+            {
+                inputField.onValueChanged.AddListener(onValueChanged);
+            }
         }
 
         public new string GetText()
         {
+            if (inputField == null || !inputFieldObject.activeSelf) return "";
             return inputField.text;
         }
 
         public new void SetText(string text)
         {
-            inputField.text = text;
-            MoveTextEnd();
+            if (inputField == null) return;
+            // 如果处于语音模式，先切换回文本输入模式
+            if (isVoiceMode)
+            {
+                SetVoiceMode(false);
+            }
+            if (inputFieldObject.activeSelf)
+            {
+                inputField.text = text;
+                MoveTextEnd();
+            }
         }
 
         public void SetPlaceHolderText(string text)
@@ -289,16 +335,19 @@ namespace LLMUnitySamples
 
         public bool inputFocused()
         {
+            if (inputField == null || !inputFieldObject.activeSelf) return false;
             return inputField.isFocused;
         }
 
         public void MoveTextEnd()
         {
+            if (inputField == null || !inputFieldObject.activeSelf) return;
             inputField.MoveTextEnd(true);
         }
 
         public void setInteractable(bool interactable)
         {
+            if (inputField == null) return;
             inputField.interactable = interactable;
         }
 
@@ -311,15 +360,270 @@ namespace LLMUnitySamples
 
         public void ActivateInputField()
         {
+            if (inputField == null || !inputFieldObject.activeSelf) return;
             inputField.ActivateInputField();
             FixCaretSorting();
         }
 
         public void ReActivateInputField()
         {
+            if (inputField == null || !inputFieldObject.activeSelf) return;
             inputField.DeactivateInputField();
             inputField.Select();
             inputField.ActivateInputField();
+        }
+
+        void CreateVoiceInputButtons(RectTransform bubbleRectTransform)
+        {
+            // 创建语音输入按钮（麦克风图标）- 移除Canvas，使用父Canvas
+            voiceInputButton = new GameObject("VoiceInputButton", typeof(RectTransform), typeof(Image), typeof(Button));
+            voiceInputButton.transform.SetParent(bubbleObject.transform, false);
+            RectTransform voiceButtonRect = voiceInputButton.GetComponent<RectTransform>();
+            if (voiceButtonRect != null)
+            {
+                voiceButtonRect.anchorMin = new Vector2(1f, 0.5f);
+                voiceButtonRect.anchorMax = new Vector2(1f, 0.5f);
+                voiceButtonRect.pivot = new Vector2(1f, 0.5f);
+                voiceButtonRect.sizeDelta = new Vector2(60f, 60f);
+                voiceButtonRect.anchoredPosition = new Vector2(-6f, 0f);
+                voiceButtonRect.localScale = Vector3.one;
+            }
+            
+            Image voiceButtonImage = voiceInputButton.GetComponent<Image>();
+            if (voiceButtonImage != null)
+            {
+                // 如果没有sprite，使用Unity默认的白色sprite
+                if (voiceButtonImage.sprite == null)
+                {
+                    if (defaultButtonSprite == null)
+                    {
+                        defaultButtonSprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
+                    }
+                    voiceButtonImage.sprite = defaultButtonSprite;
+                }
+                voiceButtonImage.color = new Color(0.8f, 0.8f, 0.8f, 1f);
+                voiceButtonImage.raycastTarget = true; // 确保可以接收射线检测
+                voiceButtonImage.type = UnityEngine.UI.Image.Type.Simple;
+            }
+            
+            // 添加文本标签
+            GameObject voiceTextObj = new GameObject("VoiceText", typeof(RectTransform), typeof(Text));
+            voiceTextObj.transform.SetParent(voiceInputButton.transform, false);
+            RectTransform voiceTextRect = voiceTextObj.GetComponent<RectTransform>();
+            if (voiceTextRect != null)
+            {
+                voiceTextRect.anchorMin = Vector2.zero;
+                voiceTextRect.anchorMax = Vector2.one;
+                voiceTextRect.sizeDelta = Vector2.zero;
+                voiceTextRect.anchoredPosition = Vector2.zero;
+            }
+            Text voiceText = voiceTextObj.GetComponent<Text>();
+            if (voiceText != null)
+            {
+                voiceText.text = ">)))";
+                voiceText.fontSize = 24;
+                voiceText.color = Color.white;
+                voiceText.alignment = TextAnchor.MiddleCenter;
+                voiceText.raycastTarget = false; // 文本不拦截点击，让按钮处理
+                if (bubbleUI.font != null) voiceText.font = bubbleUI.font;
+            }
+            
+            voiceButtonComponent = voiceInputButton.GetComponent<Button>();
+            if (voiceButtonComponent != null)
+            {
+                voiceButtonComponent.interactable = true;
+                // 确保按钮的targetGraphic设置正确
+                if (voiceButtonComponent.targetGraphic == null)
+                {
+                    voiceButtonComponent.targetGraphic = voiceButtonImage;
+                }
+                // 设置按钮的transition类型
+                voiceButtonComponent.transition = Selectable.Transition.ColorTint;
+            }
+            
+            // 确保按钮在正确的层级（通过设置SiblingIndex，放在最后以确保在最上层）
+            voiceInputButton.transform.SetAsLastSibling();
+
+            // 创建键盘按钮（初始隐藏）- 移除Canvas，使用父Canvas
+            keyboardButton = new GameObject("KeyboardButton", typeof(RectTransform), typeof(Image), typeof(Button));
+            keyboardButton.transform.SetParent(bubbleObject.transform, false);
+            RectTransform keyboardButtonRect = keyboardButton.GetComponent<RectTransform>();
+            if (keyboardButtonRect != null)
+            {
+                keyboardButtonRect.anchorMin = new Vector2(1f, 0.5f);
+                keyboardButtonRect.anchorMax = new Vector2(1f, 0.5f);
+                keyboardButtonRect.pivot = new Vector2(1f, 0.5f);
+                keyboardButtonRect.sizeDelta = new Vector2(60f, 60f);
+                keyboardButtonRect.anchoredPosition = new Vector2(-6f, 0f);
+                keyboardButtonRect.localScale = Vector3.one;
+            }
+            
+            Image keyboardButtonImage = keyboardButton.GetComponent<Image>();
+            if (keyboardButtonImage != null)
+            {
+                keyboardButtonImage.color = new Color(0.8f, 0.8f, 0.8f, 1f);
+                keyboardButtonImage.raycastTarget = true;
+            }
+            
+            // 添加文本标签
+            GameObject keyboardTextObj = new GameObject("KeyboardText", typeof(RectTransform), typeof(Text));
+            keyboardTextObj.transform.SetParent(keyboardButton.transform, false);
+            RectTransform keyboardTextRect = keyboardTextObj.GetComponent<RectTransform>();
+            if (keyboardTextRect != null)
+            {
+                keyboardTextRect.anchorMin = Vector2.zero;
+                keyboardTextRect.anchorMax = Vector2.one;
+                keyboardTextRect.sizeDelta = Vector2.zero;
+                keyboardTextRect.anchoredPosition = Vector2.zero;
+            }
+            Text keyboardText = keyboardTextObj.GetComponent<Text>();
+            if (keyboardText != null)
+            {
+                keyboardText.text = "⌨";
+                keyboardText.fontSize = 24;
+                keyboardText.color = Color.white;
+                keyboardText.alignment = TextAnchor.MiddleCenter;
+                keyboardText.raycastTarget = false; // 文本不拦截点击
+                if (bubbleUI.font != null) keyboardText.font = bubbleUI.font;
+            }
+            
+            keyboardButtonComponent = keyboardButton.GetComponent<Button>();
+            if (keyboardButtonComponent != null)
+            {
+                keyboardButtonComponent.interactable = true;
+            }
+            
+            keyboardButton.SetActive(false);
+
+            // 创建按住说话按钮（初始隐藏）- 移除Canvas，使用父Canvas
+            holdToSpeakButton = new GameObject("HoldToSpeakButton", typeof(RectTransform), typeof(Image), typeof(Button));
+            holdToSpeakButton.transform.SetParent(bubbleObject.transform, false);
+            RectTransform holdButtonRect = holdToSpeakButton.GetComponent<RectTransform>();
+            if (holdButtonRect != null)
+            {
+                holdButtonRect.anchorMin = new Vector2(0f, 0.5f);
+                holdButtonRect.anchorMax = new Vector2(0f, 0.5f);
+                holdButtonRect.pivot = new Vector2(0f, 0.5f);
+                holdButtonRect.sizeDelta = new Vector2(280f, 60f);
+                holdButtonRect.anchoredPosition = new Vector2(0f, 0f);
+                holdButtonRect.localScale = Vector3.one;
+            }
+            
+            Image holdButtonImage = holdToSpeakButton.GetComponent<Image>();
+            if (holdButtonImage != null)
+            {
+                holdButtonImage.color = new Color(0.2f, 0.6f, 0.9f, 1f);
+                holdButtonImage.raycastTarget = true;
+            }
+            
+            // 创建文本子对象
+            GameObject holdButtonTextObj = new GameObject("HoldButtonText", typeof(RectTransform), typeof(Text));
+            holdButtonTextObj.transform.SetParent(holdToSpeakButton.transform, false);
+            RectTransform holdButtonTextRect = holdButtonTextObj.GetComponent<RectTransform>();
+            if (holdButtonTextRect != null)
+            {
+                holdButtonTextRect.anchorMin = Vector2.zero;
+                holdButtonTextRect.anchorMax = Vector2.one;
+                holdButtonTextRect.sizeDelta = Vector2.zero;
+                holdButtonTextRect.anchoredPosition = Vector2.zero;
+            }
+            
+            Text holdButtonText = holdButtonTextObj.GetComponent<Text>();
+            if (holdButtonText != null)
+            {
+                holdButtonText.text = "按住说话";
+                holdButtonText.fontSize = 24;
+                holdButtonText.color = Color.white;
+                holdButtonText.alignment = TextAnchor.MiddleCenter;
+                holdButtonText.raycastTarget = false; // 文本不拦截点击
+                if (bubbleUI.font != null) holdButtonText.font = bubbleUI.font;
+            }
+            
+            holdToSpeakButtonComponent = holdToSpeakButton.GetComponent<Button>();
+            if (holdToSpeakButtonComponent != null)
+            {
+                holdToSpeakButtonComponent.interactable = true;
+            }
+            
+            holdToSpeakButton.SetActive(false);
+        }
+
+        public void SetVoiceMode(bool voiceMode)
+        {
+            isVoiceMode = voiceMode;
+            if (voiceMode)
+            {
+                if (voiceInputButton != null) voiceInputButton.SetActive(false);
+                if (keyboardButton != null) keyboardButton.SetActive(true);
+                if (holdToSpeakButton != null) holdToSpeakButton.SetActive(true);
+                if (inputFieldObject != null) inputFieldObject.SetActive(false);
+            }
+            else
+            {
+                if (voiceInputButton != null) voiceInputButton.SetActive(true);
+                if (keyboardButton != null) keyboardButton.SetActive(false);
+                if (holdToSpeakButton != null) holdToSpeakButton.SetActive(false);
+                if (inputFieldObject != null) inputFieldObject.SetActive(true);
+            }
+        }
+
+        public Button GetVoiceInputButton()
+        {
+            return voiceButtonComponent;
+        }
+
+        public Button GetKeyboardButton()
+        {
+            return keyboardButtonComponent;
+        }
+
+        public Button GetHoldToSpeakButton()
+        {
+            return holdToSpeakButtonComponent;
+        }
+
+        public bool IsVoiceMode()
+        {
+            return isVoiceMode;
+        }
+
+        public void UpdateHoldButtonCancelState(bool isCancelling)
+        {
+            if (holdToSpeakButton == null) return;
+
+            Image holdButtonImage = holdToSpeakButton.GetComponent<Image>();
+            if (holdButtonImage != null)
+            {
+                holdButtonImage.color = isCancelling
+                    ? new Color(0.8f, 0.2f, 0.2f, 1f)   // 取消状态：红色
+                    : new Color(0.2f, 0.6f, 0.9f, 1f);  // 正常状态：蓝色
+            }
+
+            Text holdButtonText = holdToSpeakButton.GetComponentInChildren<Text>();
+            if (holdButtonText != null)
+            {
+                holdButtonText.text = isCancelling ? "松开取消" : "按住说话";
+            }
+        }
+        public void UpdateHoldButtonState(bool isRecording)
+        {
+            if (holdToSpeakButton == null) return;
+
+            // 更新按钮颜色
+            Image holdButtonImage = holdToSpeakButton.GetComponent<Image>();
+            if (holdButtonImage != null)
+            {
+                holdButtonImage.color = isRecording 
+                    ? new Color(0.2f, 0.9f, 0.2f, 1f)  // 录制中：绿色
+                    : new Color(0.2f, 0.6f, 0.9f, 1f);  // 未录制：蓝色
+            }
+
+            // 更新按钮文本
+            Text holdButtonText = holdToSpeakButton.GetComponentInChildren<Text>();
+            if (holdButtonText != null)
+            {
+                holdButtonText.text = isRecording ? "正在录音..." : "按住说话";
+            }
         }
     }
 

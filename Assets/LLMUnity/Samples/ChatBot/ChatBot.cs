@@ -5,6 +5,10 @@ using LLMUnity;
 using UnityEngine.UI;
 using System.Collections;
 using System.Linq;
+using System;
+using System.Text;
+using UnityEngine.Networking;
+using UnityEngine.EventSystems;
 
 namespace LLMUnitySamples
 {
@@ -84,6 +88,19 @@ namespace LLMUnitySamples
 
         public SmartWindowsTTS smartWindowsTTS;
 
+        // 语音录制相关
+        private AudioClip recordingClip;
+        private string microphoneDevice;
+        private bool isRecording = false;
+        private const int sampleRate = 16000;
+        private const int maxRecordingLength = 60; // 最大录制60秒
+        private const string whisperApiUrl = "http://192.168.8.88:8001/v1/audio/transcriptions";
+        private const string whisperModel = "whisper-small";
+        // 按住说话拖动取消相关
+        private bool isCancellingRecording = false;
+        private Vector2 holdButtonDownPosition;
+        private const float cancelDragThreshold = 80f; // 上滑超过该像素视为取消
+
         void Start()
         {
             avatarAnimator = GetComponent<Animator>();
@@ -125,14 +142,76 @@ namespace LLMUnitySamples
 
             Transform inputParent = inputContainer != null ? inputContainer : chatContainer;
 
-            inputBubble = new InputBubble(inputParent, playerUI, "InputBubble", "Loading...", 4);
+            inputBubble = new InputBubble(inputParent, playerUI, "InputBubble", "加载中...", 4);
             inputBubble.AddSubmitListener(onInputFieldSubmit);
             inputBubble.AddValueChangedListener(onValueChanged);
             inputBubble.setInteractable(false);
 
+            // 设置语音输入按钮事件
+            SetupVoiceInputButtons();
+
             ShowLoadedMessages();
             _ = llmCharacter.Warmup(WarmUpCallback);
             FindAvatarSmart();
+        }
+
+        void SetupVoiceInputButtons()
+        {
+            // 语音输入按钮点击事件
+            Button voiceButton = inputBubble.GetVoiceInputButton();
+            if (voiceButton != null)
+            {
+                voiceButton.onClick.AddListener(() => {
+                    Debug.Log("语音输入按钮被点击");
+                    inputBubble.SetVoiceMode(true);
+                });
+            }
+            else
+            {
+                Debug.LogError("语音输入按钮未找到！");
+            }
+
+            // 键盘按钮点击事件
+            Button keyboardButton = inputBubble.GetKeyboardButton();
+            if (keyboardButton != null)
+            {
+                keyboardButton.onClick.AddListener(() => {
+                    inputBubble.SetVoiceMode(false);
+                });
+            }
+
+            // 按住说话按钮事件
+            Button holdButton = inputBubble.GetHoldToSpeakButton();
+            if (holdButton != null)
+            {
+                // 使用EventTrigger来处理按下 / 拖动 / 松开事件
+                UnityEngine.EventSystems.EventTrigger trigger = holdButton.gameObject.GetComponent<UnityEngine.EventSystems.EventTrigger>();
+                if (trigger == null)
+                {
+                    trigger = holdButton.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+                }
+
+                trigger.triggers ??= new System.Collections.Generic.List<UnityEngine.EventSystems.EventTrigger.Entry>();
+                trigger.triggers.Clear();
+
+                // 按下事件 - 开始录制
+                UnityEngine.EventSystems.EventTrigger.Entry pointerDown = new UnityEngine.EventSystems.EventTrigger.Entry();
+                pointerDown.eventID = UnityEngine.EventSystems.EventTriggerType.PointerDown;
+                pointerDown.callback.AddListener((data) => { OnHoldToSpeakDown((UnityEngine.EventSystems.PointerEventData)data); });
+                trigger.triggers.Add(pointerDown);
+
+                // 拖动事件 - 检测上滑取消
+                UnityEngine.EventSystems.EventTrigger.Entry drag = new UnityEngine.EventSystems.EventTrigger.Entry();
+                drag.eventID = UnityEngine.EventSystems.EventTriggerType.Drag;
+                drag.callback.AddListener((data) => { OnHoldToSpeakDrag((UnityEngine.EventSystems.PointerEventData)data); });
+                trigger.triggers.Add(drag);
+
+                // 松开事件 - 根据是否取消决定是否转文字
+                UnityEngine.EventSystems.EventTrigger.Entry pointerUp = new UnityEngine.EventSystems.EventTrigger.Entry();
+                pointerUp.eventID = UnityEngine.EventSystems.EventTriggerType.PointerUp;
+                pointerUp.callback.AddListener((data) => { OnHoldToSpeakUp((UnityEngine.EventSystems.PointerEventData)data); });
+                trigger.triggers.Add(pointerUp);
+            }
         }
 
         void FindAvatarSmart()
@@ -428,14 +507,14 @@ namespace LLMUnitySamples
         public void DebugBubblePositions()
         {
             float containerWidth = chatContainer.GetComponent<RectTransform>().rect.width;
-            Debug.Log($"容器宽度: {containerWidth}");
+            // Debug.Log($"容器宽度: {containerWidth}");
 
             for (int i = 0; i < chatBubbles.Count; i++)
             {
                 Bubble bubble = chatBubbles[i];
                 RectTransform rect = bubble.GetRectTransform();
                 bool isPlayer = bubble.bubbleUI.leftPosition == 1;
-                Debug.Log($"{(isPlayer ? "玩家" : "AI")}气泡 - 位置: {rect.anchoredPosition}, 锚点: {rect.anchorMin}");
+                // Debug.Log($"{(isPlayer ? "玩家" : "AI")}气泡 - 位置: {rect.anchoredPosition}, 锚点: {rect.anchorMin}");
             }
         }
         public void UpdateAllBulesWidth()
@@ -456,7 +535,7 @@ namespace LLMUnitySamples
         {
             RefreshAvatarIfChanged();
 
-            if (!inputBubble.inputFocused() && warmUpDone)
+            if (inputBubble != null && !inputBubble.IsVoiceMode() && !inputBubble.inputFocused() && warmUpDone)
             {
                 inputBubble.ActivateInputField();
                 StartCoroutine(BlockInteraction());
@@ -511,6 +590,249 @@ namespace LLMUnitySamples
             if (autoScrollOnNewMessage && (!respectUserScroll || IsAtBottom()))
             {
                 if (scrollRect != null) scrollRect.verticalNormalizedPosition = 0f;
+            }
+        }
+
+        // 语音录制相关方法
+        void OnHoldToSpeakDown(UnityEngine.EventSystems.PointerEventData eventData)
+        {
+            if (isRecording) return;
+            isCancellingRecording = false;
+            holdButtonDownPosition = eventData.position;
+            StartRecording();
+        }
+
+        void OnHoldToSpeakDrag(UnityEngine.EventSystems.PointerEventData eventData)
+        {
+            if (!isRecording) return;
+
+            float deltaY = eventData.position.y - holdButtonDownPosition.y;
+            bool shouldCancel = deltaY > cancelDragThreshold;
+
+            if (shouldCancel != isCancellingRecording)
+            {
+                isCancellingRecording = shouldCancel;
+                if (inputBubble != null)
+                {
+                    inputBubble.UpdateHoldButtonCancelState(isCancellingRecording);
+                }
+            }
+        }
+
+        void OnHoldToSpeakUp(UnityEngine.EventSystems.PointerEventData eventData)
+        {
+            if (!isRecording) return;
+
+            if (isCancellingRecording)
+            {
+                CancelRecording();
+            }
+            else
+            {
+                StopRecordingAndTranscribe();
+            }
+
+            isCancellingRecording = false;
+            if (inputBubble != null)
+            {
+                inputBubble.UpdateHoldButtonCancelState(false);
+            }
+        }
+
+        void StartRecording()
+        {
+            if (Microphone.devices.Length == 0)
+            {
+                Debug.LogError("没有找到麦克风设备");
+                return;
+            }
+
+            microphoneDevice = Microphone.devices[0];
+            isRecording = true;
+            recordingClip = Microphone.Start(microphoneDevice, false, maxRecordingLength, sampleRate);
+            
+            // 更新按钮视觉状态
+            if (inputBubble != null)
+            {
+                inputBubble.UpdateHoldButtonState(true);
+            }
+            
+            Debug.Log("开始录音...");
+        }
+
+        void CancelRecording()
+        {
+            if (!isRecording || recordingClip == null) return;
+
+            Microphone.End(microphoneDevice);
+            isRecording = false;
+
+            // 恢复按钮视觉状态
+            if (inputBubble != null)
+            {
+                inputBubble.UpdateHoldButtonState(false);
+            }
+
+            Debug.Log("语音输入已取消");
+        }
+
+        void StopRecordingAndTranscribe()
+        {
+            if (!isRecording || recordingClip == null) return;
+
+            int position = Microphone.GetPosition(microphoneDevice);
+            Microphone.End(microphoneDevice);
+            isRecording = false;
+
+            // 更新按钮视觉状态
+            if (inputBubble != null)
+            {
+                inputBubble.UpdateHoldButtonState(false);
+            }
+
+            if (position <= 0)
+            {
+                Debug.LogWarning("录音时间太短，无法转文字");
+                return;
+            }
+
+            // 裁剪音频片段
+            float[] samples = new float[recordingClip.samples * recordingClip.channels];
+            recordingClip.GetData(samples, 0);
+            
+            int clipLength = position * recordingClip.channels;
+            float[] trimmedSamples = new float[clipLength];
+            Array.Copy(samples, trimmedSamples, clipLength);
+
+            AudioClip trimmedClip = AudioClip.Create("RecordedAudio", clipLength / recordingClip.channels, recordingClip.channels, recordingClip.frequency, false);
+            trimmedClip.SetData(trimmedSamples, 0);
+
+            Debug.Log("录音结束，开始转文字...");
+            _ = TranscribeAudio(trimmedClip);
+        }
+
+        async Task TranscribeAudio(AudioClip audioClip)
+        {
+            try
+            {
+                // 将AudioClip转换为WAV格式的字节数组
+                byte[] wavData = AudioClipToWav(audioClip);
+                
+                // 创建表单数据
+                List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
+                formData.Add(new MultipartFormFileSection("file", wavData, "audio.wav", "audio/wav"));
+                formData.Add(new MultipartFormDataSection("model", whisperModel));
+                formData.Add(new MultipartFormDataSection("language", "zh"));
+                // 发送请求
+                using (UnityWebRequest request = UnityWebRequest.Post(whisperApiUrl, formData))
+                {
+                    request.timeout = 30;
+                    var operation = request.SendWebRequest();
+
+                    while (!operation.isDone)
+                    {
+                        await Task.Yield();
+                    }
+
+                    if (request.result == UnityWebRequest.Result.Success)
+                    {
+                        string responseText = request.downloadHandler.text;
+                        Debug.Log($"Whisper API响应: {responseText}");
+                        
+                        // 解析JSON响应
+                        string transcribedText = ParseWhisperResponse(responseText);
+                        if (!string.IsNullOrEmpty(transcribedText))
+                        {
+                            Debug.Log($"转文字结果: {transcribedText}");
+                            // 将转文字的结果设置为输入框文本并发送
+                            inputBubble.SetText(transcribedText);
+                            onInputFieldSubmit(transcribedText);
+                        }
+                        else
+                        {
+                            Debug.LogWarning("转文字结果为空");
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogError($"Whisper API请求失败: {request.error}");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"转文字过程中发生错误: {e.Message}");
+            }
+        }
+
+        byte[] AudioClipToWav(AudioClip clip)
+        {
+            float[] samples = new float[clip.samples * clip.channels];
+            clip.GetData(samples, 0);
+
+            // 转换为16位PCM
+            short[] intData = new short[samples.Length];
+            for (int i = 0; i < samples.Length; i++)
+            {
+                intData[i] = (short)(samples[i] * 32767);
+            }
+
+            // 创建WAV文件头
+            int hz = clip.frequency;
+            int channels = clip.channels;
+            int samplesCount = clip.samples;
+            int sampleRate = hz;
+
+            using (System.IO.MemoryStream stream = new System.IO.MemoryStream())
+            {
+                using (System.IO.BinaryWriter writer = new System.IO.BinaryWriter(stream))
+                {
+                    // WAV文件头
+                    writer.Write(Encoding.ASCII.GetBytes("RIFF"));
+                    writer.Write(36 + intData.Length * 2);
+                    writer.Write(Encoding.ASCII.GetBytes("WAVE"));
+                    writer.Write(Encoding.ASCII.GetBytes("fmt "));
+                    writer.Write(16);
+                    writer.Write((ushort)1);
+                    writer.Write((ushort)channels);
+                    writer.Write(sampleRate);
+                    writer.Write(sampleRate * channels * 2);
+                    writer.Write((ushort)(channels * 2));
+                    writer.Write((ushort)16);
+                    writer.Write(Encoding.ASCII.GetBytes("data"));
+                    writer.Write(intData.Length * 2);
+                    foreach (short sample in intData)
+                    {
+                        writer.Write(sample);
+                    }
+                }
+                return stream.ToArray();
+            }
+        }
+
+        string ParseWhisperResponse(string jsonResponse)
+        {
+            try
+            {
+                // 简单的JSON解析，查找"text"字段
+                int textIndex = jsonResponse.IndexOf("\"text\"");
+                if (textIndex == -1) return "";
+
+                int colonIndex = jsonResponse.IndexOf(":", textIndex);
+                if (colonIndex == -1) return "";
+
+                int quoteStart = jsonResponse.IndexOf("\"", colonIndex);
+                if (quoteStart == -1) return "";
+
+                int quoteEnd = jsonResponse.IndexOf("\"", quoteStart + 1);
+                if (quoteEnd == -1) return "";
+
+                return jsonResponse.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"解析Whisper响应失败: {e.Message}");
+                return "";
             }
         }
 
