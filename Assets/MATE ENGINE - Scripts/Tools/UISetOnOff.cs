@@ -13,12 +13,17 @@ public class UISetOnOff : MonoBehaviour
     public DropdownManager option;
 
     private bool isPlayingSequence = false; // 防止重复执行
+    private int currentPageIndex = 0; // 当前播放的页面索引
+    private Coroutine presentationCoroutine; // 当前演示协程的引用
 
     // 存储从JSON读取的描述文字
     private string[] presentationDescriptions;
 
     // JSON文件路径
     private string jsonConfigPath = "test.json";
+
+    // 新增：用于存储每页的恢复时间
+    private Dictionary<int, float> pageResumeTimes = new Dictionary<int, float>();
 
     public void ToggleTarget()
     {
@@ -52,48 +57,231 @@ public class UISetOnOff : MonoBehaviour
 
     public void ToggleBubbleFeature()
     {
-        if (isPlayingSequence)
+        count++;
+        Debug.Log($"Macaroon按钮被点击了! 点击次数: {count}");
+
+        if (isPlayingSequence && count % 2 == 1)
         {
             Debug.LogWarning("⚠ 演示正在进行中，请等待完成");
+            count--; // 恢复计数
             return;
         }
 
-        count++;
-        Debug.Log("Macaroon按钮被点击了!");
-
-        /*foreach (var handler in AvatarBubbleHandler.ActiveHandlers)
-            handler.ToggleBubbleFromUI();*/
-
         if (count % 2 == 1)
         {
-            // 先加载JSON配置
-            if (LoadAndSetPPTInfoFromJson())
+            // 奇数次点击：开始播放或继续播放
+            if (count == 1)
             {
-                // count是1开始播放PPT
-                if (pptController != null)
+                // 第一次点击：开始播放
+                Debug.Log("🎬 第一次点击 - 开始播放演示");
+                if (LoadAndSetPPTInfoFromJson())
                 {
-                    Debug.Log("开始打开 PPT...");
-                    pptController.OpenPPT();
-
-                    // 使用协程而不是Thread.Sleep
-                    StartCoroutine(PlayPresentationSequence());
+                    if (pptController != null)
+                    {
+                        Debug.Log("开始打开 PPT...");
+                        pptController.OpenPPT();
+                        currentPageIndex = 0; // 重置页面索引
+                        presentationCoroutine = StartCoroutine(PlayPresentationSequence());
+                    }
+                    else
+                    {
+                        Debug.LogWarning("pptController 未绑定！无法播放 PPT！");
+                        count--; // 恢复计数
+                    }
                 }
                 else
                 {
-                    Debug.LogWarning("pptController 未绑定！无法播放 PPT！");
+                    Debug.LogError("❌ 加载PPT信息失败，无法播放");
+                    count--; // 恢复计数
                 }
             }
             else
             {
-                Debug.LogError("❌ 加载PPT信息失败，无法播放");
+                // 其他奇数次点击：继续播放
+                Debug.Log("▶️ 继续播放演示");
+                presentationCoroutine = StartCoroutine(ResumePresentationSequence());
             }
         }
         else
         {
-            // TODO count不是奇数暂停播放
-            // pptController.PausePPT();
-            windowsTTS.StopSpeaking();
+            // 偶数次点击：暂停播放
+            Debug.Log("⏸️ 暂停播放演示");
+            PausePresentation();
         }
+    }
+
+    /// <summary>
+    /// 暂停演示播放
+    /// </summary>
+    private void PausePresentation()
+    {
+        // 停止演示协程
+        if (presentationCoroutine != null)
+        {
+            StopCoroutine(presentationCoroutine);
+            presentationCoroutine = null;
+        }
+
+        // 暂停语音播放并记录当前位置
+        if (windowsTTS != null && windowsTTS.IsSpeaking())
+        {
+            // 保存当前页面的播放位置
+            float currentTime = windowsTTS.PauseSpeaking();
+            pageResumeTimes[currentPageIndex] = currentTime;
+            Debug.Log($"⏸️ 保存第 {currentPageIndex + 1} 页播放位置: {currentTime:F2}s");
+        }
+
+        // 暂停PPT播放（使用黑屏而不是空格键，避免翻页）
+        /*if (pptController != null)
+        {
+            pptController.PausePPT();
+        }*/
+
+        isPlayingSequence = false;
+        Debug.Log("⏸️ 演示已暂停");
+    }
+
+    /// <summary>
+    /// 继续播放演示序列
+    /// </summary>
+    private IEnumerator ResumePresentationSequence()
+    {
+        if (isPlayingSequence)
+        {
+            Debug.LogWarning("⚠ 演示已经在播放中");
+            yield break;
+        }
+
+        isPlayingSequence = true;
+        Debug.Log("▶️ 继续播放演示序列");
+
+        // 恢复PPT播放
+        /*if (pptController != null)
+        {
+            pptController.ResumePPT();
+            yield return new WaitForSeconds(1f); // 等待PPT恢复
+        }*/
+
+        // 确定要播放的描述数组
+        string[] descriptionsToUse = presentationDescriptions;
+        int totalPages = descriptionsToUse.Length;
+
+        if (totalPages == 0)
+        {
+            Debug.LogError("❌ 没有可用的描述文字，停止播放");
+            isPlayingSequence = false;
+            yield break;
+        }
+
+        // 检查PPT是否还在运行
+        if (pptController != null && !pptController.IsPPTOpen())
+        {
+            Debug.LogWarning("⚠ PPT已关闭，重新打开");
+            pptController.OpenPPT();
+            yield return new WaitForSeconds(3f); // 等待PPT重新打开
+        }
+
+        // 从当前页面开始继续播放
+        if (windowsTTS != null && windowsTTS.IsAvailable())
+        {
+            for (int i = currentPageIndex; i < totalPages; i++)
+            {
+                // 检查是否被暂停
+                if (!isPlayingSequence)
+                {
+                    Debug.Log("⏸️ 演示被暂停，停止播放");
+                    yield break;
+                }
+
+                currentPageIndex = i;
+                Debug.Log($"🔢 播放第 {i + 1} 页");
+
+                string description = descriptionsToUse[i];
+                Debug.Log($"📝 描述内容: {description}");
+
+                // 检查是否有保存的恢复时间
+                bool hasResumeTime = pageResumeTimes.ContainsKey(i);
+                float resumeTime = hasResumeTime ? pageResumeTimes[i] : 0f;
+
+                if (hasResumeTime)
+                {
+                    Debug.Log($"▶️ 从保存的位置恢复播放: {resumeTime:F2}s");
+                }
+
+                // 协程同步播放描述文字（等待播放完成）
+                yield return StartCoroutine(SpeakWithResume(description, resumeTime));
+
+                // 如果成功播放完成，移除恢复时间记录
+                if (hasResumeTime && isPlayingSequence)
+                {
+                    pageResumeTimes.Remove(i);
+                }
+
+                // 检查播放是否被暂停
+                if (!isPlayingSequence)
+                {
+                    Debug.Log($"⏸️ 第 {i + 1} 页播放被暂停");
+                    yield break;
+                }
+
+                Debug.Log($"✅ 第 {i + 1} 页描述播放完成");
+
+                // 额外等待0.5秒确保完全结束
+                yield return new WaitForSeconds(0.5f);
+
+                // 检查是否被暂停
+                if (!isPlayingSequence)
+                {
+                    Debug.Log("⏸️ 演示被暂停，停止播放");
+                    yield break;
+                }
+
+                // 切换到下一页（最后一页不切换）
+                if (i < totalPages - 1)
+                {
+                    if (pptController != null)
+                    {
+                        pptController.NextSlide();
+                        Debug.Log("➡ 切换到下一页");
+                    }
+
+                    // 等待1秒让翻页完成
+                    yield return new WaitForSeconds(1f);
+                }
+                else
+                {
+                    // 播放完成，重置状态
+                    currentPageIndex = 0;
+                    count = 0;
+                    pageResumeTimes.Clear();
+                    Debug.Log("🎉 所有页面播放完成");
+                }
+            }
+        }
+        else
+        {
+            Debug.LogWarning("⚠ TTS 不可用，跳过语音提示");
+
+            // 即使没有TTS，也自动翻页
+            for (int i = currentPageIndex; i < totalPages; i++)
+            {
+                if (!isPlayingSequence)
+                {
+                    Debug.Log("⏸️ 演示被暂停，停止播放");
+                    yield break;
+                }
+
+                if (pptController != null)
+                {
+                    pptController.NextSlide();
+                    Debug.Log($"➡ 切换到第 {i + 1} 页");
+                }
+                yield return new WaitForSeconds(2f); // 每页停留2秒
+            }
+        }
+
+        isPlayingSequence = false;
+        Debug.Log("🎉 演示序列播放完成");
     }
 
     /// <summary>
@@ -124,6 +312,14 @@ public class UISetOnOff : MonoBehaviour
         {
             for (int i = 0; i < totalPages; i++)
             {
+                // 检查是否被暂停
+                if (!isPlayingSequence)
+                {
+                    Debug.Log("⏸️ 演示被暂停，停止播放");
+                    yield break;
+                }
+
+                currentPageIndex = i;
                 Debug.Log($"🔢 播放第 {i + 1} 页");
 
                 // 使用 presentationDescriptions 数组中的描述文字
@@ -131,30 +327,46 @@ public class UISetOnOff : MonoBehaviour
                 Debug.Log($"📝 描述内容: {description}");
 
                 // 协程同步播放描述文字（等待播放完成）
-                yield return StartCoroutine(windowsTTS.SpeakCoroutine(description));
-                bool speakSuccess = true; // 如果协程没有失败，认为成功
+                yield return StartCoroutine(SpeakWithResume(description, 0f));
 
-                if (speakSuccess)
+                // 检查播放是否被暂停
+                if (!isPlayingSequence)
                 {
-                    Debug.Log($"✅ 第 {i + 1} 页描述播放完成");
+                    Debug.Log($"⏸️ 第 {i + 1} 页播放被暂停");
+                    yield break;
+                }
 
-                    // 等待1秒
-                    yield return new WaitForSeconds(1f);
+                Debug.Log($"✅ 第 {i + 1} 页描述播放完成");
 
-                    // 切换到下一页（最后一页不切换）
-                    if (i < totalPages - 1)
+                // 额外等待0.5秒确保完全结束
+                yield return new WaitForSeconds(0.5f);
+
+                // 检查是否被暂停
+                if (!isPlayingSequence)
+                {
+                    Debug.Log("⏸️ 演示被暂停，停止播放");
+                    yield break;
+                }
+
+                // 切换到下一页（最后一页不切换）
+                if (i < totalPages - 1)
+                {
+                    if (pptController != null)
                     {
                         pptController.NextSlide();
                         Debug.Log("➡ 切换到下一页");
 
-                        // 等待1秒让翻页完成
+                        // 等待翻页完成
                         yield return new WaitForSeconds(1f);
                     }
                 }
                 else
                 {
-                    Debug.LogError($"❌ 第 {i + 1} 页描述播放失败，停止序列");
-                    break;
+                    // 播放完成，重置状态
+                    currentPageIndex = 0;
+                    count = 0;
+                    pageResumeTimes.Clear();
+                    Debug.Log("🎉 所有页面播放完成");
                 }
             }
         }
@@ -165,9 +377,18 @@ public class UISetOnOff : MonoBehaviour
             // 即使没有TTS，也自动翻页
             for (int i = 0; i < totalPages; i++)
             {
-                pptController.NextSlide();
-                Debug.Log($"➡ 切换到第 {i + 1} 页");
-                yield return new WaitForSeconds(2f); // 每页停留2秒
+                if (!isPlayingSequence)
+                {
+                    Debug.Log("⏸️ 演示被暂停，停止播放");
+                    yield break;
+                }
+
+                if (pptController != null)
+                {
+                    pptController.NextSlide();
+                    Debug.Log($"➡ 切换到第 {i + 1} 页");
+                }
+                yield return new WaitForSeconds(3f); // 每页停留3秒
             }
         }
 
@@ -176,99 +397,87 @@ public class UISetOnOff : MonoBehaviour
     }
 
     /// <summary>
-    /// 使用异步TTS的版本（推荐）- 使用 presentationDescriptions 数组
+    /// 说话并支持从指定位置恢复，并等待播放完成
     /// </summary>
-    private IEnumerator PlayPresentationSequenceAsync()
+    private IEnumerator SpeakWithResume(string text, float resumeTime)
     {
-        isPlayingSequence = true;
-        Debug.Log("🎬 开始异步播放演示序列");
-
-        // 等待PPT打开
-        yield return new WaitForSeconds(5f);
-
-        // 确定要播放的描述数组
-        string[] descriptionsToUse = presentationDescriptions;
-        int totalPages = descriptionsToUse.Length;
-
-        if (totalPages == 0)
+        if (windowsTTS == null || !windowsTTS.IsAvailable())
         {
-            Debug.LogError("❌ 没有可用的描述文字，停止播放");
-            isPlayingSequence = false;
             yield break;
         }
 
-        if (windowsTTS != null && windowsTTS.IsAvailable())
-        {
-            for (int i = 0; i < totalPages; i++)
-            {
-                Debug.Log($"🔢 播放第 {i + 1} 页");
-
-                // 使用 presentationDescriptions 数组中的描述文字
-                string description = descriptionsToUse[i];
-
-                // 使用异步TTS播放（不会阻塞主线程）
-                yield return StartCoroutine(SpeakAndWait(description));
-
-                // 等待1秒
-                yield return new WaitForSeconds(1f);
-
-                // 切换到下一页（最后一页不切换）
-                if (i < totalPages - 1)
-                {
-                    pptController.NextSlide();
-                    Debug.Log("➡ 切换到下一页");
-
-                    // 等待1秒让翻页完成
-                    yield return new WaitForSeconds(1f);
-                }
-            }
-        }
-        else
-        {
-            Debug.LogWarning("⚠ TTS 不可用，跳过语音提示");
-
-            // 简单的自动翻页
-            for (int i = 0; i < totalPages; i++)
-            {
-                pptController.NextSlide();
-                Debug.Log($"➡ 切换到第 {i + 1} 页");
-                yield return new WaitForSeconds(2f);
-            }
-        }
-
-        isPlayingSequence = false;
-        Debug.Log("🎉 异步演示序列播放完成");
-    }
-
-    /// <summary>
-    /// 异步说话并等待完成的协程
-    /// </summary>
-    private IEnumerator SpeakAndWait(string text)
-    {
         bool speakCompleted = false;
         bool speakSuccess = false;
 
-        // 开始异步播放
-        windowsTTS.SpeakAsync(text, (success) => {
+        // 使用音频缓存的 Speak 方法
+        StartCoroutine(windowsTTS.Speak(text, (success) => {
             speakCompleted = true;
             speakSuccess = success;
-        });
+        }));
 
-        Debug.Log($"🗣️ 开始朗读: {text}");
-
-        // 等待语音播放完成
-        while (!speakCompleted)
+        // 等待说话开始
+        float waitStartTime = Time.time;
+        while (!speakCompleted && Time.time - waitStartTime < 5f) // 5秒超时
         {
-            yield return null; // 每帧检查一次
+            if (windowsTTS.IsSpeaking())
+            {
+                break; // 已经开始播放，跳出等待
+            }
+            yield return null;
         }
 
-        if (speakSuccess)
+        // 如果说话没有开始，直接返回
+        if (!windowsTTS.IsSpeaking())
         {
-            Debug.Log($"✅ 朗读完成: {text}");
+            Debug.LogError($"❌ 说话未能开始: {text}");
+            yield break;
+        }
+
+        Debug.Log($"▶️ 开始播放语音，等待完成...");
+
+        // 关键修改：等待语音播放完成
+        yield return StartCoroutine(WaitForSpeechComplete(text));
+
+        Debug.Log($"✅ 语音播放完成: {text}");
+    }
+
+    /// <summary>
+    /// 等待语音播放完成（新增方法）
+    /// </summary>
+    private IEnumerator WaitForSpeechComplete(string text)
+    {
+        if (windowsTTS == null) yield break;
+
+        float startWaitTime = Time.time;
+        float maxWaitTime = windowsTTS.EstimateSpeechDuration(text) + 10f; // 预估时间+10秒缓冲
+
+        while (windowsTTS.IsSpeaking() && (Time.time - startWaitTime) < maxWaitTime)
+        {
+            // 检查是否被暂停
+            if (!isPlayingSequence)
+            {
+                Debug.Log("⏸️ 播放被暂停，停止等待");
+                yield break;
+            }
+
+            // 显示播放进度（可选）
+            float progress = windowsTTS.GetPlaybackProgress();
+            if (Time.frameCount % 60 == 0) // 每60帧打印一次进度
+            {
+                Debug.Log($"📊 播放进度: {progress:P1}");
+            }
+
+            yield return null;
+        }
+
+        // 检查是否超时
+        if (windowsTTS.IsSpeaking())
+        {
+            Debug.LogWarning($"⚠️ 语音播放可能未正常结束，强制继续: {text}");
         }
         else
         {
-            Debug.LogError($"❌ 朗读失败: {text}");
+            Debug.Log($"✅ 确认语音播放完成: {text}");
         }
     }
 
@@ -277,13 +486,50 @@ public class UISetOnOff : MonoBehaviour
     /// </summary>
     public void StopPresentation()
     {
-        StopAllCoroutines();
+        // 停止演示协程
+        if (presentationCoroutine != null)
+        {
+            StopCoroutine(presentationCoroutine);
+            presentationCoroutine = null;
+        }
+
         isPlayingSequence = false;
+        currentPageIndex = 0;
+        count = 0;
+        pageResumeTimes.Clear();
 
         if (windowsTTS != null)
             windowsTTS.StopSpeaking();
 
+        if (pptController != null)
+            pptController.ExitSlideShow();
+
         Debug.Log("⏹️ 停止演示播放");
+    }
+
+    /// <summary>
+    /// 重置播放状态（用于重新开始）
+    /// </summary>
+    public void ResetPlayback()
+    {
+        // 停止演示协程
+        if (presentationCoroutine != null)
+        {
+            StopCoroutine(presentationCoroutine);
+            presentationCoroutine = null;
+        }
+
+        isPlayingSequence = false;
+        currentPageIndex = 0;
+        count = 0;
+        pageResumeTimes.Clear();
+
+        if (windowsTTS != null)
+        {
+            windowsTTS.StopSpeaking();
+        }
+
+        Debug.Log("🔄 播放状态已重置");
     }
 
     public void UnsnapAllAvatars()
@@ -348,8 +594,6 @@ public class UISetOnOff : MonoBehaviour
         try
         {
             // 查找JSON文件路径
-            //option = GameObject.Find("Dropdown").GetComponent<DropdownManager>();
-            //print("option:"+option.GetCurrentOptionText());
             jsonConfigPath = Path.ChangeExtension(option.GetCurrentOptionText(), ".json");
             string jsonFilePath = FindJsonFilePath();
 
@@ -439,5 +683,41 @@ public class UISetOnOff : MonoBehaviour
             return "描述文字不存在";
         }
         return presentationDescriptions[index];
+    }
+
+    /// <summary>
+    /// 获取当前播放状态
+    /// </summary>
+    public string GetPlaybackStatus()
+    {
+        if (!isPlayingSequence)
+        {
+            return count == 0 ? "未开始" : "已暂停";
+        }
+        return $"播放中 - 第 {currentPageIndex + 1} 页";
+    }
+
+    /// <summary>
+    /// 获取当前播放进度
+    /// </summary>
+    public float GetCurrentPlaybackProgress()
+    {
+        if (windowsTTS != null && isPlayingSequence)
+        {
+            return windowsTTS.GetPlaybackProgress();
+        }
+        return 0f;
+    }
+
+    /// <summary>
+    /// 获取当前播放的文本
+    /// </summary>
+    public string GetCurrentPlayingText()
+    {
+        if (windowsTTS != null)
+        {
+            return windowsTTS.GetCurrentText();
+        }
+        return null;
     }
 }

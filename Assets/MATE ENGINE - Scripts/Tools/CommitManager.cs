@@ -6,6 +6,7 @@ using System;
 using TMPro;
 using UnityEngine.UI;
 using System.IO;
+using Newtonsoft.Json;
 
 public class CommitManager : MonoBehaviour
 {
@@ -13,9 +14,15 @@ public class CommitManager : MonoBehaviour
     public string text = "";
     [SerializeField]
     private InputField inputField;
+    //[SerializeField]
+    //private TextMeshProUGUI filePathObj;
+
     [SerializeField]
-    private TextMeshProUGUI filePathObj;
-    public string filePath;
+    private DropdownManager dropdown;
+    public string filePath = "";
+    public string fileName = "";
+    public string jsonConfigPath = "";
+    public PPTInfo pptInfo;
 
     // Windows API 导入
     [DllImport("user32.dll")]
@@ -39,6 +46,23 @@ public class CommitManager : MonoBehaviour
 
     public void Start()
     {
+        fileName = dropdown.GetCurrentOptionText();
+        jsonConfigPath = Path.ChangeExtension(fileName,".json");
+        string jsonFilePath = FindJsonFilePath();
+        string jsonContent = File.ReadAllText(jsonFilePath);
+        pptInfo = JsonUtility.FromJson<PPTInfo>(jsonContent);
+        filePath = pptInfo.file_path;
+        // 将desc数组用换行符连接并放入InputField
+        if (pptInfo.desc != null && pptInfo.desc.Length > 0)
+        {
+            // 使用 Environment.NewLine 作为换行符（跨平台兼容）
+            string descText = string.Join(Environment.NewLine, pptInfo.desc);
+            inputField.text = descText;
+        }
+        else
+        {
+            inputField.text = ""; // 如果没有desc内容，清空输入框
+        }
         FindAndSetupInputField();
         EnsureUnityWindowOnTop(); // 启动时确保Unity窗口在前台
     }
@@ -87,7 +111,34 @@ public class CommitManager : MonoBehaviour
 
     public void Update()
     {
-        filePath = filePathObj.text;
+        if(fileName != dropdown.GetCurrentOptionText())
+        {
+            fileName = dropdown.GetCurrentOptionText();
+            try
+            {
+                jsonConfigPath = Path.ChangeExtension(fileName, ".json");
+                string jsonFilePath = FindJsonFilePath();
+                string jsonContent = File.ReadAllText(jsonFilePath);
+                pptInfo = JsonUtility.FromJson<PPTInfo>(jsonContent);
+                filePath = pptInfo.file_path;
+                // 将desc数组用换行符连接并放入InputField
+                if (pptInfo.desc != null && pptInfo.desc.Length > 0)
+                {
+                    // 使用 Environment.NewLine 作为换行符（跨平台兼容）
+                    string descText = string.Join(Environment.NewLine, pptInfo.desc);
+                    inputField.text = descText;
+                }
+                else
+                {
+                    inputField.text = ""; // 如果没有desc内容，清空输入框
+                }
+            }
+            catch (Exception e)
+            {
+                print(e.InnerException);
+            }
+        }
+        
         if (inputField != null && !string.IsNullOrEmpty(inputField.text))
         {
             text = inputField.text;
@@ -96,7 +147,6 @@ public class CommitManager : MonoBehaviour
 
     public void onclick()
     {
-        print("button onclick");
         EnsureUnityWindowOnTop(); // 点击按钮时确保窗口在前台
         OpenFileDialog();
     }
@@ -121,7 +171,7 @@ public class CommitManager : MonoBehaviour
                 // 置顶窗口
                 BringWindowToTop(unityWindowHandle);
 
-                Debug.Log("Unity窗口已置顶，句柄: " + unityWindowHandle);
+                //Debug.Log("Unity窗口已置顶，句柄: " + unityWindowHandle);
             }
             else
             {
@@ -156,7 +206,7 @@ public class CommitManager : MonoBehaviour
             handle = GetWindowHandleByProcess();
         }
 
-        Debug.Log("获取到的窗口句柄: " + handle);
+        //Debug.Log("获取到的窗口句柄: " + handle);
         return handle;
     }
 
@@ -220,21 +270,28 @@ public class CommitManager : MonoBehaviour
         // 0x00040000 = OFN_FORCESHOWHIDDEN (强制显示隐藏文件)
         ofn.flags = 0x00080000 | 0x00001000 | 0x00000800 | 0x00000008 | 0x00040000;
 
-        Debug.Log("正在打开文件对话框，父窗口句柄: " + ofn.dlgOwner);
+        //Debug.Log("正在打开文件对话框，父窗口句柄: " + ofn.dlgOwner);
 
         if (LocalDialog.GetOpenFileName(ofn))
         {
             string selectedFilePath = ofn.file;
-            Debug.Log("选中的文件: " + selectedFilePath);
-            filePathObj.text = selectedFilePath;
-            filePath = filePathObj.text;
-
+            //Debug.Log("选中的文件: " + selectedFilePath);
+            //filePathObj.text = selectedFilePath;
+            string newFileName = Path.GetFileName(selectedFilePath);
+            string newFilePath = selectedFilePath;
+            PPTInfo newInfo = new PPTInfo();
+            newInfo.filename = newFileName; 
+            newInfo.file_path = newFilePath;
+            newInfo.desc = new string[] {""};
+            PPTDataManager.SavePPTInfoToJson(newInfo, Path.ChangeExtension(newFileName, ".json"));
+            dropdown.ReSetDropdown();
+            dropdown.SetCurrentOptionText(newFileName);
             // 文件选择完成后再次确保Unity窗口在前台
             EnsureUnityWindowOnTop();
         }
         else
         {
-            Debug.Log("用户取消了文件选择");
+            //Debug.Log("用户取消了文件选择");
             // 取消选择后也要确保Unity窗口在前台
             EnsureUnityWindowOnTop();
         }
@@ -242,7 +299,7 @@ public class CommitManager : MonoBehaviour
 
     public void submit()
     {
-        if (filePath == null || filePath == "")
+        /*if (filePath == null || filePath == "")
         {
             print("filePath == null || filePath == \"\"");
             print("当前filePath: " + filePath);
@@ -254,24 +311,24 @@ public class CommitManager : MonoBehaviour
         PPTInfo.file_path = filePath;
 
         string[] strings = text.Split('\n');
-        PPTInfo.desc = strings;
+        PPTInfo.desc = strings;*/
 
-        string jsonName = Path.GetFileNameWithoutExtension(PPTInfo.filename) + ".json";
-        bool success = PPTDataManager.SavePPTInfoToJson(PPTInfo, jsonName);
+        string jsonName = Path.ChangeExtension(fileName,".json");
+        string[] strings = text.Split('\n');
+        pptInfo.desc = strings;
+        bool success = PPTDataManager.SavePPTInfoToJson(pptInfo, jsonName);
 
-        if (success)
+        /*if (success)
         {
             print("保存成功!");
             // 清空输入
             if (inputField != null)
                 inputField.text = "";
-            if (filePathObj != null)
-                filePathObj.text = "";
         }
         else
         {
             print("保存失败!");
-        }
+        }*/
     }
 
     void OnApplicationFocus(bool hasFocus)
@@ -288,12 +345,39 @@ public class CommitManager : MonoBehaviour
     public void TestWindowHandle()
     {
         IntPtr handle = GetUnityWindowHandle();
-        Debug.Log("测试获取窗口句柄: " + handle);
+        //Debug.Log("测试获取窗口句柄: " + handle);
 
         if (handle != IntPtr.Zero)
         {
-            Debug.Log("句柄有效，尝试置顶...");
+            //Debug.Log("句柄有效，尝试置顶...");
             EnsureUnityWindowOnTop();
         }
+    }
+
+    private string FindJsonFilePath()
+    {
+        // 尝试在StreamingAssets中查找
+        string streamingAssetsPath = Path.Combine(Application.streamingAssetsPath, "pptinfo", jsonConfigPath);
+        if (File.Exists(streamingAssetsPath))
+        {
+            return streamingAssetsPath;
+        }
+
+        // 尝试在项目根目录查找
+        string projectRoot = Directory.GetParent(Application.dataPath).FullName;
+        string rootPath = Path.Combine(projectRoot, "pptinfo", jsonConfigPath);
+        if (File.Exists(rootPath))
+        {
+            return rootPath;
+        }
+
+        // 尝试在Assets文件夹中查找
+        string assetsPath = Path.Combine(Application.dataPath, "pptinfo", jsonConfigPath);
+        if (File.Exists(assetsPath))
+        {
+            return assetsPath;
+        }
+
+        return null;
     }
 }

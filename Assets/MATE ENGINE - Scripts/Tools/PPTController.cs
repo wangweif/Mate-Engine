@@ -7,11 +7,13 @@ using System.Runtime.InteropServices;
 using System.IO;
 using System.Threading.Tasks;
 using Debug = UnityEngine.Debug;
+
 public class PPTController : MonoBehaviour
 {
     [Header("PPT 配置")]
     public string pptFileName = "test.pptx";
     public string defaultPptFolder = @"C:\Users\JinXuanhui\Desktop";
+
     [Header("PPT 搜索路径（按优先级）")]
     public List<string> pptSearchPaths = new List<string>
     {
@@ -44,6 +46,9 @@ public class PPTController : MonoBehaviour
 
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     private const int KEYEVENTF_KEYUP = 0x02;
     private const byte VK_RIGHT = 0x27;   // →
@@ -169,7 +174,7 @@ public class PPTController : MonoBehaviour
         Debug.LogError($"[PPTController] {message}");
     }
 
-  /// <summary>
+    /// <summary>
     /// 异步打开 PPT 并直接全屏播放
     /// </summary>
     public void OpenPPT()
@@ -340,6 +345,13 @@ public class PPTController : MonoBehaviour
             yield break;
         }
 
+        if (!IsPowerPointForeground())
+        {
+            Log("🔄 激活 PowerPoint 窗口");
+            ActivatePowerPointWindow();
+            yield return new WaitForSeconds(activationDelay);
+        }
+
         if (IsPowerPointForeground())
         {
             PressKey(VK_F5);
@@ -347,18 +359,7 @@ public class PPTController : MonoBehaviour
         }
         else
         {
-            LogWarning("⚠ PowerPoint 不是前台窗口，尝试激活");
-            ActivatePowerPointWindow();
-            yield return new WaitForSeconds(activationDelay);
-
-            try
-            {
-                PressF5();
-            }
-            catch (Exception e)
-            {
-                LogError($"激活PowerPoint失败: {e.Message}");
-            }
+            LogWarning("⚠ 无法激活PowerPoint窗口");
         }
     }
 
@@ -492,9 +493,6 @@ public class PPTController : MonoBehaviour
             Debug.LogWarning("⚠ 激活 PowerPoint 窗口失败: " + e.Message);
         }
     }
-
-    [DllImport("user32.dll")]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     /// <summary>
     /// 下一页
@@ -766,5 +764,4 @@ public class PPTController : MonoBehaviour
     {
         return currentPptPath;
     }
-
 }

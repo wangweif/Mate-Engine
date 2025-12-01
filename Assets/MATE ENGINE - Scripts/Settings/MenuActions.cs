@@ -152,7 +152,11 @@ public class MenuActions : MonoBehaviour
             }
         }
         if (radialMenu.Open())
+        {
             PlayMenuOpenSound();
+            print($"打开了{radialMenuObject.name}");
+        }
+            
     }
 
     void CacheBigScreen()

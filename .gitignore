@@ -158,3 +158,28 @@ __pycache__/
 
 # Unity Package Manager 本地包
 /[Ll]ocal[Pp]ackages/
+# JetBrains IDE 配置目录
+.idea/
+
+# UMotion动画工具数据
+UMotionData/
+
+# StreamingAssets中的模型目录
+Assets/StreamingAssets/undreamai-*
+
+# Git属性文件（如果需要跟踪Git LFS，这个文件应该提交）
+# 如果不需要，可以忽略
+# .gitattributes
+
+# 其他临时文件
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# 备份文件
+*.bak
+*.backup
+*.backup1
+*.backup2

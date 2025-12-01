@@ -1,22 +1,48 @@
 ﻿using UnityEngine;
-using System.Diagnostics;
-using System.IO;
 using System.Collections;
-using System.Threading;
+using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
+using System.IO;
 using Debug = UnityEngine.Debug;
-using System;
 
 public class SmartWindowsTTS : MonoBehaviour
 {
+    private AudioCacheManager audioCache;
     private bool isAvailable = false;
     private string statusMessage = "未初始化";
-    private bool isSpeaking = false;
-    private Process currentSpeechProcess;
+
+    // 音频缓存变量
+    private Dictionary<string, string> textToKeyMap = new Dictionary<string, string>();
+    private Dictionary<string, float> resumePositions = new Dictionary<string, float>();
+
+    // 配置选项
+    [Header("TTS 配置")]
+    public int maxCacheSizeMB = 100; // 最大缓存大小(MB)
+    public bool autoClearCache = true; // 自动清理缓存
 
     void Awake()
     {
-        Log("🔊 TTS系统初始化中...");
+        // 初始化音频缓存管理器
+        InitializeAudioCache();
+
+        Debug.Log("🔊 TTS系统初始化中...");
         CheckTTSAvailability();
+    }
+
+    /// <summary>
+    /// 初始化音频缓存
+    /// </summary>
+    private void InitializeAudioCache()
+    {
+        audioCache = FindObjectOfType<AudioCacheManager>();
+        if (audioCache == null)
+        {
+            GameObject obj = new GameObject("AudioCacheManager");
+            audioCache = obj.AddComponent<AudioCacheManager>();
+            DontDestroyOnLoad(obj);
+        }
+        Debug.Log("🎵 音频缓存系统已初始化");
     }
 
     /// <summary>
@@ -39,14 +65,22 @@ public class SmartWindowsTTS : MonoBehaviour
 
     void OnDestroy()
     {
-        // 清理资源
-        if (currentSpeechProcess != null && !currentSpeechProcess.HasExited)
+        // 自动清理缓存
+        if (autoClearCache && audioCache != null)
         {
-            currentSpeechProcess.Kill();
-            currentSpeechProcess = null;
+            long cacheSize = audioCache.GetCacheSize();
+            float cacheSizeMB = cacheSize / (1024f * 1024f);
+            if (cacheSizeMB > maxCacheSizeMB)
+            {
+                Debug.Log($"🧹 自动清理缓存，当前大小: {cacheSizeMB:F2}MB");
+                audioCache.ClearCache();
+            }
         }
     }
 
+    /// <summary>
+    /// 检查TTS可用性
+    /// </summary>
     private void CheckTTSAvailability()
     {
         if (!IsWindowsPlatform())
@@ -80,19 +114,15 @@ public class SmartWindowsTTS : MonoBehaviour
             string tempFile = Path.GetTempFileName() + ".ps1";
             File.WriteAllText(tempFile, testScript);
 
-            ProcessStartInfo psi = new ProcessStartInfo
+            using (var process = new System.Diagnostics.Process())
             {
-                FileName = "powershell",
-                Arguments = $"-ExecutionPolicy Bypass -File \"{tempFile}\"",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
+                process.StartInfo.FileName = "powershell";
+                process.StartInfo.Arguments = $"-ExecutionPolicy Bypass -File \"{tempFile}\"";
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.CreateNoWindow = true;
 
-            using (Process process = new Process())
-            {
-                process.StartInfo = psi;
                 process.Start();
 
                 string output = process.StandardOutput.ReadToEnd();
@@ -140,166 +170,55 @@ public class SmartWindowsTTS : MonoBehaviour
         }
     }
 
+    // ==================== 音频缓存方法 ====================
+
     /// <summary>
-    /// 同步播放语音（阻塞当前线程，等待播放完成）
+    /// 使用音频缓存播放语音（协程版本）
     /// </summary>
-    public bool Speak(string text)
+    public IEnumerator Speak(string text, System.Action<bool> onComplete = null)
     {
         if (!isAvailable)
         {
-            Debug.LogError($"❌ TTS 不可用: {statusMessage}");
-            return false;
-        }
-
-        if (isSpeaking)
-        {
-            Debug.LogWarning("⚠ TTS 正在播放中，请等待完成");
-            return false;
+            LogError($"❌ TTS 不可用: {statusMessage}");
+            onComplete?.Invoke(false);
+            yield break;
         }
 
         if (string.IsNullOrEmpty(text))
         {
-            Debug.LogWarning("⚠ 朗读文本为空");
-            return false;
+            LogWarning("⚠ 朗读文本为空");
+            onComplete?.Invoke(false);
+            yield break;
         }
 
-        isSpeaking = true;
-        bool success = false;
+        string key = GenerateAudioKey(text);
+        textToKeyMap[key] = text;
 
-        try
-        {
-            Debug.Log($"🗣️ 开始朗读: {text}");
+        Log($"🗣️ 准备播放语音: {text.Substring(0, Mathf.Min(50, text.Length))}...");
 
-            // 在后台线程中执行语音播放
-            Thread thread = new Thread(() =>
+        // 检查是否有恢复位置
+        float resumeTime = resumePositions.ContainsKey(key) ? resumePositions[key] : 0f;
+
+        yield return StartCoroutine(audioCache.GetOrCreateAudio(text, key, (audioClip) => {
+            if (audioClip != null)
             {
-                success = ExecuteSpeech(text);
-            });
+                audioCache.PlayAudio(key, audioClip, resumeTime);
 
-            thread.Start();
-
-            // 等待线程完成（阻塞当前线程）
-            thread.Join();
-
-            Debug.Log(success ? $"✅ 朗读完成: {text}" : $"❌ 朗读失败: {text}");
-            return success;
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"❌ 朗读过程异常: {e.Message}");
-            return false;
-        }
-        finally
-        {
-            isSpeaking = false;
-        }
-    }
-
-    /// <summary>
-    /// 在后台线程中执行语音播放
-    /// </summary>
-    private bool ExecuteSpeech(string text)
-    {
-        try
-        {
-            // 创建简单的PowerShell脚本，避免复杂的转义
-            string escapedText = EscapeForPowerShell(text);
-
-            string script = $@"
-Add-Type -AssemblyName System.Speech
-try {{
-    $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
-    $synth.Volume = 100
-    $synth.Rate = 0
-    $synth.Speak('{escapedText}') | Out-Null
-    exit 0
-}} catch {{
-    Write-Error ""TTS Error: $($_.Exception.Message)""
-    exit 1
-}}
-            ";
-
-            string tempFile = Path.GetTempFileName() + ".ps1";
-            File.WriteAllText(tempFile, script, System.Text.Encoding.UTF8);
-
-            Log($"📝 创建临时脚本: {tempFile}");
-            Log($"📝 脚本内容预览: {script.Substring(0, Math.Min(100, script.Length))}...");
-
-            ProcessStartInfo psi = new ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                Arguments = $"-ExecutionPolicy Bypass -WindowStyle Hidden -File \"{tempFile}\"",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-
-            using (Process process = new Process())
-            {
-                process.StartInfo = psi;
-                process.Start();
-
-                currentSpeechProcess = process;
-
-                // 读取输出和错误信息
-                string output = process.StandardOutput.ReadToEnd();
-                string error = process.StandardError.ReadToEnd();
-
-                process.WaitForExit(30000); // 30秒超时
-                currentSpeechProcess = null;
-
-                Log($"📝 PowerShell退出代码: {process.ExitCode}");
-
-                if (process.ExitCode != 0)
+                // 如果是从恢复位置播放，清除恢复位置
+                if (resumeTime > 0)
                 {
-                    LogError($"⚠ PowerShell脚本执行失败");
-                    LogError($"错误输出: {error}");
-                    LogError($"标准输出: {output}");
-                    return false;
+                    resumePositions.Remove(key);
+                    Log($"▶️ 从位置 {resumeTime:F2}s 恢复播放");
                 }
 
-                Log($"✅ PowerShell脚本执行成功");
+                onComplete?.Invoke(true);
             }
-
-            // 清理临时文件
-            if (File.Exists(tempFile))
+            else
             {
-                try
-                {
-                    File.Delete(tempFile);
-                }
-                catch (Exception ex)
-                {
-                    LogWarning($"⚠ 无法删除临时文件: {ex.Message}");
-                }
+                LogError($"❌ 无法获取音频剪辑: {key}");
+                onComplete?.Invoke(false);
             }
-
-            return true;
-        }
-        catch (System.Exception e)
-        {
-            LogError($"❌ 语音播放失败: {e.Message}");
-            LogError($"详细信息: {e.StackTrace}");
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// 为PowerShell转义文本
-    /// </summary>
-    private string EscapeForPowerShell(string text)
-    {
-        if (string.IsNullOrEmpty(text))
-            return "";
-
-        // PowerShell单引号字符串中的转义规则
-        return text
-            .Replace("'", "''")           // 单引号转义为两个单引号
-            .Replace("\r", "")           // 移除回车
-            .Replace("\n", " ")          // 换行替换为空格
-            .Replace("`", "``")          // 反引号转义
-            .Replace("$", "`$");         // 变量符号转义
+        }));
     }
 
     /// <summary>
@@ -313,39 +232,28 @@ try {{
             yield break;
         }
 
-        if (isSpeaking)
-        {
-            LogWarning("⚠ TTS 正在播放中，请等待完成");
-            yield break;
-        }
-
         if (string.IsNullOrEmpty(text))
         {
             LogWarning("⚠ 朗读文本为空");
             yield break;
         }
 
-        isSpeaking = true;
-        bool success = false;
-        bool isCompleted = false;
+        bool speakCompleted = false;
+        bool speakSuccess = false;
 
-        // 启动后台播放线程
-        Thread thread = new Thread(() =>
-        {
-            success = ExecuteSpeech(text);
-            isCompleted = true;
+        // 使用回调方式跟踪说话状态
+        Speak(text, (success) => {
+            speakCompleted = true;
+            speakSuccess = success;
         });
-        thread.Start();
 
-        // 等待线程完成，但不阻塞Unity主线程
-        while (thread.IsAlive)
+        // 等待说话完成
+        while (!speakCompleted)
         {
-            yield return null; // 每帧检查一次
+            yield return null;
         }
 
-        isSpeaking = false;
-
-        if (success)
+        if (speakSuccess)
         {
             Log($"✅ 协程朗读完成: {text}");
         }
@@ -353,97 +261,156 @@ try {{
         {
             LogError($"❌ 协程朗读失败: {text}");
         }
-
-        // 返回成功状态供调用者使用
-        if (!success)
-        {
-            yield return false;
-        }
     }
 
     /// <summary>
-    /// 异步播放语音（推荐在Unity主线程中使用）
+    /// 异步播放语音
     /// </summary>
     public void SpeakAsync(string text, System.Action<bool> onComplete = null)
     {
-        StartCoroutine(SpeakAsyncCoroutine(text, onComplete));
+        StartCoroutine(Speak(text, onComplete));
     }
 
     /// <summary>
-    /// 异步播放协程
+    /// 暂停语音播放
     /// </summary>
-    private IEnumerator SpeakAsyncCoroutine(string text, System.Action<bool> onComplete)
+    public float PauseSpeaking()
     {
-        if (!isAvailable)
+        if (audioCache != null && audioCache.IsPlaying())
         {
-            Debug.LogError($"❌ TTS 不可用: {statusMessage}");
-            onComplete?.Invoke(false);
-            yield break;
+            string currentKey = audioCache.GetCurrentKey();
+            float pauseTime = audioCache.PauseAudio();
+
+            // 保存恢复位置
+            if (!string.IsNullOrEmpty(currentKey))
+            {
+                resumePositions[currentKey] = pauseTime;
+                Log($"⏸️ 保存恢复位置: {currentKey} -> {pauseTime:F2}s");
+            }
+
+            return pauseTime;
         }
+        return 0f;
+    }
 
-        if (isSpeaking)
+    /// <summary>
+    /// 恢复语音播放
+    /// </summary>
+    public void ResumeSpeaking()
+    {
+        if (audioCache != null)
         {
-            Debug.LogWarning("⚠ TTS 正在播放中，请等待完成");
-            onComplete?.Invoke(false);
-            yield break;
-        }
-
-        isSpeaking = true;
-        bool success = false;
-
-        // 在后台线程中执行语音播放
-        Thread thread = new Thread(() =>
-        {
-            success = ExecuteSpeech(text);
-        });
-        thread.Start();
-
-        // 等待线程完成，但不阻塞Unity主线程
-        while (thread.IsAlive)
-        {
-            yield return null; // 每帧检查一次
-        }
-
-        isSpeaking = false;
-        onComplete?.Invoke(success);
-
-        if (success)
-        {
-            Debug.Log($"✅ 异步朗读完成: {text}");
+            audioCache.ResumeAudio();
+            Log("▶️ 恢复音频播放");
         }
     }
 
     /// <summary>
-    /// 强制停止当前语音播放
+    /// 停止语音播放
     /// </summary>
     public void StopSpeaking()
     {
-        if (currentSpeechProcess != null && !currentSpeechProcess.HasExited)
+        if (audioCache != null)
         {
-            currentSpeechProcess.Kill();
-            currentSpeechProcess = null;
-            Debug.Log("⏹️ 强制停止语音播放");
+            audioCache.StopAudio();
+            resumePositions.Clear();
+            Log("⏹️ 停止音频播放");
         }
-
-        isSpeaking = false;
     }
 
     /// <summary>
-    /// 转义文本中的特殊字符
+    /// 生成音频键值
     /// </summary>
-    private string EscapeText(string text)
+    public string GenerateAudioKey(string text)
     {
-        if (string.IsNullOrEmpty(text))
-            return text;
+        using (MD5 md5 = MD5.Create())
+        {
+            byte[] inputBytes = Encoding.UTF8.GetBytes(text);
+            byte[] hashBytes = md5.ComputeHash(inputBytes);
 
-        // 转义PowerShell特殊字符
-        return text
-            .Replace("'", "''")     // 单引号转义
-            .Replace("`", "``")     // 反引号转义
-            .Replace("$", "`$")     // 变量符号转义
-            .Replace("\"", "`\"")   // 双引号转义
-            .Replace("\r", "")      // 移除回车符
-            .Replace("\n", " ");    // 换行符替换为空格
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < hashBytes.Length; i++)
+            {
+                sb.Append(hashBytes[i].ToString("x2"));
+            }
+            return sb.ToString();
+        }
+    }
+
+    /// <summary>
+    /// 获取当前播放时间
+    /// </summary>
+    public float GetCurrentAudioTime()
+    {
+        if (audioCache != null)
+        {
+            return audioCache.GetCurrentTime();
+        }
+        return 0f;
+    }
+
+    /// <summary>
+    /// 获取音频长度
+    /// </summary>
+    public float GetAudioLength(string text)
+    {
+        if (audioCache != null)
+        {
+            string key = GenerateAudioKey(text);
+            return audioCache.GetClipLength(key);
+        }
+        return EstimateSpeechDuration(text);
+    }
+
+    /// <summary>
+    /// 检查是否正在播放
+    /// </summary>
+    public bool IsSpeaking()
+    {
+        if (audioCache != null)
+        {
+            return audioCache.IsPlaying();
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 检查是否已暂停
+    /// </summary>
+    public bool IsPaused()
+    {
+        if (audioCache != null)
+        {
+            return !audioCache.IsPlaying() && GetCurrentAudioTime() > 0;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 清理音频缓存
+    /// </summary>
+    public void ClearAudioCache()
+    {
+        if (audioCache != null)
+        {
+            audioCache.ClearCache();
+            resumePositions.Clear();
+            textToKeyMap.Clear();
+            Log("🧹 音频缓存已清理");
+        }
+    }
+
+    /// <summary>
+    /// 获取缓存大小（MB）
+    /// </summary>
+    public float GetCacheSizeMB()
+    {
+        if (audioCache != null)
+        {
+            long bytes = audioCache.GetCacheSize();
+            return bytes / (1024f * 1024f);
+        }
+        return 0f;
     }
 
     /// <summary>
@@ -469,14 +436,107 @@ try {{
         return chineseChars * 0.4f + englishChars * 0.1f + 1.0f; // 基础1秒
     }
 
-    // 公共属性
-    public bool IsAvailable() => isAvailable;
-    public string GetStatus() => statusMessage;
-    public bool IsSpeaking() => isSpeaking;
+    /// <summary>
+    /// 检查TTS是否可用
+    /// </summary>
+    public bool IsAvailable()
+    {
+        return isAvailable;
+    }
 
+    /// <summary>
+    /// 获取状态信息
+    /// </summary>
+    public string GetStatus()
+    {
+        return statusMessage;
+    }
+
+    /// <summary>
+    /// 检查是否为Windows平台
+    /// </summary>
     private bool IsWindowsPlatform()
     {
         return Application.platform == RuntimePlatform.WindowsPlayer ||
                Application.platform == RuntimePlatform.WindowsEditor;
+    }
+
+    /// <summary>
+    /// 获取当前播放进度（0-1）
+    /// </summary>
+    public float GetPlaybackProgress()
+    {
+        if (audioCache != null && audioCache.IsPlaying())
+        {
+            string currentKey = audioCache.GetCurrentKey();
+            if (!string.IsNullOrEmpty(currentKey))
+            {
+                float currentTime = GetCurrentAudioTime();
+                float totalTime = audioCache.GetClipLength(currentKey);
+                if (totalTime > 0)
+                {
+                    return currentTime / totalTime;
+                }
+            }
+        }
+        return 0f;
+    }
+
+    /// <summary>
+    /// 获取当前播放的文本
+    /// </summary>
+    public string GetCurrentText()
+    {
+        if (audioCache != null)
+        {
+            string currentKey = audioCache.GetCurrentKey();
+            if (!string.IsNullOrEmpty(currentKey) && textToKeyMap.ContainsKey(currentKey))
+            {
+                return textToKeyMap[currentKey];
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 设置音量
+    /// </summary>
+    public void SetVolume(float volume)
+    {
+        if (audioCache != null)
+        {
+            // 这里需要为AudioCacheManager添加音量控制
+            // audioCache.SetVolume(volume);
+        }
+    }
+
+    /// <summary>
+    /// 设置播放速率
+    /// </summary>
+    public void SetRate(float rate)
+    {
+        if (audioCache != null)
+        {
+            // 这里需要为AudioCacheManager添加速率控制
+            // audioCache.SetRate(rate);
+        }
+    }
+    /// <summary>
+    /// 等待当前语音播放完成
+    /// </summary>
+    public IEnumerator WaitForSpeechComplete()
+    {
+        if (audioCache != null && audioCache.IsPlaying())
+        {
+            // 等待直到播放停止
+            while (audioCache.IsPlaying())
+            {
+                yield return null;
+            }
+
+            // 额外等待一小段时间确保完全结束
+            yield return new WaitForSeconds(0.1f);
+            Debug.Log("✅ 语音播放完全完成");
+        }
     }
 }

@@ -55,4 +55,38 @@ public class DropdownManager : MonoBehaviour
             return string.Empty; // 或者返回一个默认值
         }
     }
+    /// <summary>
+    /// 通过传入的字符串设置当前选择哪个option
+    /// </summary>
+    /// <param name="optionText">要选择的选项文本</param>
+    /// <returns>是否成功设置</returns>
+    public bool SetCurrentOptionText(string optionText)
+    {
+        if (dropdown == null)
+        {
+            Debug.LogError("Dropdown未赋值！");
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(optionText))
+        {
+            Debug.LogWarning("传入的选项文本为空！");
+            return false;
+        }
+
+        // 查找匹配的选项索引
+        for (int i = 0; i < dropdown.options.Count; i++)
+        {
+            if (dropdown.options[i].text == optionText)
+            {
+                dropdown.value = i;
+                // 触发onValueChanged事件（如果需要）
+                dropdown.onValueChanged?.Invoke(i);
+                return true;
+            }
+        }
+
+        Debug.LogWarning($"未找到匹配的选项: {optionText}");
+        return false;
+    }
 }

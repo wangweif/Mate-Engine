@@ -49,7 +49,7 @@ public class FPSLimiter : MonoBehaviour
         PlayerPrefs.Save();
 
         UpdateFPSLabel(targetFPS);
-        Debug.Log("FPS set to: " + targetFPS);
+        //Debug.Log("FPS set to: " + targetFPS);
     }
 
     public void SetFPSLimit(float fps)

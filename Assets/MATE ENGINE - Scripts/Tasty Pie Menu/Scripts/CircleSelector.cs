@@ -332,7 +332,7 @@ namespace Xamin
                 }
             }
         }
-        void BuildButtons()
+        /*void BuildButtons()
         {
             RefreshAllButtonColorsDelayed();
             foreach (Transform child in transform.Find("Buttons")) Destroy(child.gameObject);
@@ -390,6 +390,131 @@ namespace Xamin
             SelectedSegment = buttonsInstances.Count != 0 ? buttonsInstances[buttonsInstances.Count - 1].gameObject : null;
             if (SelectedSegment == null)
             {
+                opened = false;
+                transform.localScale = Vector3.zero;
+            }
+        }*/
+        void BuildButtons()
+        {
+            RefreshAllButtonColorsDelayed();
+
+            // 添加开始构建日志
+            //Debug.Log($"开始构建径向菜单按钮，总按钮数: {Buttons.Count}，来源: {buttonSource}");
+
+            // 清除现有按钮
+            foreach (Transform child in transform.Find("Buttons")) Destroy(child.gameObject);
+            foreach (Transform sep in transform.Find("Separators")) Destroy(sep.gameObject);
+            buttonsInstances.Clear();
+            instancedButtons = new Dictionary<GameObject, Button>();
+
+            int visibleCount = 0;
+            List<GameObject> visibleButtonObjects = new List<GameObject>();
+
+            // 遍历所有按钮并记录信息
+            for (int i = 0; i < Buttons.Count; i++)
+            {
+                var btnObj = Buttons[i];
+                if (btnObj == null)
+                {
+                    //Debug.LogWarning($"Buttons 列表中的第 {i} 个元素为 null");
+                    continue;
+                }
+
+                GameObject buttonObj = buttonSource == ButtonSource.prefabs
+                    ? Instantiate(btnObj, Vector2.zero, transform.rotation)
+                    : btnObj;
+
+                Xamin.Button btn = buttonObj.GetComponent<Xamin.Button>();
+
+                // 检查按钮是否应该隐藏
+                bool shouldHide = ShouldHideButton(btn);
+
+                if (shouldHide)
+                {
+                    //Debug.Log($"按钮被隐藏: {btnObj.name} (索引: {i}) - 条件不满足");
+                    Destroy(buttonObj);
+                    continue;
+                }
+
+                visibleButtonObjects.Add(buttonObj);
+                visibleCount++;
+
+                // 记录加载的按钮信息
+                string btnInfo = $"加载按钮: {btnObj.name} (索引: {i})";
+                if (btn != null)
+                {
+                    btnInfo += $", ID: {btn.id}, 可用: {btn.unlocked}";
+                    if (btn.useCustomColor)
+                        btnInfo += $", 自定义颜色: {btn.customColor}";
+                }
+                //Debug.Log(btnInfo);
+            }
+
+            buttonCount = visibleCount;
+            //Debug.Log($"可见按钮数量: {visibleCount}/{Buttons.Count}");
+
+            // 继续原有的构建逻辑...
+            if (buttonCount > 0 && buttonCount < 11)
+            {
+                startButCount = buttonCount;
+                _desiredFill = 1f / buttonCount;
+                float fillRadius = _desiredFill * 360f;
+                float previousRotation = 0;
+
+                for (int i = 0; i < visibleCount; i++)
+                {
+                    GameObject buttonObj = visibleButtonObjects[i];
+                    Xamin.Button btn = buttonObj.GetComponent<Xamin.Button>();
+                    buttonObj.transform.SetParent(transform.Find("Buttons"));
+
+                    // 计算布局信息...
+                    float bRot = previousRotation + fillRadius / 2;
+                    previousRotation = bRot + fillRadius / 2;
+
+                    // 添加分隔符...
+                    var separator = Instantiate(separatorPrefab, Vector3.zero, Quaternion.identity);
+                    separator.transform.SetParent(transform.Find("Separators"));
+                    separator.transform.localScale = Vector3.one;
+                    separator.transform.localPosition = Vector3.zero;
+                    separator.transform.localRotation = Quaternion.Euler(0, 0, previousRotation);
+
+                    // 设置按钮位置...
+                    buttonObj.transform.localPosition = new Vector2(
+                        radius * Mathf.Cos((bRot - 90) * Mathf.Deg2Rad),
+                        -radius * Mathf.Sin((bRot - 90) * Mathf.Deg2Rad)
+                    );
+                    buttonObj.transform.localScale = Vector3.one;
+
+                    if (bRot > 360) bRot -= 360;
+                    buttonObj.name = bRot.ToString();
+
+                    if (btn)
+                    {
+                        instancedButtons[buttonObj] = btn;
+                        btn.SetColor(btn.useCustomColor ? btn.customColor : AccentColor);
+                        buttonsInstances.Add(btn);
+
+                        // 记录最终布局信息
+                        //Debug.Log($"按钮布局完成: {btn.id} -> 角度: {bRot:F1}°, 位置: {buttonObj.transform.localPosition}");
+                    }
+                    else
+                    {
+                        buttonObj.GetComponent<Image>().color = DisabledColor;
+                        //Debug.LogWarning($"按钮 {buttonObj.name} 缺少 Xamin.Button 组件");
+                    }
+                }
+
+                //Debug.Log($"径向菜单构建完成，共 {buttonsInstances.Count} 个按钮");
+            }
+            else
+            {
+                Debug.LogWarning($"按钮数量 {buttonCount} 不在有效范围内 (2-10)");
+            }
+
+            SelectedSegment = buttonsInstances.Count != 0 ? buttonsInstances[buttonsInstances.Count - 1].gameObject : null;
+            if (SelectedSegment == null)
+            {
+                Debug.LogWarning("没有可用的按钮，关闭径向菜单");
                 opened = false;
                 transform.localScale = Vector3.zero;
             }
