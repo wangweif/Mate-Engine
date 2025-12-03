@@ -25,8 +25,10 @@ public class VoiceControlDemo : MonoBehaviour
     {
         if (HiddenManager.IsModelHidden)
         {
-            recognizer.Start();
-            print("开始识别关键词！");
+            if (!recognizer.IsRunning)
+            {
+                recognizer.Start();
+            }
         }
     }
 
