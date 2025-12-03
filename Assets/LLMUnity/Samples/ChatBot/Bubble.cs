@@ -384,48 +384,22 @@ namespace LLMUnitySamples
                 voiceButtonRect.anchorMin = new Vector2(1f, 0.5f);
                 voiceButtonRect.anchorMax = new Vector2(1f, 0.5f);
                 voiceButtonRect.pivot = new Vector2(1f, 0.5f);
-                voiceButtonRect.sizeDelta = new Vector2(60f, 60f);
-                voiceButtonRect.anchoredPosition = new Vector2(-6f, 0f);
+                voiceButtonRect.sizeDelta = new Vector2(110f, 110f);
+                voiceButtonRect.anchoredPosition = new Vector2(140f, 0f); // 移到输入框右侧
                 voiceButtonRect.localScale = Vector3.one;
             }
             
             Image voiceButtonImage = voiceInputButton.GetComponent<Image>();
             if (voiceButtonImage != null)
             {
-                // 如果没有sprite，使用Unity默认的白色sprite
-                if (voiceButtonImage.sprite == null)
+                Sprite micSprite = Resources.Load<Sprite>("mic");
+                if (micSprite != null)
                 {
-                    if (defaultButtonSprite == null)
-                    {
-                        defaultButtonSprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
-                    }
-                    voiceButtonImage.sprite = defaultButtonSprite;
+                    voiceButtonImage.sprite = micSprite;
+                    voiceButtonImage.color = Color.white;  // 图标本身的透明背景
                 }
-                voiceButtonImage.color = new Color(0.8f, 0.8f, 0.8f, 1f);
                 voiceButtonImage.raycastTarget = true; // 确保可以接收射线检测
                 voiceButtonImage.type = UnityEngine.UI.Image.Type.Simple;
-            }
-            
-            // 添加文本标签
-            GameObject voiceTextObj = new GameObject("VoiceText", typeof(RectTransform), typeof(Text));
-            voiceTextObj.transform.SetParent(voiceInputButton.transform, false);
-            RectTransform voiceTextRect = voiceTextObj.GetComponent<RectTransform>();
-            if (voiceTextRect != null)
-            {
-                voiceTextRect.anchorMin = Vector2.zero;
-                voiceTextRect.anchorMax = Vector2.one;
-                voiceTextRect.sizeDelta = Vector2.zero;
-                voiceTextRect.anchoredPosition = Vector2.zero;
-            }
-            Text voiceText = voiceTextObj.GetComponent<Text>();
-            if (voiceText != null)
-            {
-                voiceText.text = ">)))";
-                voiceText.fontSize = 24;
-                voiceText.color = Color.white;
-                voiceText.alignment = TextAnchor.MiddleCenter;
-                voiceText.raycastTarget = false; // 文本不拦截点击，让按钮处理
-                if (bubbleUI.font != null) voiceText.font = bubbleUI.font;
             }
             
             voiceButtonComponent = voiceInputButton.GetComponent<Button>();
@@ -453,38 +427,22 @@ namespace LLMUnitySamples
                 keyboardButtonRect.anchorMin = new Vector2(1f, 0.5f);
                 keyboardButtonRect.anchorMax = new Vector2(1f, 0.5f);
                 keyboardButtonRect.pivot = new Vector2(1f, 0.5f);
-                keyboardButtonRect.sizeDelta = new Vector2(60f, 60f);
-                keyboardButtonRect.anchoredPosition = new Vector2(-6f, 0f);
+                keyboardButtonRect.sizeDelta = new Vector2(110f, 110f);
+                keyboardButtonRect.anchoredPosition = new Vector2(140f, 0f);
                 keyboardButtonRect.localScale = Vector3.one;
             }
             
             Image keyboardButtonImage = keyboardButton.GetComponent<Image>();
             if (keyboardButtonImage != null)
             {
-                keyboardButtonImage.color = new Color(0.8f, 0.8f, 0.8f, 1f);
+                Sprite keyboardSprite = Resources.Load<Sprite>("keyboard");
+                if (keyboardSprite != null)
+                {
+                    keyboardButtonImage.sprite = keyboardSprite;
+                    keyboardButtonImage.color = Color.white;
+                }
                 keyboardButtonImage.raycastTarget = true;
-            }
-            
-            // 添加文本标签
-            GameObject keyboardTextObj = new GameObject("KeyboardText", typeof(RectTransform), typeof(Text));
-            keyboardTextObj.transform.SetParent(keyboardButton.transform, false);
-            RectTransform keyboardTextRect = keyboardTextObj.GetComponent<RectTransform>();
-            if (keyboardTextRect != null)
-            {
-                keyboardTextRect.anchorMin = Vector2.zero;
-                keyboardTextRect.anchorMax = Vector2.one;
-                keyboardTextRect.sizeDelta = Vector2.zero;
-                keyboardTextRect.anchoredPosition = Vector2.zero;
-            }
-            Text keyboardText = keyboardTextObj.GetComponent<Text>();
-            if (keyboardText != null)
-            {
-                keyboardText.text = "⌨";
-                keyboardText.fontSize = 24;
-                keyboardText.color = Color.white;
-                keyboardText.alignment = TextAnchor.MiddleCenter;
-                keyboardText.raycastTarget = false; // 文本不拦截点击
-                if (bubbleUI.font != null) keyboardText.font = bubbleUI.font;
+                keyboardButtonImage.type = UnityEngine.UI.Image.Type.Simple;
             }
             
             keyboardButtonComponent = keyboardButton.GetComponent<Button>();
@@ -504,7 +462,7 @@ namespace LLMUnitySamples
                 holdButtonRect.anchorMin = new Vector2(0f, 0.5f);
                 holdButtonRect.anchorMax = new Vector2(0f, 0.5f);
                 holdButtonRect.pivot = new Vector2(0f, 0.5f);
-                holdButtonRect.sizeDelta = new Vector2(280f, 60f);
+                holdButtonRect.sizeDelta = new Vector2 (bubbleObject.GetComponent<RectTransform>().sizeDelta.x, 80f);
                 holdButtonRect.anchoredPosition = new Vector2(0f, 0f);
                 holdButtonRect.localScale = Vector3.one;
             }
@@ -596,7 +554,7 @@ namespace LLMUnitySamples
             {
                 holdButtonImage.color = isCancelling
                     ? new Color(0.8f, 0.2f, 0.2f, 1f)   // 取消状态：红色
-                    : new Color(0.2f, 0.6f, 0.9f, 1f);  // 正常状态：蓝色
+                    : new Color(18f/255f, 150f/255f, 219f/255f, 1f);  // 正常状态：蓝色
             }
 
             Text holdButtonText = holdToSpeakButton.GetComponentInChildren<Text>();
@@ -615,7 +573,7 @@ namespace LLMUnitySamples
             {
                 holdButtonImage.color = isRecording 
                     ? new Color(0.2f, 0.9f, 0.2f, 1f)  // 录制中：绿色
-                    : new Color(0.2f, 0.6f, 0.9f, 1f);  // 未录制：蓝色
+                    : new Color(18f/255f, 150f/255f, 219f/255f, 1f);  // 未录制：蓝色
             }
 
             // 更新按钮文本
