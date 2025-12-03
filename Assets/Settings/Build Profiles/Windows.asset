@@ -20,7 +20,7 @@ MonoBehaviour:
     rid: 8212107626144858112
   m_OverrideGlobalSceneList: 1
   m_Scenes:
-  - m_enabled: 1
+  - m_enabled: 0
     m_path: Assets/LLMUnity/Samples/ChatBot/Scene.unity
   - m_enabled: 1
     m_path: Assets/MATE ENGINE - Scenes/Mate Engine Main.unity
@@ -962,7 +962,7 @@ MonoBehaviour:
     - line: '|   hmiLoadingImage: {instanceID: 0}'
     - line: '|   platformRequiresReadableAssets: 0'
     - line: '|   virtualTexturingSupportEnabled: 0'
-    - line: '|   insecureHttpOption: 0'
+    - line: '|   insecureHttpOption: 2'
     - line: '|   androidVulkanDenyFilterList: []'
     - line: '|   androidVulkanAllowFilterList: []'
     - line: '|   androidVulkanDeviceFilterListAsset: {instanceID: 0}'

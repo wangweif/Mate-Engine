@@ -86,7 +86,7 @@ Material:
     - _UseUIAlphaClip: 0
     - _ZWrite: 1
     m_Colors:
-    - _Color: {r: 0.09507959, g: 0.113219656, b: 0.16859984, a: 1}
+    - _Color: {r: 0.09507903, g: 0.11321909, b: 0.16859931, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

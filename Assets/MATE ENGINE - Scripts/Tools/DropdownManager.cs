@@ -8,7 +8,7 @@ public class DropdownManager : MonoBehaviour
 
     void Start()
     {
-        // Ê¾ÀıÊı¾İ
+        // ç¤ºä¾‹æ•°æ®
         List<string> options = new List<string>();
         List<string> files = PPTDataManager.GetAllPPTInfoJsonFiles();
         print("files_count:" + files.Count);
@@ -17,16 +17,16 @@ public class DropdownManager : MonoBehaviour
             options.Add(PPTDataManager.LoadPPTInfoFromJson(files[i]).filename);
         }
 
-        // Çå¿ÕÏÖÓĞÑ¡Ïî
+        // æ¸…ç©ºç°æœ‰é€‰é¡¹
         dropdown.ClearOptions();
 
-        // Ìí¼ÓĞÂÑ¡Ïî - Ñ¡ÏîÊıÁ¿»á×Ô¶¯¸ù¾İÊı¾İÊıÁ¿È·¶¨
+        // æ·»åŠ æ–°é€‰é¡¹ - é€‰é¡¹æ•°é‡ä¼šè‡ªåŠ¨æ ¹æ®æ•°æ®æ•°é‡ç¡®å®š
         dropdown.AddOptions(options);
     }
 
     public void ReSetDropdown()
     {
-        // Ê¾ÀıÊı¾İ
+        // ç¤ºä¾‹æ•°æ®
         List<string> options = new List<string>();
         List<string> files = PPTDataManager.GetAllPPTInfoJsonFiles();
         print("files_count:" + files.Count);
@@ -35,16 +35,16 @@ public class DropdownManager : MonoBehaviour
             options.Add(PPTDataManager.LoadPPTInfoFromJson(files[i]).filename);
         }
 
-        // Çå¿ÕÏÖÓĞÑ¡Ïî
+        // æ¸…ç©ºç°æœ‰é€‰é¡¹
         dropdown.ClearOptions();
 
-        // Ìí¼ÓĞÂÑ¡Ïî - Ñ¡ÏîÊıÁ¿»á×Ô¶¯¸ù¾İÊı¾İÊıÁ¿È·¶¨
+        // æ·»åŠ æ–°é€‰é¡¹ - é€‰é¡¹æ•°é‡ä¼šè‡ªåŠ¨æ ¹æ®æ•°æ®æ•°é‡ç¡®å®š
         dropdown.AddOptions(options);
     }
 
     public string GetCurrentOptionText()
     {
-        // È·±£ÓĞÑ¡ÏîÇÒµ±Ç°valueÔÚÓĞĞ§·¶Î§ÄÚ
+        // ç¡®ä¿æœ‰é€‰é¡¹ä¸”å½“å‰valueåœ¨æœ‰æ•ˆèŒƒå›´å†…
         if (dropdown.options != null && dropdown.options.Count > 0 &&
             dropdown.value >= 0 && dropdown.value < dropdown.options.Count)
         {
@@ -52,41 +52,41 @@ public class DropdownManager : MonoBehaviour
         }
         else
         {
-            return string.Empty; // »òÕß·µ»ØÒ»¸öÄ¬ÈÏÖµ
+            return string.Empty; // æˆ–è€…è¿”å›ä¸€ä¸ªé»˜è®¤å€¼
         }
     }
     /// <summary>
-    /// Í¨¹ı´«ÈëµÄ×Ö·û´®ÉèÖÃµ±Ç°Ñ¡ÔñÄÄ¸öoption
+    /// é€šè¿‡ä¼ å…¥çš„å­—ç¬¦ä¸²è®¾ç½®å½“å‰é€‰æ‹©å“ªä¸ªoption
     /// </summary>
-    /// <param name="optionText">ÒªÑ¡ÔñµÄÑ¡ÏîÎÄ±¾</param>
-    /// <returns>ÊÇ·ñ³É¹¦ÉèÖÃ</returns>
+    /// <param name="optionText">è¦é€‰æ‹©çš„é€‰é¡¹æ–‡æœ¬</param>
+    /// <returns>æ˜¯å¦æˆåŠŸè®¾ç½®</returns>
     public bool SetCurrentOptionText(string optionText)
     {
         if (dropdown == null)
         {
-            Debug.LogError("DropdownÎ´¸³Öµ£¡");
+            Debug.LogError("Dropdownæœªèµ‹å€¼ï¼");
             return false;
         }
 
         if (string.IsNullOrEmpty(optionText))
         {
-            Debug.LogWarning("´«ÈëµÄÑ¡ÏîÎÄ±¾Îª¿Õ£¡");
+            Debug.LogWarning("ä¼ å…¥çš„é€‰é¡¹æ–‡æœ¬ä¸ºç©ºï¼");
             return false;
         }
 
-        // ²éÕÒÆ¥ÅäµÄÑ¡ÏîË÷Òı
+        // æŸ¥æ‰¾åŒ¹é…çš„é€‰é¡¹ç´¢å¼•
         for (int i = 0; i < dropdown.options.Count; i++)
         {
             if (dropdown.options[i].text == optionText)
             {
                 dropdown.value = i;
-                // ´¥·¢onValueChangedÊÂ¼ş£¨Èç¹ûĞèÒª£©
+                // è§¦å‘onValueChangedäº‹ä»¶ï¼ˆå¦‚æœéœ€è¦ï¼‰
                 dropdown.onValueChanged?.Invoke(i);
                 return true;
             }
         }
 
-        Debug.LogWarning($"Î´ÕÒµ½Æ¥ÅäµÄÑ¡Ïî: {optionText}");
+        Debug.LogWarning($"æœªæ‰¾åˆ°åŒ¹é…çš„é€‰é¡¹: {optionText}");
         return false;
     }
 }
