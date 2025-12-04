@@ -120,7 +120,7 @@ namespace LLMUnity
         [Chat] public string AIName = "assistant";
         /// <summary> a description of the AI role (system prompt) </summary>
         [Tooltip("a description of the AI role (system prompt)")]
-        [TextArea(5, 10), Chat] public string prompt = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions.";
+        [TextArea(5, 10), Chat] public string prompt = "你是农科小智，一个专注于农业的人工智能助手。你具备丰富的农业知识，能够为用户提供关于种植、养殖、农业技术等方面的建议和信息。";
         /// <summary> set the number of tokens to always retain from the prompt (nKeep) based on the LLMCharacter system prompt </summary>
         [Tooltip("set the number of tokens to always retain from the prompt (nKeep) based on the LLMCharacter system prompt")]
         public bool setNKeepToPrompt = true;
@@ -181,6 +181,7 @@ namespace LLMUnity
         }
         */
 
+        /*
         void Start()
         {
             string promptPath = Path.Combine(Application.persistentDataPath, "ZomeAI_prompt.txt");
@@ -199,6 +200,7 @@ namespace LLMUnity
 
             StartCoroutine(ApplyPromptToChat0WhenReady(finalPrompt));
         }
+        */
 
         System.Collections.IEnumerator ApplyPromptToChat0WhenReady(string prompt)
         {
@@ -292,7 +294,7 @@ namespace LLMUnity
         public virtual void ClearChat()
         {
             chat.Clear();
-            ChatMessage promptMessage = new ChatMessage { role = "system", content = prompt };
+            ChatMessage promptMessage = new ChatMessage { role = "system", content = "你是农科小智，一个专注于农业的人工智能助手。你具备丰富的农业知识，能够为用户提供关于种植、养殖、农业技术等方面的建议和信息。" };
             chat.Add(promptMessage);
         }
 
