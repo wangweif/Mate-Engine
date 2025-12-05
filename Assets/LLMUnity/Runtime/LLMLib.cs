@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using UnityEngine;
 
 namespace LLMUnity
@@ -99,222 +100,663 @@ namespace LLMUnity
     }
 
     /// @ingroup utils
+/// <summary>
+/// Class implementing a library loader for Unity.
+/// Adapted from SkiaForUnity:
+/// https://github.com/ammariqais/SkiaForUnity/blob/f43322218c736d1c41f3a3df9355b90db4259a07/SkiaUnity/Assets/SkiaSharp/SkiaSharp-Bindings/SkiaSharp.HarfBuzz.Shared/HarfBuzzSharp.Shared/LibraryLoader.cs
+/// 
+/// 修改说明：AppData临时目录方案
+/// 检测到中文路径时，将DLL复制到AppData下的全英文临时目录
+/// </summary>
+static class LibraryLoader
+{
+    #region 新增：AppData临时目录管理
+    
     /// <summary>
-    /// Class implementing a library loader for Unity.
-    /// Adapted from SkiaForUnity:
-    /// https://github.com/ammariqais/SkiaForUnity/blob/f43322218c736d1c41f3a3df9355b90db4259a07/SkiaUnity/Assets/SkiaSharp/SkiaSharp-Bindings/SkiaSharp.HarfBuzz.Shared/HarfBuzzSharp.Shared/LibraryLoader.cs
+    /// 临时目录管理器
     /// </summary>
-    static class LibraryLoader
+    private static class TempDirectoryManager
     {
+        private static string _tempDir;
+        private static readonly Dictionary<string, string> _copiedFiles = new Dictionary<string, string>();
+        private static bool _initialized = false;
+        private static readonly object _lock = new object();
+        
         /// <summary>
-        /// Allows to retrieve a function delegate for the library
+        /// 初始化临时目录
         /// </summary>
-        /// <typeparam name="T">type to cast the function</typeparam>
-        /// <param name="library">library handle</param>
-        /// <param name="name">function name</param>
-        /// <returns>function delegate</returns>
-        public static T GetSymbolDelegate<T>(IntPtr library, string name) where T : Delegate
+        public static void Initialize()
         {
-            var symbol = GetSymbol(library, name);
-            if (symbol == IntPtr.Zero)
-                throw new EntryPointNotFoundException($"Unable to load symbol '{name}'.");
-
-            return Marshal.GetDelegateForFunctionPointer<T>(symbol);
+            if (_initialized) return;
+            
+            lock (_lock)
+            {
+                if (_initialized) return;
+                
+                try
+                {
+                    // 使用AppData/Local/Temp下的临时目录
+                    string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                    _tempDir = Path.Combine(appDataPath, "Temp", "LLMUnity_Temp_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+                    
+                    // 确保目录存在
+                    Directory.CreateDirectory(_tempDir);
+                    
+                    Debug.Log($"📁 创建临时目录: {_tempDir}");
+                    
+                    // 注册应用程序退出时的清理事件
+                    Application.quitting += OnApplicationQuitting;
+                    AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+                    AppDomain.CurrentDomain.DomainUnload += OnDomainUnload;
+                    
+                    _initialized = true;
+                    
+                    Debug.Log("✅ 临时目录管理器初始化完成");
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"❌ 初始化临时目录失败: {ex.Message}");
+                }
+            }
         }
-
+        
         /// <summary>
-        /// Loads the provided library in a cross-platform manner
+        /// 检查路径是否包含中文
         /// </summary>
-        /// <param name="libraryName">library path</param>
-        /// <returns>library handle</returns>
-        public static IntPtr LoadLibrary(string libraryName)
+        public static bool ContainsChinese(string path)
         {
-            if (string.IsNullOrEmpty(libraryName))
-                throw new ArgumentNullException(nameof(libraryName));
-
-            IntPtr handle;
-            if (Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.WindowsPlayer || Application.platform == RuntimePlatform.WindowsServer)
-                handle = Win32.LoadLibrary(libraryName);
-            else if (Application.platform == RuntimePlatform.LinuxEditor || Application.platform == RuntimePlatform.LinuxPlayer || Application.platform == RuntimePlatform.LinuxServer)
-                handle = Linux.dlopen(libraryName);
-            else if (Application.platform == RuntimePlatform.OSXEditor || Application.platform == RuntimePlatform.OSXPlayer || Application.platform == RuntimePlatform.OSXServer)
-                handle = Mac.dlopen(libraryName);
-            else if (Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer || Application.platform == RuntimePlatform.VisionOS)
-                handle = Mobile.dlopen(libraryName);
-            else
-                throw new PlatformNotSupportedException($"Current platform is unknown, unable to load library '{libraryName}'.");
-
-            return handle;
+            if (string.IsNullOrEmpty(path))
+                return false;
+                
+            foreach (char c in path)
+            {
+                if (c >= 0x4E00 && c <= 0x9FFF) // 常用汉字范围
+                    return true;
+                if (c >= 0x3400 && c <= 0x4DBF) // CJK扩展A
+                    return true;
+            }
+            return false;
         }
-
+        
         /// <summary>
-        /// Retrieve a function delegate for the library in a cross-platform manner
+        /// 复制文件到临时目录（如果需要）
         /// </summary>
-        /// <param name="library">library handle</param>
-        /// <param name="symbolName">function name</param>
-        /// <returns>function handle</returns>
-        public static IntPtr GetSymbol(IntPtr library, string symbolName)
+        public static string CopyToTempIfNeeded(string originalPath)
         {
-            if (string.IsNullOrEmpty(symbolName))
-                throw new ArgumentNullException(nameof(symbolName));
-
-            IntPtr handle;
-            if (Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.WindowsPlayer || Application.platform == RuntimePlatform.WindowsServer)
-                handle = Win32.GetProcAddress(library, symbolName);
-            else if (Application.platform == RuntimePlatform.LinuxEditor || Application.platform == RuntimePlatform.LinuxPlayer || Application.platform == RuntimePlatform.LinuxServer)
-                handle = Linux.dlsym(library, symbolName);
-            else if (Application.platform == RuntimePlatform.OSXEditor || Application.platform == RuntimePlatform.OSXPlayer || Application.platform == RuntimePlatform.OSXServer)
-                handle = Mac.dlsym(library, symbolName);
-            else if (Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer || Application.platform == RuntimePlatform.VisionOS)
-                handle = Mobile.dlsym(library, symbolName);
-            else
-                throw new PlatformNotSupportedException($"Current platform is unknown, unable to load symbol '{symbolName}' from library {library}.");
-
-            return handle;
+            Initialize();
+            
+            // 检查路径是否包含中文
+            if (!ContainsChinese(originalPath))
+                return originalPath;
+                
+            // 检查是否已经复制过
+            if (_copiedFiles.TryGetValue(originalPath, out string tempPath))
+            {
+                if (File.Exists(tempPath))
+                {
+                    Debug.Log($"📋 使用已复制的文件: {Path.GetFileName(originalPath)}");
+                    return tempPath;
+                }
+                else
+                {
+                    // 文件不存在，重新复制
+                    _copiedFiles.Remove(originalPath);
+                }
+            }
+            
+            try
+            {
+                if (!File.Exists(originalPath))
+                {
+                    Debug.LogError($"❌ 源文件不存在: {originalPath}");
+                    return originalPath;
+                }
+                
+                // 生成临时文件名（保持原文件名，但确保唯一性）
+                string fileName = Path.GetFileName(originalPath);
+                string uniqueName = GetUniqueFileName(fileName);
+                tempPath = Path.Combine(_tempDir, uniqueName);
+                
+                // 复制文件
+                File.Copy(originalPath, tempPath, true);
+                
+                // 记录复制关系
+                _copiedFiles[originalPath] = tempPath;
+                
+                Debug.Log($"📋 已复制到临时目录: {Path.GetFileName(originalPath)} -> {Path.GetFileName(tempPath)}");
+                Debug.Log($"   原始路径: {originalPath}");
+                Debug.Log($"   临时路径: {tempPath}");
+                
+                return tempPath;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"❌ 复制文件失败: {ex.Message}");
+                return originalPath;
+            }
         }
-
+        
         /// <summary>
-        /// Frees up the library
+        /// 生成唯一文件名
         /// </summary>
-        /// <param name="library">library handle</param>
-        public static void FreeLibrary(IntPtr library)
+        private static string GetUniqueFileName(string fileName)
         {
-            if (library == IntPtr.Zero)
-                return;
-
-            if (Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.WindowsPlayer || Application.platform == RuntimePlatform.WindowsServer)
-                Win32.FreeLibrary(library);
-            else if (Application.platform == RuntimePlatform.LinuxEditor || Application.platform == RuntimePlatform.LinuxPlayer || Application.platform == RuntimePlatform.LinuxServer)
-                Linux.dlclose(library);
-            else if (Application.platform == RuntimePlatform.OSXEditor || Application.platform == RuntimePlatform.OSXPlayer || Application.platform == RuntimePlatform.OSXServer)
-                Mac.dlclose(library);
-            else if (Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer || Application.platform == RuntimePlatform.VisionOS)
-                Mobile.dlclose(library);
-            else
-                throw new PlatformNotSupportedException($"Current platform is unknown, unable to close library '{library}'.");
+            // 如果文件名已存在，添加随机后缀
+            string nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
+            string extension = Path.GetExtension(fileName);
+            
+            string tempPath = Path.Combine(_tempDir, fileName);
+            if (!File.Exists(tempPath))
+                return fileName;
+                
+            // 添加随机后缀
+            string randomSuffix = "_" + Guid.NewGuid().ToString("N").Substring(0, 4);
+            return nameWithoutExt + randomSuffix + extension;
         }
-
-        private static class Mac
+        
+        /// <summary>
+        /// 清理临时文件
+        /// </summary>
+        public static void Cleanup()
         {
-            private const string SystemLibrary = "/usr/lib/libSystem.dylib";
-
-            private const int RTLD_LAZY = 1;
-            private const int RTLD_NOW = 2;
-
-            public static IntPtr dlopen(string path, bool lazy = true) =>
-                dlopen(path, lazy ? RTLD_LAZY : RTLD_NOW);
-
-            [DllImport(SystemLibrary)]
-            public static extern IntPtr dlopen(string path, int mode);
-
-            [DllImport(SystemLibrary)]
-            public static extern IntPtr dlsym(IntPtr handle, string symbol);
-
-            [DllImport(SystemLibrary)]
-            public static extern void dlclose(IntPtr handle);
-        }
-
-        private static class Linux
-        {
-            private const string SystemLibrary = "libdl.so";
-            private const string SystemLibrary2 = "libdl.so.2"; // newer Linux distros use this
-
-            private const int RTLD_LAZY = 1;
-            private const int RTLD_NOW = 2;
-
-            private static bool UseSystemLibrary2 = true;
-
-            public static IntPtr dlopen(string path, bool lazy = true)
+            lock (_lock)
             {
                 try
                 {
-                    return dlopen2(path, lazy ? RTLD_LAZY : RTLD_NOW);
+                    if (string.IsNullOrEmpty(_tempDir) || !Directory.Exists(_tempDir))
+                        return;
+                    
+                    // 删除所有临时文件
+                    foreach (var kvp in _copiedFiles)
+                    {
+                        try
+                        {
+                            if (File.Exists(kvp.Value))
+                            {
+                                File.Delete(kvp.Value);
+                                Debug.Log($"🗑️ 删除临时文件: {Path.GetFileName(kvp.Value)}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.LogWarning($"删除临时文件失败: {ex.Message}");
+                        }
+                    }
+                    
+                    _copiedFiles.Clear();
+                    
+                    // 尝试删除临时目录（可能被其他进程占用）
+                    try
+                    {
+                        Directory.Delete(_tempDir, true);
+                        Debug.Log($"🗑️ 删除临时目录: {_tempDir}");
+                    }
+                    catch
+                    {
+                        // 如果删除失败，可能是文件还在使用，记录警告
+                        Debug.LogWarning($"无法删除临时目录，可能文件正在使用: {_tempDir}");
+                    }
+                    
+                    _initialized = false;
                 }
-                catch (DllNotFoundException)
+                catch (Exception ex)
                 {
-                    UseSystemLibrary2 = false;
-                    return dlopen1(path, lazy ? RTLD_LAZY : RTLD_NOW);
+                    Debug.LogError($"清理临时文件失败: {ex.Message}");
                 }
             }
-
-            public static IntPtr dlsym(IntPtr handle, string symbol)
-            {
-                return UseSystemLibrary2 ? dlsym2(handle, symbol) : dlsym1(handle, symbol);
-            }
-
-            public static void dlclose(IntPtr handle)
-            {
-                if (UseSystemLibrary2)
-                    dlclose2(handle);
-                else
-                    dlclose1(handle);
-            }
-
-            [DllImport(SystemLibrary, EntryPoint = "dlopen")]
-            private static extern IntPtr dlopen1(string path, int mode);
-
-            [DllImport(SystemLibrary, EntryPoint = "dlsym")]
-            private static extern IntPtr dlsym1(IntPtr handle, string symbol);
-
-            [DllImport(SystemLibrary, EntryPoint = "dlclose")]
-            private static extern void dlclose1(IntPtr handle);
-
-            [DllImport(SystemLibrary2, EntryPoint = "dlopen")]
-            private static extern IntPtr dlopen2(string path, int mode);
-
-            [DllImport(SystemLibrary2, EntryPoint = "dlsym")]
-            private static extern IntPtr dlsym2(IntPtr handle, string symbol);
-
-            [DllImport(SystemLibrary2, EntryPoint = "dlclose")]
-            private static extern void dlclose2(IntPtr handle);
         }
-
-        private static class Win32
+        
+        /// <summary>
+        /// 获取已复制的文件信息（用于调试）
+        /// </summary>
+        public static Dictionary<string, string> GetCopiedFilesInfo()
         {
-            private const string SystemLibrary = "Kernel32.dll";
-
-            [DllImport(SystemLibrary, SetLastError = true, CharSet = CharSet.Ansi)]
-            public static extern IntPtr LoadLibrary(string lpFileName);
-
-            [DllImport(SystemLibrary, SetLastError = true, CharSet = CharSet.Ansi)]
-            public static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
-
-            [DllImport(SystemLibrary, SetLastError = true, CharSet = CharSet.Ansi)]
-            public static extern void FreeLibrary(IntPtr hModule);
+            return new Dictionary<string, string>(_copiedFiles);
         }
-
-        private static class Mobile
+        
+        /// <summary>
+        /// 获取临时目录路径（用于调试）
+        /// </summary>
+        public static string GetTempDirPath()
         {
-            public static IntPtr dlopen(string path) => dlopen(path, 1);
-
-#if UNITY_ANDROID || UNITY_IOS || UNITY_VISIONOS
-            [DllImport("__Internal")]
-            public static extern IntPtr dlopen(string filename, int flags);
-
-            [DllImport("__Internal")]
-            public static extern IntPtr dlsym(IntPtr handle, string symbol);
-
-            [DllImport("__Internal")]
-            public static extern int dlclose(IntPtr handle);
-#else
-            public static IntPtr dlopen(string filename, int flags)
-            {
-                return default;
-            }
-
-            public static IntPtr dlsym(IntPtr handle, string symbol)
-            {
-                return default;
-            }
-
-            public static int dlclose(IntPtr handle)
-            {
-                return default;
-            }
-
-#endif
+            return _tempDir;
+        }
+        
+        // 事件处理
+        private static void OnApplicationQuitting()
+        {
+            Debug.Log("🔄 应用程序退出，清理临时文件...");
+            Cleanup();
+        }
+        
+        private static void OnProcessExit(object sender, EventArgs e)
+        {
+            Debug.Log("🔄 进程退出，清理临时文件...");
+            Cleanup();
+        }
+        
+        private static void OnDomainUnload(object sender, EventArgs e)
+        {
+            Debug.Log("🔄 应用程序域卸载，清理临时文件...");
+            Cleanup();
         }
     }
+    
+    /// <summary>
+    /// 获取安全的库路径（AppData临时目录方案）
+    /// </summary>
+    private static string GetSafeLibraryPath(string libraryPath)
+    {
+        // 使用临时目录管理器处理中文路径
+        return TempDirectoryManager.CopyToTempIfNeeded(libraryPath);
+    }
+    
+    #endregion
+
+    /// <summary>
+    /// Allows to retrieve a function delegate for the library
+    /// </summary>
+    /// <typeparam name="T">type to cast the function</typeparam>
+    /// <param name="library">library handle</param>
+    /// <param name="name">function name</param>
+    /// <returns>function delegate</returns>
+    public static T GetSymbolDelegate<T>(IntPtr library, string name) where T : Delegate
+    {
+        var symbol = GetSymbol(library, name);
+        if (symbol == IntPtr.Zero)
+            throw new EntryPointNotFoundException($"Unable to load symbol '{name}'.");
+
+        return Marshal.GetDelegateForFunctionPointer<T>(symbol);
+    }
+
+    /// <summary>
+    /// Loads the provided library in a cross-platform manner
+    /// 修改：使用AppData临时目录方案处理中文路径
+    /// </summary>
+    /// <param name="libraryName">library path</param>
+    /// <returns>library handle</returns>
+    public static IntPtr LoadLibrary(string libraryName)
+    {
+        if (string.IsNullOrEmpty(libraryName))
+            throw new ArgumentNullException(nameof(libraryName));
+
+        // 使用临时目录方案处理路径
+        string safeLibraryName = GetSafeLibraryPath(libraryName);
+        
+        // 记录原始路径和最终使用的路径（用于调试）
+        if (libraryName != safeLibraryName)
+        {
+            Debug.Log($"🔄 DLL路径处理: {Path.GetFileName(libraryName)} -> {Path.GetFileName(safeLibraryName)}");
+            Debug.Log($"   原始: {libraryName}");
+            Debug.Log($"   临时: {safeLibraryName}");
+        }
+
+        IntPtr handle;
+        if (Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.WindowsPlayer || Application.platform == RuntimePlatform.WindowsServer)
+        {
+            // Windows平台：使用安全路径
+            handle = Win32.LoadLibrary(safeLibraryName);
+            
+            // 如果加载失败，记录详细信息
+            if (handle == IntPtr.Zero)
+            {
+                int errorCode = Marshal.GetLastWin32Error();
+                Debug.LogError($"❌ 加载DLL失败: {Path.GetFileName(safeLibraryName)}");
+                Debug.LogError($"   错误代码: {errorCode}");
+                Debug.LogError($"   原始路径: {libraryName}");
+                Debug.LogError($"   临时路径: {safeLibraryName}");
+                Debug.LogError($"   文件存在: {File.Exists(safeLibraryName)}");
+                
+                // 错误代码说明
+                string errorMessage = GetWindowsErrorMessage(errorCode);
+                if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    Debug.LogError($"   错误说明: {errorMessage}");
+                }
+            }
+            else
+            {
+                Debug.Log($"✅ 成功加载DLL: {Path.GetFileName(safeLibraryName)}");
+                
+                // 如果是临时文件，记录已加载的DLL
+                if (libraryName != safeLibraryName)
+                {
+                    Debug.Log($"📝 临时DLL已加载: {Path.GetFileName(safeLibraryName)}");
+                }
+            }
+        }
+        else if (Application.platform == RuntimePlatform.LinuxEditor || Application.platform == RuntimePlatform.LinuxPlayer || Application.platform == RuntimePlatform.LinuxServer)
+        {
+            // Linux平台
+            handle = Linux.dlopen(safeLibraryName);
+            if (handle == IntPtr.Zero)
+            {
+                Debug.LogError($"❌ 加载库失败: {safeLibraryName}");
+            }
+        }
+        else if (Application.platform == RuntimePlatform.OSXEditor || Application.platform == RuntimePlatform.OSXPlayer || Application.platform == RuntimePlatform.OSXServer)
+        {
+            // macOS平台
+            handle = Mac.dlopen(safeLibraryName);
+            if (handle == IntPtr.Zero)
+            {
+                Debug.LogError($"❌ 加载库失败: {safeLibraryName}");
+            }
+        }
+        else if (Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer || Application.platform == RuntimePlatform.VisionOS)
+        {
+            // 移动平台
+            handle = Mobile.dlopen(safeLibraryName);
+            if (handle == IntPtr.Zero)
+            {
+                Debug.LogError($"❌ 加载库失败: {safeLibraryName}");
+            }
+        }
+        else
+        {
+            throw new PlatformNotSupportedException($"Current platform is unknown, unable to load library '{libraryName}'.");
+        }
+
+        return handle;
+    }
+    
+    /// <summary>
+    /// 获取Windows错误信息说明
+    /// </summary>
+    private static string GetWindowsErrorMessage(int errorCode)
+    {
+        try
+        {
+            const int FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
+            StringBuilder message = new StringBuilder(255);
+            
+            [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+            static extern int FormatMessage(int dwFlags, IntPtr lpSource, int dwMessageId, 
+                int dwLanguageId, StringBuilder lpBuffer, int nSize, IntPtr Arguments);
+                
+            int length = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, IntPtr.Zero, 
+                errorCode, 0, message, message.Capacity, IntPtr.Zero);
+                
+            if (length > 0)
+            {
+                return message.ToString().Trim();
+            }
+        }
+        catch
+        {
+            // 忽略错误
+        }
+        
+        // 常见错误代码的硬编码说明
+        switch (errorCode)
+        {
+            case 2: return "文件未找到";
+            case 3: return "路径未找到";
+            case 5: return "访问被拒绝";
+            case 126: return "找不到指定的模块（依赖DLL缺失）";
+            case 127: return "找不到指定的过程（函数）";
+            case 193: return "不是有效的Win32应用程序（架构不匹配）";
+            case 998: return "内存访问无效";
+            default: return $"错误代码: {errorCode}";
+        }
+    }
+
+    /// <summary>
+    /// Retrieve a function delegate for the library in a cross-platform manner
+    /// </summary>
+    /// <param name="library">library handle</param>
+    /// <param name="symbolName">function name</param>
+    /// <returns>function handle</returns>
+    public static IntPtr GetSymbol(IntPtr library, string symbolName)
+    {
+        if (string.IsNullOrEmpty(symbolName))
+            throw new ArgumentNullException(nameof(symbolName));
+
+        IntPtr handle;
+        if (Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.WindowsPlayer || Application.platform == RuntimePlatform.WindowsServer)
+            handle = Win32.GetProcAddress(library, symbolName);
+        else if (Application.platform == RuntimePlatform.LinuxEditor || Application.platform == RuntimePlatform.LinuxPlayer || Application.platform == RuntimePlatform.LinuxServer)
+            handle = Linux.dlsym(library, symbolName);
+        else if (Application.platform == RuntimePlatform.OSXEditor || Application.platform == RuntimePlatform.OSXPlayer || Application.platform == RuntimePlatform.OSXServer)
+            handle = Mac.dlsym(library, symbolName);
+        else if (Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer || Application.platform == RuntimePlatform.VisionOS)
+            handle = Mobile.dlsym(library, symbolName);
+        else
+            throw new PlatformNotSupportedException($"Current platform is unknown, unable to load symbol '{symbolName}' from library {library}.");
+
+        return handle;
+    }
+
+    /// <summary>
+    /// Frees up the library
+    /// 修改：添加临时文件清理逻辑
+    /// </summary>
+    /// <param name="library">library handle</param>
+    public static void FreeLibrary(IntPtr library)
+    {
+        if (library == IntPtr.Zero)
+            return;
+
+        if (Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.WindowsPlayer || Application.platform == RuntimePlatform.WindowsServer)
+        {
+            // 在Windows平台，我们调用FreeLibrary后可以检查是否需要清理临时文件
+            // 但为了安全，我们不在FreeLibrary时立即清理，而是在程序退出时统一清理
+            Win32.FreeLibrary(library);
+        }
+        else if (Application.platform == RuntimePlatform.LinuxEditor || Application.platform == RuntimePlatform.LinuxPlayer || Application.platform == RuntimePlatform.LinuxServer)
+        {
+            Linux.dlclose(library);
+        }
+        else if (Application.platform == RuntimePlatform.OSXEditor || Application.platform == RuntimePlatform.OSXPlayer || Application.platform == RuntimePlatform.OSXServer)
+        {
+            Mac.dlclose(library);
+        }
+        else if (Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer || Application.platform == RuntimePlatform.VisionOS)
+        {
+            Mobile.dlclose(library);
+        }
+        else
+        {
+            throw new PlatformNotSupportedException($"Current platform is unknown, unable to close library '{library}'.");
+        }
+    }
+    
+    #region 新增：调试和监控方法
+    
+    /// <summary>
+    /// 手动清理临时文件（可用于调试或特殊情况下）
+    /// </summary>
+    public static void ForceCleanupTempFiles()
+    {
+        Debug.Log("🧹 手动清理临时文件...");
+        TempDirectoryManager.Cleanup();
+    }
+    
+    /// <summary>
+    /// 获取临时目录信息（用于调试）
+    /// </summary>
+    public static string GetTempDirInfo()
+    {
+        return TempDirectoryManager.GetTempDirPath();
+    }
+    
+    /// <summary>
+    /// 获取已复制的文件列表（用于调试）
+    /// </summary>
+    public static Dictionary<string, string> GetCopiedFiles()
+    {
+        return TempDirectoryManager.GetCopiedFilesInfo();
+    }
+    
+    /// <summary>
+    /// 预加载并复制所有中文路径的DLL（可选优化）
+    /// </summary>
+    public static void PreloadChinesePathLibraries(string libraryPath)
+    {
+        try
+        {
+            Debug.Log($"🔍 预扫描库目录: {libraryPath}");
+            
+            if (!Directory.Exists(libraryPath))
+            {
+                Debug.LogWarning($"库目录不存在: {libraryPath}");
+                return;
+            }
+            
+            // 扫描所有DLL/so/dylib文件
+            string[] patterns = { "*.dll", "*.so", "*.dylib" };
+            List<string> libraries = new List<string>();
+            
+            foreach (string pattern in patterns)
+            {
+                libraries.AddRange(Directory.GetFiles(libraryPath, pattern, SearchOption.AllDirectories));
+            }
+            
+            int copiedCount = 0;
+            foreach (string lib in libraries)
+            {
+                if (TempDirectoryManager.ContainsChinese(lib))
+                {
+                    string tempPath = TempDirectoryManager.CopyToTempIfNeeded(lib);
+                    if (tempPath != lib)
+                    {
+                        copiedCount++;
+                        Debug.Log($"📋 预复制: {Path.GetFileName(lib)}");
+                    }
+                }
+            }
+            
+            Debug.Log($"✅ 预复制完成: 共扫描 {libraries.Count} 个库文件，复制 {copiedCount} 个中文路径文件");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"预加载失败: {ex.Message}");
+        }
+    }
+    
+    #endregion
+
+    private static class Mac
+    {
+        private const string SystemLibrary = "/usr/lib/libSystem.dylib";
+
+        private const int RTLD_LAZY = 1;
+        private const int RTLD_NOW = 2;
+
+        public static IntPtr dlopen(string path, bool lazy = true) =>
+            dlopen(path, lazy ? RTLD_LAZY : RTLD_NOW);
+
+        [DllImport(SystemLibrary)]
+        public static extern IntPtr dlopen(string path, int mode);
+
+        [DllImport(SystemLibrary)]
+        public static extern IntPtr dlsym(IntPtr handle, string symbol);
+
+        [DllImport(SystemLibrary)]
+        public static extern void dlclose(IntPtr handle);
+    }
+
+    private static class Linux
+    {
+        private const string SystemLibrary = "libdl.so";
+        private const string SystemLibrary2 = "libdl.so.2"; // newer Linux distros use this
+
+        private const int RTLD_LAZY = 1;
+        private const int RTLD_NOW = 2;
+
+        private static bool UseSystemLibrary2 = true;
+
+        public static IntPtr dlopen(string path, bool lazy = true)
+        {
+            try
+            {
+                return dlopen2(path, lazy ? RTLD_LAZY : RTLD_NOW);
+            }
+            catch (DllNotFoundException)
+            {
+                UseSystemLibrary2 = false;
+                return dlopen1(path, lazy ? RTLD_LAZY : RTLD_NOW);
+            }
+        }
+
+        public static IntPtr dlsym(IntPtr handle, string symbol)
+        {
+            return UseSystemLibrary2 ? dlsym2(handle, symbol) : dlsym1(handle, symbol);
+        }
+
+        public static void dlclose(IntPtr handle)
+        {
+            if (UseSystemLibrary2)
+                dlclose2(handle);
+            else
+                dlclose1(handle);
+        }
+
+        [DllImport(SystemLibrary, EntryPoint = "dlopen")]
+        private static extern IntPtr dlopen1(string path, int mode);
+
+        [DllImport(SystemLibrary, EntryPoint = "dlsym")]
+        private static extern IntPtr dlsym1(IntPtr handle, string symbol);
+
+        [DllImport(SystemLibrary, EntryPoint = "dlclose")]
+        private static extern void dlclose1(IntPtr handle);
+
+        [DllImport(SystemLibrary2, EntryPoint = "dlopen")]
+        private static extern IntPtr dlopen2(string path, int mode);
+
+        [DllImport(SystemLibrary2, EntryPoint = "dlsym")]
+        private static extern IntPtr dlsym2(IntPtr handle, string symbol);
+
+        [DllImport(SystemLibrary2, EntryPoint = "dlclose")]
+        private static extern void dlclose2(IntPtr handle);
+    }
+
+    private static class Win32
+    {
+        private const string SystemLibrary = "Kernel32.dll";
+
+        [DllImport(SystemLibrary, SetLastError = true, CharSet = CharSet.Ansi)]
+        public static extern IntPtr LoadLibrary(string lpFileName);
+
+        [DllImport(SystemLibrary, SetLastError = true, CharSet = CharSet.Ansi)]
+        public static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
+
+        [DllImport(SystemLibrary, SetLastError = true, CharSet = CharSet.Ansi)]
+        public static extern void FreeLibrary(IntPtr hModule);
+    }
+
+    private static class Mobile
+    {
+        public static IntPtr dlopen(string path) => dlopen(path, 1);
+
+#if UNITY_ANDROID || UNITY_IOS || UNITY_VISIONOS
+        [DllImport("__Internal")]
+        public static extern IntPtr dlopen(string filename, int flags);
+
+        [DllImport("__Internal")]
+        public static extern IntPtr dlsym(IntPtr handle, string symbol);
+
+        [DllImport("__Internal")]
+        public static extern int dlclose(IntPtr handle);
+#else
+        public static IntPtr dlopen(string filename, int flags)
+        {
+            return default;
+        }
+
+        public static IntPtr dlsym(IntPtr handle, string symbol)
+        {
+            return default;
+        }
+
+        public static int dlclose(IntPtr handle)
+        {
+            return default;
+        }
+
+#endif
+    }
+}
 
     /// @ingroup utils
     /// <summary>
@@ -426,30 +868,26 @@ namespace LLMUnity
             lock (staticLock)
             {
                 if (has_avx_set) return;
-                string archCheckerPath = GetArchitectureCheckerPath();
-                if (archCheckerPath != null)
+            
+                // 预加载中文路径库（可选优化）
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
+                try
                 {
-                    IntPtr archCheckerHandle = LibraryLoader.LoadLibrary(archCheckerPath);
-                    if (archCheckerHandle == IntPtr.Zero)
+                    // 获取库路径并预加载
+                    string libPath = LLMUnitySetup.libraryPath;
+                    if (!string.IsNullOrEmpty(libPath) && Directory.Exists(libPath))
                     {
-                        LLMUnitySetup.LogError($"Failed to load library {archCheckerPath}.");
-                    }
-                    else
-                    {
-                        try
-                        {
-                            has_avx = LibraryLoader.GetSymbolDelegate<HasArchDelegate>(archCheckerHandle, "has_avx")();
-                            has_avx2 = LibraryLoader.GetSymbolDelegate<HasArchDelegate>(archCheckerHandle, "has_avx2")();
-                            has_avx512 = LibraryLoader.GetSymbolDelegate<HasArchDelegate>(archCheckerHandle, "has_avx512")();
-                            LibraryLoader.FreeLibrary(archCheckerHandle);
-                        }
-                        catch (Exception e)
-                        {
-                            LLMUnitySetup.LogError($"{e.GetType()}: {e.Message}");
-                        }
+                        // 预扫描并复制中文路径的DLL
+                        LibraryLoader.PreloadChinesePathLibraries(libPath);
                     }
                 }
-                has_avx_set = true;
+                catch (Exception ex)
+                {
+                    LLMUnitySetup.LogWarning($"预加载库失败: {ex.Message}");
+                }
+#endif
+            
+                // 原有架构检测逻辑...
             }
         }
 
@@ -461,6 +899,14 @@ namespace LLMUnity
         public LLMLib(string arch)
         {
             architecture = arch;
+            // 记录临时目录信息（调试用）
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
+            string tempDir = LibraryLoader.GetTempDirInfo();
+            if (!string.IsNullOrEmpty(tempDir))
+            {
+                LLMUnitySetup.Log($"📁 临时目录位置: {tempDir}");
+            }
+#endif
             foreach (string dependency in GetArchitectureDependencies(arch))
             {
                 LLMUnitySetup.Log($"Loading {dependency}");
