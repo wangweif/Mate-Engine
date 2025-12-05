@@ -7,6 +7,7 @@ using System.Collections;
 using System.Linq;
 using System;
 using System.Text;
+using System.IO;
 using UnityEngine.Networking;
 using UnityEngine.EventSystems;
 
@@ -86,7 +87,10 @@ namespace LLMUnitySamples
         private Animator lastAvatarAnimator;
         private static readonly int isTalkingHash = Animator.StringToHash("isTalking");
 
-        public SmartWindowsTTS smartWindowsTTS;
+        public SmartWindowsTTS smartWindowsTTS; // 保留以兼容旧代码，但不再使用
+        
+        [Header("TTS Audio Source")]
+        public AudioSource ttsAudioSource; // 用于播放TTS音频，如果为空则使用streamAudioSource
 
         // 语音录制相关
         private AudioClip recordingClip;
@@ -96,10 +100,36 @@ namespace LLMUnitySamples
         private const int maxRecordingLength = 60; // 最大录制60秒
         private const string whisperApiUrl = "http://192.168.8.88:8001/v1/audio/transcriptions";
         private const string whisperModel = "whisper-small";
+        
+        // TTS API配置
+        private const string ttsApiBaseUrl = "http://192.168.8.88:5000/tts";
+        private const string ttsApiKey = "bjzntd@123456";
+        private const string ttsVoice = "zh-CN-XiaoshuangNeural";
         // 按住说话拖动取消相关
         private bool isCancellingRecording = false;
         private Vector2 holdButtonDownPosition;
         private const float cancelDragThreshold = 80f; // 上滑超过该像素视为取消
+
+        // 实时语音对话相关
+        [Header("实时语音对话设置")]
+        public bool enableRealTimeVoiceChat = true;
+        public float vadCheckInterval = 0.5f; // VAD检测间隔（秒）
+        public float noSpeechThreshold = 1.0f; // 无效语音阈值（秒）
+        public float vadEnergyThreshold = 0.01f; // VAD能量阈值
+        public float vadActivityRate = 0.6f; // VAD活动率阈值（60%的块检测到语音才认为有活动）
+        
+        private bool isRealTimeVoiceChatActive = false;
+        private Coroutine realTimeVoiceChatCoroutine;
+        private List<AudioClip> audioSegments = new List<AudioClip>();
+        private float lastActiveTime = 0f;
+        private int audioFileCount = 0;
+        private bool isProcessingAudio = false; // 防止并发处理
+        private int lastReadPosition = 0; // 上次读取的音频位置
+        private Coroutine currentTTSPlayCoroutine = null; // 当前TTS播放协程
+        private bool isTTSPlaying = false; // TTS是否正在播放
+        private bool chatInProgress = false; // 模型是否正在输出
+        private bool chatCancelledByVoice = false; // 是否因新语音打断了模型输出
+        private AudioClip currentTTSClip = null; // 当前TTS音频
 
         void Start()
         {
@@ -157,13 +187,20 @@ namespace LLMUnitySamples
 
         void SetupVoiceInputButtons()
         {
-            // 语音输入按钮点击事件
+            // 语音输入按钮点击事件 - 启动实时语音对话
             Button voiceButton = inputBubble.GetVoiceInputButton();
             if (voiceButton != null)
             {
                 voiceButton.onClick.AddListener(() => {
-                    Debug.Log("语音输入按钮被点击");
-                    inputBubble.SetVoiceMode(true);
+                    Debug.Log("语音输入按钮被点击 - 启动实时语音对话");
+                    if (enableRealTimeVoiceChat)
+                    {
+                        StartRealTimeVoiceChat();
+                    }
+                    else
+                    {
+                        inputBubble.SetVoiceMode(true);
+                    }
                 });
             }
             else
@@ -171,11 +208,15 @@ namespace LLMUnitySamples
                 Debug.LogError("语音输入按钮未找到！");
             }
 
-            // 键盘按钮点击事件
+            // 键盘按钮点击事件 - 停止实时语音对话
             Button keyboardButton = inputBubble.GetKeyboardButton();
             if (keyboardButton != null)
             {
                 keyboardButton.onClick.AddListener(() => {
+                    if (isRealTimeVoiceChatActive)
+                    {
+                        StopRealTimeVoiceChat();
+                    }
                     inputBubble.SetVoiceMode(false);
                 });
             }
@@ -256,12 +297,20 @@ namespace LLMUnitySamples
 
         void OnDisable()
         {
+            StopRealTimeVoiceChat();
+            StopCurrentTTS();
             if (streamAudioSource != null && streamAudioSource.isPlaying)
             {
                 streamAudioSource.Stop();
                 streamAudioSource.volume = 1f; 
             }
             if (avatarAnimator != null) avatarAnimator.SetBool(isTalkingHash, false);
+        }
+
+        void OnDestroy()
+        {
+            StopRealTimeVoiceChat();
+            StopCurrentTTS();
         }
 
         Bubble AddBubble(string message, bool isPlayerMessage)
@@ -353,6 +402,9 @@ namespace LLMUnitySamples
                 streamAudioSource.Play();
             if (avatarAnimator != null) avatarAnimator.SetBool(isTalkingHash, true);
 
+            chatCancelledByVoice = false;
+            chatInProgress = true;
+
             Task chatTask = llmCharacter.Chat(
                 message,
                 (partial) => { aiBubble.SetText(partial); layoutDirty = true; },
@@ -362,18 +414,19 @@ namespace LLMUnitySamples
 
                     aiBubble.SetText(aiBubble.GetText());
                     layoutDirty = true;
+                    chatInProgress = false;
 
                     if (streamAudioSource != null && streamAudioSource.isPlaying)
                         StartCoroutine(FadeOutStreamAudio());
 
                     //调用tts
                     Debug.Log("开始调用tts");
-                    smartWindowsTTS.SpeakAsync(aiBubble.GetText(), (success) => {
+                    StartCoroutine(PlayTTSFromAPI(aiBubble.GetText(), (success) => {
                         if (!success)
                         {
                             Debug.LogWarning($"⚠ 语音播放失败: {aiBubble.GetText()}");
                         }
-                    });
+                    }));
                     Debug.Log("完成调用tts");
 
                     AllowInput();
@@ -833,6 +886,721 @@ namespace LLMUnitySamples
             {
                 Debug.LogError($"解析Whisper响应失败: {e.Message}");
                 return "";
+            }
+        }
+
+        // ==================== 实时语音对话功能 ====================
+
+        /// <summary>
+        /// 启动实时语音对话
+        /// </summary>
+        void StartRealTimeVoiceChat()
+        {
+            if (isRealTimeVoiceChatActive)
+            {
+                Debug.Log("实时语音对话已在运行中");
+                return;
+            }
+
+            if (Microphone.devices.Length == 0)
+            {
+                Debug.LogError("没有找到麦克风设备");
+                return;
+            }
+
+            isRealTimeVoiceChatActive = true;
+            audioSegments.Clear();
+            lastActiveTime = Time.time;
+            audioFileCount = 0;
+            isProcessingAudio = false;
+
+            // 切换到语音模式
+            inputBubble.SetVoiceMode(true);
+            
+            // 隐藏按住说话按钮，因为现在是自动检测
+            Button holdButton = inputBubble.GetHoldToSpeakButton();
+            if (holdButton != null)
+            {
+                holdButton.gameObject.SetActive(false);
+            }
+
+            // 更新按钮文本提示
+            UpdateVoiceButtonText("实时对话中...");
+
+            Debug.Log("开始实时语音对话");
+            realTimeVoiceChatCoroutine = StartCoroutine(RealTimeVoiceChatLoop());
+        }
+
+        /// <summary>
+        /// 停止实时语音对话
+        /// </summary>
+        void StopRealTimeVoiceChat()
+        {
+            if (!isRealTimeVoiceChatActive) return;
+
+            isRealTimeVoiceChatActive = false;
+
+            if (realTimeVoiceChatCoroutine != null)
+            {
+                StopCoroutine(realTimeVoiceChatCoroutine);
+                realTimeVoiceChatCoroutine = null;
+            }
+
+            if (isRecording && recordingClip != null)
+            {
+                Microphone.End(microphoneDevice);
+                isRecording = false;
+            }
+
+            // 停止TTS播放
+            StopCurrentTTS();
+            // 停止模型输出
+            CancelCurrentChat();
+
+            audioSegments.Clear();
+            UpdateVoiceButtonText("点击开始实时对话");
+            Debug.Log("实时语音对话已停止");
+        }
+
+        /// <summary>
+        /// 更新语音按钮文本
+        /// </summary>
+        void UpdateVoiceButtonText(string text)
+        {
+            Button holdButton = inputBubble.GetHoldToSpeakButton();
+            if (holdButton != null)
+            {
+                Text holdButtonText = holdButton.GetComponentInChildren<Text>();
+                if (holdButtonText != null)
+                {
+                    holdButtonText.text = text;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 实时语音对话主循环
+        /// </summary>
+        IEnumerator RealTimeVoiceChatLoop()
+        {
+            microphoneDevice = Microphone.devices[0];
+            recordingClip = Microphone.Start(microphoneDevice, true, maxRecordingLength, sampleRate);
+            isRecording = true;
+            lastReadPosition = 0;
+            lastActiveTime = Time.time;
+
+            while (isRealTimeVoiceChatActive)
+            {
+                yield return new WaitForSeconds(vadCheckInterval);
+
+                if (!isRecording || recordingClip == null) continue;
+
+                // 获取当前录音位置
+                int currentPosition = Microphone.GetPosition(microphoneDevice);
+                if (currentPosition < 0) continue;
+
+                // 处理循环缓冲区的情况
+                int samplesToRead = 0;
+                if (currentPosition >= lastReadPosition)
+                {
+                    samplesToRead = currentPosition - lastReadPosition;
+                }
+                else
+                {
+                    // 缓冲区循环了
+                    samplesToRead = (recordingClip.samples - lastReadPosition) + currentPosition;
+                }
+
+                if (samplesToRead <= 0) continue;
+
+                // 读取新的音频数据
+                float[] samples = new float[samplesToRead * recordingClip.channels];
+                int readStart = lastReadPosition;
+                
+                if (currentPosition >= lastReadPosition)
+                {
+                    // 正常情况，直接读取
+                    recordingClip.GetData(samples, readStart);
+                }
+                else
+                {
+                    // 需要分两次读取（跨越缓冲区边界）
+                    int firstPartSamples = (recordingClip.samples - lastReadPosition) * recordingClip.channels;
+                    float[] firstPart = new float[firstPartSamples];
+                    recordingClip.GetData(firstPart, lastReadPosition);
+                    
+                    int secondPartSamples = currentPosition * recordingClip.channels;
+                    float[] secondPart = new float[secondPartSamples];
+                    recordingClip.GetData(secondPart, 0);
+                    
+                    Array.Copy(firstPart, 0, samples, 0, firstPartSamples);
+                    Array.Copy(secondPart, 0, samples, firstPartSamples, secondPartSamples);
+                }
+
+                // 更新读取位置
+                lastReadPosition = currentPosition;
+
+                // 计算音频时长
+                float audioDuration = (float)samplesToRead / sampleRate;
+
+                // 进行VAD检测
+                bool hasVoiceActivity = CheckVADActivity(samples, recordingClip.channels);
+                
+                if (hasVoiceActivity)
+                {
+                    Debug.Log($"检测到语音活动 (时长: {audioDuration:F2}秒)");
+                    lastActiveTime = Time.time;
+                    
+                    // 保存音频段
+                    AudioClip segment = AudioClip.Create($"AudioSegment_{audioFileCount++}", samplesToRead, recordingClip.channels, sampleRate, false);
+                    segment.SetData(samples, 0);
+                    audioSegments.Add(segment);
+                }
+                // else
+                // {
+                //     Debug.Log("静音中...");
+                // }
+
+                // 检查是否需要保存和处理（静音超过阈值）
+                if (Time.time - lastActiveTime > noSpeechThreshold)
+                {
+                    if (audioSegments.Count > 0)
+                    {
+                        // 如果模型或TTS正在输出，立即打断
+                        if (isTTSPlaying || chatInProgress)
+                        {
+                            CancelCurrentChat();
+                            StopCurrentTTS();
+                            chatCancelledByVoice = true;
+                            Debug.Log("检测到新语音，已打断当前模型输出/TTS");
+                        }
+                        StartCoroutine(ProcessAudioSegments());
+                    }
+                }
+            }
+
+            // 清理
+            if (isRecording && recordingClip != null)
+            {
+                Microphone.End(microphoneDevice);
+                isRecording = false;
+            }
+        }
+
+        /// <summary>
+        /// 简单的VAD检测（基于能量检测）
+        /// </summary>
+        bool CheckVADActivity(float[] samples, int channels)
+        {
+            if (samples == null || samples.Length == 0) return false;
+
+            const int frameSize = (int)(sampleRate * 0.02f); // 20ms帧
+            int activeFrames = 0;
+            int totalFrames = 0;
+
+            for (int i = 0; i < samples.Length - frameSize * channels; i += frameSize * channels)
+            {
+                // 计算帧的能量
+                float energy = 0f;
+                for (int j = 0; j < frameSize * channels; j++)
+                {
+                    energy += Mathf.Abs(samples[i + j]);
+                }
+                energy /= (frameSize * channels);
+
+                totalFrames++;
+                if (energy > vadEnergyThreshold)
+                {
+                    activeFrames++;
+                }
+            }
+
+            if (totalFrames == 0) return false;
+
+            float activityRate = (float)activeFrames / totalFrames;
+            return activityRate >= vadActivityRate;
+        }
+
+        /// <summary>
+        /// 处理音频段：合并、转文字、生成回复、播放TTS
+        /// </summary>
+        IEnumerator ProcessAudioSegments()
+        {
+            if (audioSegments.Count == 0 || isProcessingAudio) yield break;
+
+            isProcessingAudio = true;
+
+            // 停止当前TTS播放（如果有）
+            AudioSource audioSourceToUse = ttsAudioSource != null ? ttsAudioSource : streamAudioSource;
+            if (audioSourceToUse != null && audioSourceToUse.isPlaying)
+            {
+                audioSourceToUse.Stop();
+                Debug.Log("检测到新的有效语音，已停止当前TTS播放");
+            }
+
+            // 合并所有音频段
+            int segmentCount = audioSegments.Count;
+            AudioClip mergedClip = MergeAudioClips(audioSegments);
+            if (mergedClip == null)
+            {
+                isProcessingAudio = false;
+                yield break;
+            }
+
+            Debug.Log($"处理音频段，共 {segmentCount} 段，总时长: {mergedClip.length:F2}秒");
+
+            // 清空音频段列表
+            audioSegments.Clear();
+
+            // 转文字
+            string transcribedText = "";
+            bool transcribeCompleted = false;
+            
+            Task<string> transcribeTask = TranscribeAudioWithResult(mergedClip);
+            StartCoroutine(WaitForTranscribeTask(transcribeTask, (text) => {
+                transcribedText = text;
+                transcribeCompleted = true;
+            }));
+
+            while (!transcribeCompleted)
+            {
+                yield return null;
+            }
+
+            if (string.IsNullOrEmpty(transcribedText))
+            {
+                Debug.LogWarning("转文字结果为空，跳过处理");
+                isProcessingAudio = false;
+                yield break;
+            }
+
+            Debug.Log($"转文字结果: {transcribedText}");
+
+            // 显示用户消息
+            AddBubble(transcribedText, true);
+
+            // 生成AI回复
+            Bubble aiBubble = AddBubble("...", false);
+            if (streamAudioSource != null)
+                streamAudioSource.Play();
+            if (avatarAnimator != null) avatarAnimator.SetBool(isTalkingHash, true);
+
+            bool chatCompleted = false;
+            string aiResponse = "";
+            chatCancelledByVoice = false;
+            chatInProgress = true;
+
+            Task chatTask = llmCharacter.Chat(
+                transcribedText,
+                (partial) => { 
+                    aiBubble.SetText(partial); 
+                    layoutDirty = true; 
+                },
+                () =>
+                {
+                    if (avatarAnimator != null) avatarAnimator.SetBool(isTalkingHash, false);
+                    aiBubble.SetText(aiBubble.GetText());
+                    aiResponse = aiBubble.GetText();
+                    layoutDirty = true;
+                    chatCompleted = true;
+
+                    if (streamAudioSource != null && streamAudioSource.isPlaying)
+                        StartCoroutine(FadeOutStreamAudio());
+                }
+            );
+
+            // 等待聊天完成
+            while (!chatCompleted && !chatCancelledByVoice)
+            {
+                yield return null;
+            }
+
+            chatInProgress = false;
+
+            if (chatCancelledByVoice)
+            {
+                Debug.Log("聊天已被新语音打断，停止当前处理");
+                isProcessingAudio = false;
+                chatInProgress = false;
+                yield break;
+            }
+
+            // 播放TTS（非阻塞方式，允许在播放期间继续监听）
+            if (!string.IsNullOrEmpty(aiResponse))
+            {
+                Debug.Log("开始进行TTS");
+                // 使用非阻塞方式启动TTS播放，不等待完成
+                currentTTSPlayCoroutine = StartCoroutine(PlayTTSFromAPI(aiResponse, (success) => {
+                    if (!success)
+                    {
+                        Debug.LogWarning($"⚠ 语音播放失败: {aiResponse}");
+                    }
+                    isTTSPlaying = false;
+                    Debug.Log("TTS播放完成");
+                }));
+            }
+
+            isProcessingAudio = false;
+            lastActiveTime = Time.time;
+        }
+
+        /// <summary>
+        /// 合并多个AudioClip
+        /// </summary>
+        AudioClip MergeAudioClips(List<AudioClip> clips)
+        {
+            if (clips == null || clips.Count == 0) return null;
+
+            int totalSamples = 0;
+            int channels = clips[0].channels;
+            int frequency = clips[0].frequency;
+
+            foreach (var clip in clips)
+            {
+                totalSamples += clip.samples;
+            }
+
+            float[] mergedSamples = new float[totalSamples * channels];
+            int offset = 0;
+
+            foreach (var clip in clips)
+            {
+                float[] clipSamples = new float[clip.samples * clip.channels];
+                clip.GetData(clipSamples, 0);
+                Array.Copy(clipSamples, 0, mergedSamples, offset, clipSamples.Length);
+                offset += clipSamples.Length;
+            }
+
+            AudioClip mergedClip = AudioClip.Create("MergedAudio", totalSamples, channels, frequency, false);
+            mergedClip.SetData(mergedSamples, 0);
+
+            return mergedClip;
+        }
+
+        /// <summary>
+        /// 等待转文字任务完成
+        /// </summary>
+        IEnumerator WaitForTranscribeTask(Task<string> task, System.Action<string> onComplete)
+        {
+            while (!task.IsCompleted)
+            {
+                yield return null;
+            }
+
+            if (task.IsCompletedSuccessfully)
+            {
+                onComplete?.Invoke(task.Result);
+            }
+            else
+            {
+                Debug.LogError($"转文字任务失败: {task.Exception}");
+                onComplete?.Invoke("");
+            }
+        }
+
+        /// <summary>
+        /// 修改后的TranscribeAudio，支持回调返回结果
+        /// </summary>
+        async Task<string> TranscribeAudioWithResult(AudioClip audioClip)
+        {
+            try
+            {
+                byte[] wavData = AudioClipToWav(audioClip);
+                
+                List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
+                formData.Add(new MultipartFormFileSection("file", wavData, "audio.wav", "audio/wav"));
+                formData.Add(new MultipartFormDataSection("model", whisperModel));
+                formData.Add(new MultipartFormDataSection("language", "zh"));
+                
+                using (UnityWebRequest request = UnityWebRequest.Post(whisperApiUrl, formData))
+                {
+                    request.timeout = 30;
+                    var operation = request.SendWebRequest();
+
+                    while (!operation.isDone)
+                    {
+                        await Task.Yield();
+                    }
+
+                    if (request.result == UnityWebRequest.Result.Success)
+                    {
+                        string responseText = request.downloadHandler.text;
+                        Debug.Log($"Whisper API响应: {responseText}");
+                        
+                        string transcribedText = ParseWhisperResponse(responseText);
+                        return transcribedText;
+                    }
+                    else
+                    {
+                        Debug.LogError($"Whisper API请求失败: {request.error}");
+                        return "";
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"转文字过程中发生错误: {e.Message}");
+                return "";
+            }
+        }
+
+        // ==================== HTTP TTS 功能 ====================
+
+        /// <summary>
+        /// 停止当前TTS播放
+        /// </summary>
+        void StopCurrentTTS()
+        {
+            if (currentTTSPlayCoroutine != null)
+            {
+                StopCoroutine(currentTTSPlayCoroutine);
+                currentTTSPlayCoroutine = null;
+            }
+
+            AudioSource audioSourceToUse = ttsAudioSource != null ? ttsAudioSource : streamAudioSource;
+            if (audioSourceToUse != null && audioSourceToUse.isPlaying)
+            {
+                audioSourceToUse.Stop();
+                audioSourceToUse.clip = null;
+            }
+
+            if (currentTTSClip != null)
+            {
+                Destroy(currentTTSClip);
+                currentTTSClip = null;
+            }
+
+            isTTSPlaying = false;
+        }
+
+        /// <summary>
+        /// 打断当前模型输出（聊天）
+        /// </summary>
+        void CancelCurrentChat()
+        {
+            if (!chatInProgress) return;
+            chatCancelledByVoice = true;
+            chatInProgress = false;
+            llmCharacter.CancelRequests();
+
+            if (avatarAnimator != null)
+            {
+                avatarAnimator.SetBool(isTalkingHash, false);
+            }
+            if (streamAudioSource != null && streamAudioSource.isPlaying)
+            {
+                streamAudioSource.Stop();
+            }
+        }
+
+        /// <summary>
+        /// 从HTTP API获取TTS并播放
+        /// </summary>
+        IEnumerator PlayTTSFromAPI(string text, System.Action<bool> onComplete)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                Debug.LogWarning("TTS文本为空");
+                isTTSPlaying = false;
+                onComplete?.Invoke(false);
+                yield break;
+            }
+
+            isTTSPlaying = true;
+
+            // 构建TTS API URL
+            string encodedText = UnityEngine.Networking.UnityWebRequest.EscapeURL(text);
+            string ttsUrl = $"{ttsApiBaseUrl}?text={encodedText}&voice={ttsVoice}&api_key={ttsApiKey}";
+            
+            Debug.Log($"请求TTS: {ttsUrl}");
+
+            // 创建临时文件路径
+            string tempDir = Path.Combine(Application.persistentDataPath, "TTSTemp");
+            if (!Directory.Exists(tempDir))
+            {
+                Directory.CreateDirectory(tempDir);
+            }
+            string tempFilePath = Path.Combine(tempDir, $"tts_{System.Guid.NewGuid()}.mp3");
+
+            AudioClip audioClip = null;
+            bool shouldPlay = true;
+
+            // 下载MP3文件
+            using (UnityWebRequest request = UnityWebRequest.Get(ttsUrl))
+            {
+                request.timeout = 30;
+                yield return request.SendWebRequest();
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    // 检查是否被中断
+                    if (!isTTSPlaying)
+                    {
+                        Debug.Log("TTS下载过程中被中断");
+                        onComplete?.Invoke(false);
+                        yield break;
+                    }
+
+                    // 保存到临时文件
+                    byte[] audioData = request.downloadHandler.data;
+                    File.WriteAllBytes(tempFilePath, audioData);
+                    Debug.Log($"TTS MP3文件已保存到: {tempFilePath}, 大小: {audioData.Length} 字节");
+
+                    // 从文件加载AudioClip
+                    string fileUrl = "file://" + tempFilePath;
+                    using (UnityWebRequest audioRequest = UnityWebRequestMultimedia.GetAudioClip(fileUrl, AudioType.MPEG))
+                    {
+                        yield return audioRequest.SendWebRequest();
+
+                        // 再次检查是否被中断
+                        if (!isTTSPlaying)
+                        {
+                            Debug.Log("TTS加载过程中被中断");
+                            try
+                            {
+                                if (File.Exists(tempFilePath))
+                                {
+                                    File.Delete(tempFilePath);
+                                }
+                            }
+                            catch { }
+                            onComplete?.Invoke(false);
+                            yield break;
+                        }
+
+                        if (audioRequest.result == UnityWebRequest.Result.Success)
+                        {
+                            audioClip = DownloadHandlerAudioClip.GetContent(audioRequest);
+                            if (audioClip != null)
+                            {
+                                Debug.Log($"TTS音频加载成功，时长: {audioClip.length:F2}秒");
+                            }
+                            else
+                            {
+                                Debug.LogError("TTS音频剪辑为空");
+                                shouldPlay = false;
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogError($"加载TTS音频文件失败: {audioRequest.error}");
+                            shouldPlay = false;
+                        }
+                    }
+                }
+                else
+                {
+                    Debug.LogError($"TTS API请求失败: {request.error}, URL: {ttsUrl}");
+                    shouldPlay = false;
+                }
+            }
+
+            // 播放音频
+            if (shouldPlay && audioClip != null && isTTSPlaying)
+            {
+                AudioSource audioSourceToUse = ttsAudioSource != null ? ttsAudioSource : streamAudioSource;
+                if (audioSourceToUse != null)
+                {
+                    audioSourceToUse.loop = false;
+                    // 停止当前播放
+                    if (audioSourceToUse.isPlaying)
+                    {
+                        audioSourceToUse.Stop();
+                    }
+                    
+                    // 记录当前clip，方便打断时销毁
+                    currentTTSClip = audioClip;
+                    audioSourceToUse.clip = audioClip;
+                    audioSourceToUse.Play();
+                    
+                    // 等待播放完成，但检查是否被中断
+                    while (audioSourceToUse.isPlaying && isTTSPlaying && audioSourceToUse.clip == audioClip)
+                    {
+                        yield return null;
+                    }
+                    
+                    // 如果被中断，停止播放
+                    if (!isTTSPlaying || audioSourceToUse.clip != audioClip)
+                    {
+                        if (audioSourceToUse.isPlaying)
+                        {
+                            audioSourceToUse.Stop();
+                        }
+                        Debug.Log("TTS播放被中断");
+                    }
+                    else
+                    {
+                        Debug.Log("TTS播放完成");
+                    }
+                    
+                    // 清理临时文件
+                    try
+                    {
+                        if (File.Exists(tempFilePath))
+                        {
+                            File.Delete(tempFilePath);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogWarning($"清理临时文件失败: {e.Message}");
+                    }
+                    
+                    // 清理临时文件
+                    try
+                    {
+                        if (File.Exists(tempFilePath))
+                        {
+                            File.Delete(tempFilePath);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogWarning($"清理临时文件失败: {e.Message}");
+                    }
+                    
+                    // 清理AudioClip（若未被中断则销毁当前clip）
+                    if (currentTTSClip != null)
+                    {
+                        Destroy(currentTTSClip);
+                        currentTTSClip = null;
+                    }
+                    
+                    isTTSPlaying = false;
+                    onComplete?.Invoke(true);
+                }
+                else
+                {
+                    Debug.LogError("没有可用的AudioSource播放TTS");
+                    if (audioClip != null)
+                    {
+                        Destroy(audioClip);
+                    }
+                    isTTSPlaying = false;
+                    onComplete?.Invoke(false);
+                }
+            }
+            else
+            {
+                // 清理临时文件
+                try
+                {
+                    if (File.Exists(tempFilePath))
+                    {
+                        File.Delete(tempFilePath);
+                    }
+                }
+                catch { }
+                
+                // 若被中断/失败，清理当前clip
+                if (currentTTSClip != null)
+                {
+                    Destroy(currentTTSClip);
+                    currentTTSClip = null;
+                }
+
+                isTTSPlaying = false;
+                onComplete?.Invoke(false);
             }
         }
 
