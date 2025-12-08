@@ -453,8 +453,6 @@ namespace LLMUnitySamples
                         layoutDirty = true;
                         chatInProgress = false;
 
-                        if (streamAudioSource != null && streamAudioSource.isPlaying)
-                            StartCoroutine(FadeOutStreamAudio());
 
                         //调用tts
                         Debug.Log("开始调用tts");
@@ -484,8 +482,6 @@ namespace LLMUnitySamples
                         layoutDirty = true;
                         chatInProgress = false;
 
-                        if (streamAudioSource != null && streamAudioSource.isPlaying)
-                            StartCoroutine(FadeOutStreamAudio());
 
                         //调用tts
                         Debug.Log("开始调用tts");
@@ -502,20 +498,6 @@ namespace LLMUnitySamples
                 );
             }
             inputBubble.SetText("");
-        }
-
-        private IEnumerator FadeOutStreamAudio(float duration = 0.5f)
-        {
-            float startVolume = streamAudioSource.volume;
-
-            while (streamAudioSource.volume > 0f)
-            {
-                streamAudioSource.volume -= startVolume * Time.deltaTime / duration;
-                yield return null;
-            }
-
-            streamAudioSource.Stop();
-            streamAudioSource.volume = startVolume; 
         }
 
         public void WarmUpCallback()
@@ -1282,8 +1264,6 @@ namespace LLMUnitySamples
                         layoutDirty = true;
                         chatCompleted = true;
 
-                        if (streamAudioSource != null && streamAudioSource.isPlaying)
-                            StartCoroutine(FadeOutStreamAudio());
                     }
                 ));
             }
@@ -1304,8 +1284,6 @@ namespace LLMUnitySamples
                         layoutDirty = true;
                         chatCompleted = true;
 
-                        if (streamAudioSource != null && streamAudioSource.isPlaying)
-                            StartCoroutine(FadeOutStreamAudio());
                     }
                 );
             }
