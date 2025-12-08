@@ -13,6 +13,10 @@ public class AudioCacheManager : MonoBehaviour
     private string currentPlayingKey;
     private float pauseTime;
 
+    [Header("HTTP TTS API 配置")] private const string ttsApiBaseUrl = "http://192.168.8.88:5000/tts";
+    private const string ttsApiKey = "bjzntd@123456";
+    private const string ttsVoice = "zh-CN-XiaoshuangNeural";
+
     // 音频文件存储路径
     private string cacheDirectory;
 
@@ -40,7 +44,7 @@ public class AudioCacheManager : MonoBehaviour
         }
 
         // 检查磁盘缓存
-        string filePath = Path.Combine(cacheDirectory, $"{key}.wav");
+        string filePath = Path.Combine(cacheDirectory, $"{key}.mp3");
         if (File.Exists(filePath))
         {
             Debug.Log($"🎵 从磁盘缓存加载音频: {key}");
@@ -50,7 +54,7 @@ public class AudioCacheManager : MonoBehaviour
 
         // 生成新音频
         Debug.Log($"🎵 生成新音频: {key}");
-        yield return StartCoroutine(GenerateAndCacheAudio(text, key, filePath, onComplete));
+        yield return StartCoroutine(GenerateAndCacheAudioByHTTP(text, key, filePath, onComplete));
     }
 
     /// <summary>
@@ -59,7 +63,7 @@ public class AudioCacheManager : MonoBehaviour
     private IEnumerator LoadAudioFile(string filePath, string key, System.Action<AudioClip> onComplete)
     {
         string url = "file://" + filePath;
-        using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.WAV))
+        using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.MPEG))
         {
             yield return www.SendWebRequest();
 
@@ -89,12 +93,13 @@ public class AudioCacheManager : MonoBehaviour
     /// <summary>
     /// 生成并缓存音频
     /// </summary>
-    private IEnumerator GenerateAndCacheAudio(string text, string key, string filePath, System.Action<AudioClip> onComplete)
+    private IEnumerator GenerateAndCacheAudio(string text, string key, string filePath,
+        System.Action<AudioClip> onComplete)
     {
         // 转义文本用于PowerShell
         string escapedText = EscapeForPowerShell(text);
 
-        // 创建PowerShell脚本
+        // 创建PowerShell脚本 - 注意：System.Speech只支持WAV输出
         string script = $@"
 Add-Type -AssemblyName System.Speech
 try {{
@@ -112,20 +117,60 @@ try {{
 
         // 执行PowerShell脚本
         bool success = false;
-        yield return StartCoroutine(ExecutePowerShellScript(script, (result) => {
-            success = result;
-        }));
+        yield return StartCoroutine(ExecutePowerShellScript(script, (result) => { success = result; }));
 
         if (success)
         {
             Debug.Log($"✅ 音频生成成功: {key}");
-            // 加载生成的音频文件
+            // 加载生成的音频文件 - 注意：PowerShell生成的是WAV，但扩展名是.mp3
+            string wavPath = Path.Combine(cacheDirectory, $"{key}.wav");
+            if (File.Exists(wavPath))
+            {
+                // 重命名为.mp3扩展名以便统一处理
+                File.Move(wavPath, filePath);
+            }
             yield return StartCoroutine(LoadAudioFile(filePath, key, onComplete));
         }
         else
         {
             Debug.LogError($"❌ 音频生成失败: {key}");
             onComplete?.Invoke(null);
+        }
+    }
+
+    /// <summary>
+    /// 生成并缓存音频
+    /// </summary>
+    private IEnumerator GenerateAndCacheAudioByHTTP(string text, string key, string filePath,
+        System.Action<AudioClip> onComplete)
+    {
+        // 构建TTS API URL
+        string encodedText = UnityEngine.Networking.UnityWebRequest.EscapeURL(text);
+        string ttsUrl = $"{ttsApiBaseUrl}?text={encodedText}&voice={ttsVoice}&api_key={ttsApiKey}";
+
+        Debug.Log($"请求TTS: {ttsUrl}");
+        
+        // 下载MP3文件
+        using (UnityWebRequest request = UnityWebRequest.Get(ttsUrl))
+        {
+            request.timeout = 30;
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                // 保存到文件
+                byte[] audioData = request.downloadHandler.data;
+                File.WriteAllBytes(filePath, audioData);
+                Debug.Log($"TTS MP3文件已保存到: {filePath}, 大小: {audioData.Length} 字节");
+
+                // 从文件加载AudioClip
+                yield return StartCoroutine(LoadAudioFile(filePath, key, onComplete));
+            }
+            else
+            {
+                Debug.LogError($"TTS API请求失败: {request.error}, URL: {ttsUrl}");
+                onComplete?.Invoke(null);
+            }
         }
     }
 
@@ -182,7 +227,13 @@ try {{
                 // 清理临时文件
                 if (File.Exists(tempFile))
                 {
-                    try { File.Delete(tempFile); } catch { }
+                    try
+                    {
+                        File.Delete(tempFile);
+                    }
+                    catch
+                    {
+                    }
                 }
             }
         });
@@ -205,11 +256,11 @@ try {{
             return "";
 
         return text
-            .Replace("'", "''")           // 单引号转义为两个单引号
-            .Replace("\r", "")           // 移除回车
-            .Replace("\n", " ")          // 换行替换为空格
-            .Replace("`", "``")          // 反引号转义
-            .Replace("$", "`$");         // 变量符号转义
+            .Replace("'", "''") // 单引号转义为两个单引号
+            .Replace("\r", "") // 移除回车
+            .Replace("\n", " ") // 换行替换为空格
+            .Replace("`", "``") // 反引号转义
+            .Replace("$", "`$"); // 变量符号转义
     }
 
     // 播放控制方法
@@ -231,6 +282,7 @@ try {{
             Debug.Log($"⏸️ 暂停音频, 位置: {pauseTime:F2}s");
             return pauseTime;
         }
+
         return 0f;
     }
 
@@ -305,12 +357,13 @@ try {{
             return 0;
 
         long size = 0;
-        var files = Directory.GetFiles(cacheDirectory, "*.wav");
+        var files = Directory.GetFiles(cacheDirectory, "*.mp3");
         foreach (var file in files)
         {
             var info = new FileInfo(file);
             size += info.Length;
         }
+
         return size;
     }
 }
