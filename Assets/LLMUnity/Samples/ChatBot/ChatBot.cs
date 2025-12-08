@@ -45,6 +45,16 @@ namespace LLMUnitySamples
         [Header("LLM")]
         public LLMCharacter llmCharacter;
 
+        [Header("Remote Model (RAGFlow)")]
+        public bool useRemoteModel = true;
+        public string ragflowHost = "192.168.8.88";
+        public int ragflowPort = 9380;
+        public string ragflowApiKey = "ragflow-cwZWU5YjBjMzUxODExZjBhNThhMDk2OD";
+        public string ragflowAssistantId = "37fd87c8d3d711f097ac578fc36c86e8";
+        public string ragflowFileUrlPrefix = "http://preview.bjzntd.com/onlinePreview?url=";
+        public string ragflowFileUrl = "https://know.baafs.net.cn";
+        public string ragflowLanguage = "Chinese";
+
         [Header("Input Settings")]
         public string inputPlaceholder = "Message me";
 
@@ -138,6 +148,7 @@ namespace LLMUnitySamples
         private bool chatInProgress = false; // 模型是否正在输出
         private bool chatCancelledByVoice = false; // 是否因新语音打断了模型输出
         private AudioClip currentTTSClip = null; // 当前TTS音频
+        private string currentSessionId = ""; // RAGFlow会话ID
 
         void Start()
         {
@@ -419,40 +430,77 @@ namespace LLMUnitySamples
             AddBubble(message, true);
             Bubble aiBubble = AddBubble("...", false);
 
-            if (streamAudioSource != null)
-                streamAudioSource.Play();
+            // 暂停当前的播放
+            StopCurrentTTS();
+
             if (avatarAnimator != null) avatarAnimator.SetBool(isTalkingHash, true);
 
             chatCancelledByVoice = false;
             chatInProgress = true;
 
-            Task chatTask = llmCharacter.Chat(
-                message,
-                (partial) => { aiBubble.SetText(partial); layoutDirty = true; },
-                () =>
-                {
-                    if (avatarAnimator != null) avatarAnimator.SetBool(isTalkingHash, false);
+            // 根据配置选择使用本地模型还是远程模型
+            if (useRemoteModel)
+            {
+                // 使用RAGFlow远程模型
+                StartCoroutine(ChatWithRAGFlow(
+                    message,
+                    (partial) => { aiBubble.SetText(partial); layoutDirty = true; },
+                    () =>
+                    {
+                        if (avatarAnimator != null) avatarAnimator.SetBool(isTalkingHash, false);
 
-                    aiBubble.SetText(aiBubble.GetText());
-                    layoutDirty = true;
-                    chatInProgress = false;
+                        aiBubble.SetText(aiBubble.GetText());
+                        layoutDirty = true;
+                        chatInProgress = false;
 
-                    if (streamAudioSource != null && streamAudioSource.isPlaying)
-                        StartCoroutine(FadeOutStreamAudio());
+                        if (streamAudioSource != null && streamAudioSource.isPlaying)
+                            StartCoroutine(FadeOutStreamAudio());
 
-                    //调用tts
-                    Debug.Log("开始调用tts");
-                    StartCoroutine(PlayTTSFromAPI(aiBubble.GetText(), (success) => {
-                        if (!success)
-                        {
-                            Debug.LogWarning($"⚠ 语音播放失败: {aiBubble.GetText()}");
-                        }
-                    }));
-                    Debug.Log("完成调用tts");
+                        //调用tts
+                        Debug.Log("开始调用tts");
+                        StartCoroutine(PlayTTSFromAPI(aiBubble.GetText(), (success) => {
+                            if (!success)
+                            {
+                                Debug.LogWarning($"⚠ 语音播放失败: {aiBubble.GetText()}");
+                            }
+                        }));
+                        Debug.Log("完成调用tts");
 
-                    AllowInput();
-                }
-            );
+                        AllowInput();
+                    }
+                ));
+            }
+            else
+            {
+                // 使用本地LLM模型
+                Task chatTask = llmCharacter.Chat(
+                    message,
+                    (partial) => { aiBubble.SetText(partial); layoutDirty = true; },
+                    () =>
+                    {
+                        if (avatarAnimator != null) avatarAnimator.SetBool(isTalkingHash, false);
+
+                        aiBubble.SetText(aiBubble.GetText());
+                        layoutDirty = true;
+                        chatInProgress = false;
+
+                        if (streamAudioSource != null && streamAudioSource.isPlaying)
+                            StartCoroutine(FadeOutStreamAudio());
+
+                        //调用tts
+                        Debug.Log("开始调用tts");
+                        StartCoroutine(PlayTTSFromAPI(aiBubble.GetText(), (success) => {
+                            if (!success)
+                            {
+                                Debug.LogWarning($"⚠ 语音播放失败: {aiBubble.GetText()}");
+                            }
+                        }));
+                        Debug.Log("完成调用tts");
+
+                        AllowInput();
+                    }
+                );
+            }
             inputBubble.SetText("");
         }
 
@@ -1216,24 +1264,51 @@ namespace LLMUnitySamples
             chatCancelledByVoice = false;
             chatInProgress = true;
 
-            Task chatTask = llmCharacter.Chat(
-                transcribedText,
-                (partial) => { 
-                    aiBubble.SetText(partial); 
-                    layoutDirty = true; 
-                },
-                () =>
-                {
-                    if (avatarAnimator != null) avatarAnimator.SetBool(isTalkingHash, false);
-                    aiBubble.SetText(aiBubble.GetText());
-                    aiResponse = aiBubble.GetText();
-                    layoutDirty = true;
-                    chatCompleted = true;
+            // 根据配置选择使用本地模型还是远程模型
+            if (useRemoteModel)
+            {
+                // 使用RAGFlow远程模型
+                StartCoroutine(ChatWithRAGFlow(
+                    transcribedText,
+                    (partial) => { 
+                        aiBubble.SetText(partial); 
+                        layoutDirty = true; 
+                    },
+                    () =>
+                    {
+                        if (avatarAnimator != null) avatarAnimator.SetBool(isTalkingHash, false);
+                        aiBubble.SetText(aiBubble.GetText());
+                        aiResponse = aiBubble.GetText();
+                        layoutDirty = true;
+                        chatCompleted = true;
 
-                    if (streamAudioSource != null && streamAudioSource.isPlaying)
-                        StartCoroutine(FadeOutStreamAudio());
-                }
-            );
+                        if (streamAudioSource != null && streamAudioSource.isPlaying)
+                            StartCoroutine(FadeOutStreamAudio());
+                    }
+                ));
+            }
+            else
+            {
+                // 使用本地LLM模型
+                Task chatTask = llmCharacter.Chat(
+                    transcribedText,
+                    (partial) => { 
+                        aiBubble.SetText(partial); 
+                        layoutDirty = true; 
+                    },
+                    () =>
+                    {
+                        if (avatarAnimator != null) avatarAnimator.SetBool(isTalkingHash, false);
+                        aiBubble.SetText(aiBubble.GetText());
+                        aiResponse = aiBubble.GetText();
+                        layoutDirty = true;
+                        chatCompleted = true;
+
+                        if (streamAudioSource != null && streamAudioSource.isPlaying)
+                            StartCoroutine(FadeOutStreamAudio());
+                    }
+                );
+            }
 
             // 等待聊天完成
             while (!chatCompleted && !chatCancelledByVoice)
@@ -1368,6 +1443,380 @@ namespace LLMUnitySamples
                 Debug.LogError($"转文字过程中发生错误: {e.Message}");
                 return "";
             }
+        }
+
+        // ==================== RAGFlow 远程模型调用 ====================
+
+        /// <summary>
+        /// 创建RAGFlow会话
+        /// </summary>
+        IEnumerator CreateRAGFlowSession()
+        {
+            string sessionUrl = $"http://{ragflowHost}:{ragflowPort}/api/v1/chats/{ragflowAssistantId}/sessions";
+            
+            // 使用时间戳作为会话名称
+            string sessionName = $"Unity_Session_{System.DateTime.Now:yyyyMMdd_HHmmss}";
+            string jsonData = $"{{\"name\":\"{sessionName}\"}}";
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
+            
+            using (UnityWebRequest request = new UnityWebRequest(sessionUrl, "POST"))
+            {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
+                request.SetRequestHeader("Authorization", "Bearer " + ragflowApiKey);
+                request.timeout = 30;
+                
+                yield return request.SendWebRequest();
+                
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    string responseText = request.downloadHandler.text;                    
+                    try
+                    {
+                        // 解析响应获取session_id
+                        int dataIndex = responseText.IndexOf("\"data\"");
+                        if (dataIndex != -1)
+                        {
+                            int idIndex = responseText.IndexOf("\"id\"", dataIndex);
+                            if (idIndex != -1)
+                            {
+                                int idStart = responseText.IndexOf("\"", idIndex + 4) + 1;
+                                int idEnd = responseText.IndexOf("\"", idStart);
+                                if (idEnd > idStart)
+                                {
+                                    currentSessionId = responseText.Substring(idStart, idEnd - idStart);
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"解析会话ID失败: {e.Message}");
+                    }
+                }
+                else
+                {
+                    Debug.LogError($"创建RAGFlow会话失败: {request.error}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 使用RAGFlow远程API进行对话
+        /// </summary>
+        IEnumerator ChatWithRAGFlow(string userMessage, System.Action<string> onPartialResponse, System.Action onComplete)
+        {
+            // 如果没有session_id，先创建session
+            if (string.IsNullOrEmpty(currentSessionId))
+            {
+                yield return StartCoroutine(CreateRAGFlowSession());
+            }
+            
+            string questionUrl = $"http://{ragflowHost}:{ragflowPort}/api/v1/chats/{ragflowAssistantId}/completions";
+            
+            // 构建请求数据
+            string jsonData = $"{{\"question\":\"{EscapeJsonString(userMessage)}\",\"stream\":true,\"session_id\":\"{currentSessionId}\",\"lang\":\"{ragflowLanguage}\"}}";
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
+            
+            using (UnityWebRequest request = new UnityWebRequest(questionUrl, "POST"))
+            {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
+                request.SetRequestHeader("Authorization", "Bearer " + ragflowApiKey);
+                request.timeout = 60;
+                
+                var operation = request.SendWebRequest();
+                
+                StringBuilder fullResponse = new StringBuilder();
+                List<RagFlowReference> references = new List<RagFlowReference>();
+                
+                string lastProcessedText = "";
+                
+                while (!operation.isDone)
+                {
+                    yield return null;
+                    
+                    // 检查是否被打断
+                    if (chatCancelledByVoice || !chatInProgress)
+                    {
+                        Debug.Log("RAGFlow对话被打断，停止处理");
+                        request.Abort();
+                        yield break;
+                    }
+                    
+                    // 处理流式响应
+                    if (request.downloadHandler != null)
+                    {
+                        string responseText = request.downloadHandler.text;
+                        
+                        // 只处理新增的数据
+                        if (responseText != lastProcessedText && !string.IsNullOrEmpty(responseText))
+                        {
+                            lastProcessedText = responseText;
+                            
+                            // 解析流式数据 - 按行分割
+                            string[] lines = responseText.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                            foreach (string line in lines)
+                            {
+                                // 跳过 "data:true" 结束标记
+                                if (line.Contains("\"data\": true") || line.Contains("\"data\":true"))
+                                {
+                                    continue;
+                                }
+                                
+                                // 处理 "data:{...}" 格式的行
+                                if (line.StartsWith("data:"))
+                                {
+                                    string jsonLine = line.Substring(5).Trim();
+                                    if (!string.IsNullOrEmpty(jsonLine))
+                                    {
+                                        try
+                                        {
+                                            var parsedData = ParseRAGFlowResponse(jsonLine);
+                                            if (!string.IsNullOrEmpty(parsedData.answer) && !parsedData.answer.Contains("* is running..."))
+                                            {
+                                                // 直接使用完整answer，不累加
+                                                fullResponse.Clear();
+                                                fullResponse.Append(parsedData.answer);
+                                                onPartialResponse?.Invoke(fullResponse.ToString());
+                                                
+                                                // 收集引用
+                                                if (parsedData.references != null && parsedData.references.Count > 0)
+                                                {
+                                                    references.Clear();
+                                                    references.AddRange(parsedData.references);
+                                                }
+                                                
+                                                // 保存session_id
+                                                if (!string.IsNullOrEmpty(parsedData.sessionId))
+                                                {
+                                                    currentSessionId = parsedData.sessionId;
+                                                }
+                                            }
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            Debug.LogWarning($"解析RAGFlow响应失败: {e.Message}\n原始数据: {jsonLine}");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    // 显示引用信息
+                    if (references.Count > 0)
+                    {
+                        LogReferences(references);
+                    }
+                    
+                    onComplete?.Invoke();
+                }
+                else
+                {
+                    Debug.LogError($"RAGFlow API请求失败: {request.error}");
+                    onPartialResponse?.Invoke("抱歉，远程模型调用失败。");
+                    onComplete?.Invoke();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 解析RAGFlow响应
+        /// </summary>
+        (string answer, List<RagFlowReference> references, string sessionId) ParseRAGFlowResponse(string jsonResponse)
+        {
+            string answer = "";
+            List<RagFlowReference> references = new List<RagFlowReference>();
+            string sessionId = "";
+            
+            try
+            {
+                // 简单的JSON解析
+                int dataIndex = jsonResponse.IndexOf("\"data\"");
+                if (dataIndex == -1) return (answer, references, sessionId);
+                
+                // 提取answer
+                int answerIndex = jsonResponse.IndexOf("\"answer\"", dataIndex);
+                if (answerIndex != -1)
+                {
+                    int answerStart = jsonResponse.IndexOf("\"", answerIndex + 8) + 1;
+                    int answerEnd = jsonResponse.IndexOf("\"", answerStart);
+                    if (answerEnd > answerStart)
+                    {
+                        answer = jsonResponse.Substring(answerStart, answerEnd - answerStart);
+                        answer = UnescapeJsonString(answer);
+                    }
+                }
+                
+                // 提取session_id
+                int sessionIdIndex = jsonResponse.IndexOf("\"session_id\"", dataIndex);
+                if (sessionIdIndex != -1)
+                {
+                    int sessionIdStart = jsonResponse.IndexOf("\"", sessionIdIndex + 12) + 1;
+                    int sessionIdEnd = jsonResponse.IndexOf("\"", sessionIdStart);
+                    if (sessionIdEnd > sessionIdStart)
+                    {
+                        sessionId = jsonResponse.Substring(sessionIdStart, sessionIdEnd - sessionIdStart);
+                    }
+                }
+                
+                // 提取references中的chunks
+                int referenceIndex = jsonResponse.IndexOf("\"reference\"", dataIndex);
+                if (referenceIndex != -1)
+                {
+                    int chunksIndex = jsonResponse.IndexOf("\"chunks\"", referenceIndex);
+                    if (chunksIndex != -1)
+                    {
+                        references = ParseRAGFlowChunks(jsonResponse, chunksIndex);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"解析RAGFlow响应时出错: {e.Message}");
+            }
+            
+            return (answer, references, sessionId);
+        }
+
+        /// <summary>
+        /// 解析RAGFlow chunks
+        /// </summary>
+        List<RagFlowReference> ParseRAGFlowChunks(string jsonResponse, int chunksStartIndex)
+        {
+            List<RagFlowReference> references = new List<RagFlowReference>();
+            
+            try
+            {
+                int arrayStart = jsonResponse.IndexOf("[", chunksStartIndex);
+                if (arrayStart == -1) return references;
+                
+                int arrayEnd = jsonResponse.IndexOf("]", arrayStart);
+                if (arrayEnd == -1) return references;
+                
+                string chunksArray = jsonResponse.Substring(arrayStart + 1, arrayEnd - arrayStart - 1);
+                
+                // 简单解析每个chunk对象
+                string[] chunkObjects = chunksArray.Split(new[] { "},{" }, StringSplitOptions.RemoveEmptyEntries);
+                
+                foreach (string chunkObj in chunkObjects)
+                {
+                    string chunk = chunkObj.Trim('{', '}', ' ', ',');
+                    
+                    RagFlowReference reference = new RagFlowReference();
+                    
+                    // 提取document_id
+                    int docIdIndex = chunk.IndexOf("\"document_id\"");
+                    if (docIdIndex != -1)
+                    {
+                        int docIdStart = chunk.IndexOf("\"", docIdIndex + 13) + 1;
+                        int docIdEnd = chunk.IndexOf("\"", docIdStart);
+                        if (docIdEnd > docIdStart)
+                        {
+                            reference.documentId = chunk.Substring(docIdStart, docIdEnd - docIdStart);
+                        }
+                    }
+                    
+                    // 提取document_name
+                    int docNameIndex = chunk.IndexOf("\"document_name\"");
+                    if (docNameIndex != -1)
+                    {
+                        int docNameStart = chunk.IndexOf("\"", docNameIndex + 15) + 1;
+                        int docNameEnd = chunk.IndexOf("\"", docNameStart);
+                        if (docNameEnd > docNameStart)
+                        {
+                            reference.documentName = chunk.Substring(docNameStart, docNameEnd - docNameStart);
+                        }
+                    }
+                    
+                    // 提取url
+                    int urlIndex = chunk.IndexOf("\"url\"");
+                    if (urlIndex != -1)
+                    {
+                        int urlStart = chunk.IndexOf("\"", urlIndex + 5) + 1;
+                        int urlEnd = chunk.IndexOf("\"", urlStart);
+                        if (urlEnd > urlStart)
+                        {
+                            reference.url = chunk.Substring(urlStart, urlEnd - urlStart);
+                        }
+                    }
+                    
+                    if (!string.IsNullOrEmpty(reference.documentId) || !string.IsNullOrEmpty(reference.url))
+                    {
+                        references.Add(reference);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"解析chunks时出错: {e.Message}");
+            }
+            
+            return references;
+        }
+
+        /// <summary>
+        /// 记录引用信息
+        /// </summary>
+        void LogReferences(List<RagFlowReference> references)
+        {
+            Debug.Log("=== RAGFlow 引用文档 ===");
+            
+            Dictionary<string, string> uniqueDocs = new Dictionary<string, string>();
+            
+            foreach (var reference in references)
+            {
+                string key = !string.IsNullOrEmpty(reference.url) ? reference.url : reference.documentId;
+                
+                if (!string.IsNullOrEmpty(key) && !uniqueDocs.ContainsKey(key))
+                {
+                    uniqueDocs[key] = reference.documentName;
+                    
+                    string displayUrl = key;
+                    if (!string.IsNullOrEmpty(reference.url))
+                    {
+                        displayUrl = ragflowFileUrlPrefix + ragflowFileUrl + reference.url;
+                    }
+                    
+                    Debug.Log($"文档: {reference.documentName} | URL: {displayUrl}");
+                }
+            }
+            
+            Debug.Log("=======================");
+        }
+
+        /// <summary>
+        /// 转义JSON字符串
+        /// </summary>
+        string EscapeJsonString(string str)
+        {
+            if (string.IsNullOrEmpty(str)) return str;
+            
+            return str.Replace("\\", "\\\\")
+                      .Replace("\"", "\\\"")
+                      .Replace("\n", "\\n")
+                      .Replace("\r", "\\r")
+                      .Replace("\t", "\\t");
+        }
+
+        /// <summary>
+        /// 反转义JSON字符串
+        /// </summary>
+        string UnescapeJsonString(string str)
+        {
+            if (string.IsNullOrEmpty(str)) return str;
+            
+            return str.Replace("\\n", "\n")
+                      .Replace("\\r", "\r")
+                      .Replace("\\t", "\t")
+                      .Replace("\\\"", "\"")
+                      .Replace("\\\\", "\\");
         }
 
         // ==================== HTTP TTS 功能 ====================
@@ -1775,5 +2224,15 @@ namespace LLMUnitySamples
             return count;
         }
 
+    }
+
+    /// <summary>
+    /// RAGFlow引用文档数据结构
+    /// </summary>
+    public class RagFlowReference
+    {
+        public string documentId;
+        public string documentName;
+        public string url;
     }
 }
