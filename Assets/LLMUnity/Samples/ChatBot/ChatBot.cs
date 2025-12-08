@@ -150,9 +150,17 @@ namespace LLMUnitySamples
         private AudioClip currentTTSClip = null; // 当前TTS音频
         private string currentSessionId = ""; // RAGFlow会话ID
 
+        // 离线模式相关
+        [Header("离线模式")]
+        public NetworkConnectivityChecker networkChecker;
+        private bool isOfflineMode = false;
+
         void Start()
         {
             avatarAnimator = GetComponent<Animator>();
+
+            // 初始化网络检测器
+            InitializeNetworkChecker();
 
             if (font == null) font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (cornerRadius <= 16) sprite = roundedSprite16;
@@ -199,6 +207,9 @@ namespace LLMUnitySamples
             // 设置语音输入按钮事件
             SetupVoiceInputButtons();
 
+            // 根据网络状态更新UI
+            UpdateOfflineModeUI();
+
             ShowLoadedMessages();
             _ = llmCharacter.Warmup(WarmUpCallback);
             FindAvatarSmart();
@@ -211,6 +222,13 @@ namespace LLMUnitySamples
             if (voiceButton != null)
             {
                 voiceButton.onClick.AddListener(() => {
+                    // 离线模式下禁用语音功能
+                    if (isOfflineMode)
+                    {
+                        Debug.LogWarning("离线模式：语音功能已禁用");
+                        return;
+                    }
+
                     Debug.Log("语音输入按钮被点击 - 启动实时语音对话");
                     if (enableRealTimeVoiceChat)
                     {
@@ -274,6 +292,74 @@ namespace LLMUnitySamples
             }
         }
 
+        /// <summary>
+        /// 初始化网络检测器
+        /// </summary>
+        void InitializeNetworkChecker()
+        {
+            if (networkChecker == null)
+            {
+                // 尝试在场景中查找NetworkConnectivityChecker
+                networkChecker = FindFirstObjectByType<NetworkConnectivityChecker>();
+                
+                // 如果没有找到，创建一个新的
+                if (networkChecker == null)
+                {
+                    GameObject checkerObj = new GameObject("NetworkConnectivityChecker");
+                    networkChecker = checkerObj.AddComponent<NetworkConnectivityChecker>();
+                    networkChecker.serverHost = ragflowHost;
+                    Debug.Log("[ChatBot] 已自动创建NetworkConnectivityChecker");
+                }
+            }
+
+            // 订阅连接状态变化事件
+            networkChecker.OnConnectivityChanged += OnNetworkConnectivityChanged;
+            
+            // 设置初始离线模式状态
+            isOfflineMode = !networkChecker.IsOnline();
+            Debug.Log($"[ChatBot] 初始模式: {(isOfflineMode ? "离线" : "在线")}");
+        }
+
+        /// <summary>
+        /// 网络连接状态变化回调
+        /// </summary>
+        void OnNetworkConnectivityChanged(bool isOnline)
+        {
+            isOfflineMode = !isOnline;
+            Debug.Log($"[ChatBot] 网络状态变化 - 切换到{(isOfflineMode ? "离线" : "在线")}模式");
+            
+            // 更新UI
+            UpdateOfflineModeUI();
+            
+            // 如果切换到离线模式，停止所有网络相关功能
+            if (isOfflineMode)
+            {
+                StopRealTimeVoiceChat();
+                StopCurrentTTS();
+            }
+        }
+
+        /// <summary>
+        /// 更新离线模式UI
+        /// </summary>
+        void UpdateOfflineModeUI()
+        {
+            if (inputBubble == null) return;
+
+            // 在离线模式下隐藏麦克风按钮
+            Button voiceButton = inputBubble.GetVoiceInputButton();
+            if (voiceButton != null)
+            {
+                voiceButton.gameObject.SetActive(!isOfflineMode);
+            }
+
+            // 如果当前在语音模式且切换到离线，强制切换回文本模式
+            if (isOfflineMode && inputBubble.IsVoiceMode())
+            {
+                inputBubble.SetVoiceMode(false);
+            }
+        }
+
         void FindAvatarSmart()
         {
             Animator found = null;
@@ -316,6 +402,12 @@ namespace LLMUnitySamples
 
         void OnDisable()
         {
+            // 取消订阅网络状态变化事件
+            if (networkChecker != null)
+            {
+                networkChecker.OnConnectivityChanged -= OnNetworkConnectivityChanged;
+            }
+
             StopRealTimeVoiceChat();
             StopCurrentTTS();
             if (streamAudioSource != null && streamAudioSource.isPlaying)
@@ -439,7 +531,7 @@ namespace LLMUnitySamples
             chatInProgress = true;
 
             // 根据配置选择使用本地模型还是远程模型
-            if (useRemoteModel)
+            if (useRemoteModel && !isOfflineMode)
             {
                 // 使用RAGFlow远程模型
                 StartCoroutine(ChatWithRAGFlow(
@@ -483,15 +575,22 @@ namespace LLMUnitySamples
                         chatInProgress = false;
 
 
-                        //调用tts
-                        Debug.Log("开始调用tts");
-                        StartCoroutine(PlayTTSFromAPI(aiBubble.GetText(), (success) => {
-                            if (!success)
-                            {
-                                Debug.LogWarning($"⚠ 语音播放失败: {aiBubble.GetText()}");
-                            }
-                        }));
-                        Debug.Log("完成调用tts");
+                        // 调用TTS（离线模式下跳过）
+                        if (!isOfflineMode)
+                        {
+                            Debug.Log("开始调用tts");
+                            StartCoroutine(PlayTTSFromAPI(aiBubble.GetText(), (success) => {
+                                if (!success)
+                                {
+                                    Debug.LogWarning($"⚠ 语音播放失败: {aiBubble.GetText()}");
+                                }
+                            }));
+                            Debug.Log("完成调用tts");
+                        }
+                        else
+                        {
+                            Debug.Log("离线模式：跳过TTS播放");
+                        }
 
                         AllowInput();
                     }
@@ -952,6 +1051,13 @@ namespace LLMUnitySamples
         /// </summary>
         void StartRealTimeVoiceChat()
         {
+            // 离线模式下禁用
+            if (isOfflineMode)
+            {
+                Debug.LogWarning("离线模式：无法启动实时语音对话");
+                return;
+            }
+
             if (isRealTimeVoiceChatActive)
             {
                 Debug.Log("实时语音对话已在运行中");
@@ -1247,7 +1353,7 @@ namespace LLMUnitySamples
             chatInProgress = true;
 
             // 根据配置选择使用本地模型还是远程模型
-            if (useRemoteModel)
+            if (useRemoteModel && !isOfflineMode)
             {
                 // 使用RAGFlow远程模型
                 StartCoroutine(ChatWithRAGFlow(
@@ -1304,8 +1410,8 @@ namespace LLMUnitySamples
                 yield break;
             }
 
-            // 播放TTS（非阻塞方式，允许在播放期间继续监听）
-            if (!string.IsNullOrEmpty(aiResponse))
+            // 播放TTS（非阻塞方式，允许在播放期间继续监听）（离线模式下跳过）
+            if (!string.IsNullOrEmpty(aiResponse) && !isOfflineMode)
             {
                 Debug.Log("开始进行TTS");
                 // 使用非阻塞方式启动TTS播放，不等待完成
@@ -1317,6 +1423,10 @@ namespace LLMUnitySamples
                     isTTSPlaying = false;
                     Debug.Log("TTS播放完成");
                 }));
+            }
+            else if (isOfflineMode)
+            {
+                Debug.Log("离线模式：跳过TTS播放");
             }
 
             isProcessingAudio = false;
@@ -1851,6 +1961,14 @@ namespace LLMUnitySamples
         /// </summary>
         IEnumerator PlayTTSFromAPI(string text, System.Action<bool> onComplete)
         {
+            // 离线模式下直接返回
+            if (isOfflineMode)
+            {
+                Debug.Log("离线模式：TTS功能已禁用");
+                onComplete?.Invoke(false);
+                yield break;
+            }
+
             if (string.IsNullOrEmpty(text))
             {
                 Debug.LogWarning("TTS文本为空");
