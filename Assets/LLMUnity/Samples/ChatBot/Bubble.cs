@@ -175,6 +175,27 @@ namespace LLMUnitySamples
             bubbleObject.GetComponent<Text>().text = text;
         }
 
+        public void Show()
+        {
+            if (bubbleObject != null)
+            {
+                bubbleObject.SetActive(true);
+            }
+        }
+
+        public void Hide()
+        {
+            if (bubbleObject != null)
+            {
+                bubbleObject.SetActive(false);
+            }
+        }
+
+        public bool IsVisible()
+        {
+            return bubbleObject != null && bubbleObject.activeSelf;
+        }
+
         public void Destroy()
         {
             UnityEngine.Object.Destroy(bubbleObject);

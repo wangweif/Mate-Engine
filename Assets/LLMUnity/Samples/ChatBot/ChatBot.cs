@@ -73,8 +73,16 @@ namespace LLMUnitySamples
 
         [Header("Rounded Sprite Radius")]
         [Range(0, 64)]
-        public int cornerRadius = 16; 
+        public int cornerRadius = 16;
         private bool layoutDirty;
+
+        [Header("气泡显示控制")]
+        [Tooltip("默认显示的最新消息数量")]
+        public int defaultVisibleMessages = 2;
+
+        // 显示控制变量
+        private int visibleMessageCount = 0;
+        private bool hasHiddenMessages = false;
 
         private InputBubble inputBubble;
         private List<Bubble> chatBubbles = new List<Bubble>();
@@ -334,6 +342,9 @@ namespace LLMUnitySamples
                 }
             }
 
+            // 新添加的消息总是显示的
+            bubble.Show();
+
             if (autoScrollOnNewMessage && (!respectUserScroll || IsAtBottom()))
             {
                 StartCoroutine(ScrollToBottomNextFrame());
@@ -346,21 +357,9 @@ namespace LLMUnitySamples
 
         void TrimHistoryIfNeeded()
         {
-            if (maxMessages <= 0) return;
-
-            if (chatBubbles.Count > maxMessages)
-            {
-                if (!trimOnlyWhenAtBottom || IsAtBottom())
-                {
-                    int removeCount = chatBubbles.Count - maxMessages;
-                    for (int i = 0; i < removeCount; i++)
-                    {
-                        chatBubbles[i].Destroy();
-                    }
-                    chatBubbles.RemoveRange(0, removeCount);
-                    UpdateBubblePositions();
-                }
-            }
+            // 禁用修剪功能，避免删除隐藏的气泡
+            // 因为我们需要保留隐藏的气泡以支持滚动显示功能
+            return;
         }
 
         bool IsAtBottom(float tolerance = 0.01f)
@@ -376,10 +375,29 @@ namespace LLMUnitySamples
             if (maxMessages > 0)
                 start = Mathf.Max(1, total - maxMessages);
 
+            // 计算应该显示的消息数量
+            visibleMessageCount = Math.Min(defaultVisibleMessages, total - start);
+
             for (int i = start; i < total; i++)
             {
-                AddBubble(llmCharacter.chat[i].content, i % 2 == 1);
+                bool isPlayerMessage = i % 2 == 1;
+                Bubble bubble = AddBubble(llmCharacter.chat[i].content, isPlayerMessage);
+
+                // 控制气泡显示/隐藏
+                int messageIndex = i - start;
+                bool shouldHide = messageIndex < (total - start - visibleMessageCount);
+
+                if (shouldHide)
+                {
+                    bubble.Hide();
+                    hasHiddenMessages = true;
+                }
+                else
+                {
+                    bubble.Show();
+                }
             }
+
             StartCoroutine(ScrollToBottomNextFrame());
         }
 
@@ -394,6 +412,9 @@ namespace LLMUnitySamples
             blockInput = true;
 
             string message = inputBubble.GetText().Replace("\v", "\n");
+
+            // 隐藏所有当前显示的消息，只保留新的对话
+            HideCurrentVisibleMessages();
 
             AddBubble(message, true);
             Bubble aiBubble = AddBubble("...", false);
@@ -594,7 +615,12 @@ namespace LLMUnitySamples
                 StartCoroutine(BlockInteraction());
             }
 
-            if (enableOffscreenTrim && lastBubbleOutsideFOV != -1)
+            // 新增：滚轮控制气泡显示
+            HandleWheelScrollVisibility();
+
+            // 禁用offscreen trim功能，避免删除隐藏的气泡
+            // 因为我们需要保留隐藏的气泡以支持滚动显示功能
+            if (false && enableOffscreenTrim && lastBubbleOutsideFOV != -1)
             {
                 for (int i = 0; i <= lastBubbleOutsideFOV; i++)
                 {
@@ -1591,7 +1617,7 @@ namespace LLMUnitySamples
                     }
                 }
                 catch { }
-                
+
                 // 若被中断/失败，清理当前clip
                 if (currentTTSClip != null)
                 {
@@ -1602,6 +1628,151 @@ namespace LLMUnitySamples
                 isTTSPlaying = false;
                 onComplete?.Invoke(false);
             }
+        }
+
+        /// <summary>
+        /// 处理滚轮控制气泡显示/隐藏
+        /// </summary>
+        void HandleWheelScrollVisibility()
+        {
+            if (chatBubbles.Count == 0)
+                return;
+
+            // 检查是否有隐藏的消息
+            int currentlyVisible = GetVisibleBubbleCount();
+            int totalBubbles = chatBubbles.Count;
+
+            
+
+            // 检查滚轮输入
+            float scrollWheel = Input.GetAxis("Mouse ScrollWheel");
+
+            if (scrollWheel > 0f) // 向上滚动，显示更多消息
+            {
+                // 如果当前可见的消息数等于总数，则没有隐藏的消息可以显示
+                if (currentlyVisible >= totalBubbles)
+                    return;
+                ShowMoreMessages();
+            }
+            else if (scrollWheel < 0f) // 向下滚动，隐藏消息回到默认显示
+            {
+                //print("滚轮向下");
+                HideToDefaultMessages();
+            }
+        }
+
+        /// <summary>
+        /// 显示更多消息
+        /// </summary>
+        void ShowMoreMessages()
+        {
+            int currentlyVisible = GetVisibleBubbleCount();
+            int hiddenCount = chatBubbles.Count - currentlyVisible;
+
+            if (hiddenCount <= 0)
+                return;
+
+            // 每次显示最多2条隐藏的消息
+            int toShowCount = Math.Min(2, hiddenCount);
+            int shownCount = 0;
+
+            // 从最旧的气泡开始显示（从头开始）
+            for (int i = 0; i < chatBubbles.Count && shownCount < toShowCount; i++)
+            {
+                if (!chatBubbles[i].IsVisible())
+                {
+                    chatBubbles[i].Show();
+                    shownCount++;
+                }
+            }
+
+            UpdateBubblePositions();
+
+            // 计算新的滚动位置，让用户能看到新显示的内容
+            if (scrollRect != null)
+            {
+                // 稍微向上滚动一点，让用户能看到新显示的内容
+                float newPosition = scrollRect.verticalNormalizedPosition - 0.15f;
+                scrollRect.verticalNormalizedPosition = Mathf.Max(0.1f, newPosition);
+            }
+        }
+
+        /// <summary>
+        /// 隐藏消息回到默认显示数量
+        /// </summary>
+        void HideToDefaultMessages()
+        {
+            int currentlyVisible = GetVisibleBubbleCount();
+
+            print($"HideToDefaultMessages: 当前可见={currentlyVisible}, 默认显示={defaultVisibleMessages}");
+
+            // 如果当前可见消息数量已经等于或少于默认显示数量，则不需要隐藏
+            if (currentlyVisible <= defaultVisibleMessages)
+            {
+                print("当前消息数已经等于或少于默认显示数量，无需隐藏");
+                return;
+            }
+
+            // 从最旧的气泡开始隐藏，只保留最新的 defaultVisibleMessages 条消息
+            int targetVisibleCount = defaultVisibleMessages;
+            int hideCount = currentlyVisible - targetVisibleCount;
+            int hidden = 0;
+
+            // 计算需要保留的起始索引（最后 targetVisibleCount 条消息）
+            int keepStartIndex = chatBubbles.Count - targetVisibleCount;
+
+            print($"计划隐藏 {hideCount} 条消息，保留从索引 {keepStartIndex} 开始的 {targetVisibleCount} 条消息");
+
+            // 隐藏索引小于 keepStartIndex 的所有消息
+            for (int i = 0; i < keepStartIndex && hidden < hideCount; i++)
+            {
+                if (chatBubbles[i].IsVisible())
+                {
+                    chatBubbles[i].Hide();
+                    hidden++;
+                    print($"隐藏消息 {i}: {chatBubbles[i].GetText().Substring(0, Math.Min(15, chatBubbles[i].GetText().Length))}...");
+                }
+            }
+
+            UpdateBubblePositions();
+            StartCoroutine(ScrollToBottomNextFrame());
+
+            print($"成功隐藏了 {hidden} 条消息，当前显示 {GetVisibleBubbleCount()} 条");
+        }
+
+        /// <summary>
+        /// 隐藏当前所有可见的消息气泡
+        /// </summary>
+        void HideCurrentVisibleMessages()
+        {
+            int hiddenCount = 0;
+            for (int i = 0; i < chatBubbles.Count; i++)
+            {
+                if (chatBubbles[i].IsVisible())
+                {
+                    chatBubbles[i].Hide();
+                    hiddenCount++;
+                }
+            }
+
+            // 标记有隐藏的消息，但不重置visibleMessageCount
+            hasHiddenMessages = true;
+
+            UpdateBubblePositions();
+        }
+
+        /// <summary>
+        /// 获取当前可见的气泡数量
+        /// </summary>
+        int GetVisibleBubbleCount()
+        {
+            int count = 0;
+            foreach (var bubble in chatBubbles)
+            {
+                if (bubble.IsVisible())
+                    count++;
+            }
+            return count;
         }
 
     }
