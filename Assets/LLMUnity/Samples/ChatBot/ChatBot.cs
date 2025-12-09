@@ -1409,8 +1409,6 @@ namespace LLMUnitySamples
 
             // 生成AI回复
             Bubble aiBubble = AddBubble("...", false);
-            if (streamAudioSource != null)
-                streamAudioSource.Play();
             if (avatarAnimator != null) avatarAnimator.SetBool(isTalkingHash, true);
 
             bool chatCompleted = false;
@@ -2323,12 +2321,12 @@ namespace LLMUnitySamples
         {
             int currentlyVisible = GetVisibleBubbleCount();
 
-            print($"HideToDefaultMessages: 当前可见={currentlyVisible}, 默认显示={defaultVisibleMessages}");
+            // print($"HideToDefaultMessages: 当前可见={currentlyVisible}, 默认显示={defaultVisibleMessages}");
 
             // 如果当前可见消息数量已经等于或少于默认显示数量，则不需要隐藏
             if (currentlyVisible <= defaultVisibleMessages)
             {
-                print("当前消息数已经等于或少于默认显示数量，无需隐藏");
+                // print("当前消息数已经等于或少于默认显示数量，无需隐藏");
                 return;
             }
 
@@ -2340,7 +2338,7 @@ namespace LLMUnitySamples
             // 计算需要保留的起始索引（最后 targetVisibleCount 条消息）
             int keepStartIndex = chatBubbles.Count - targetVisibleCount;
 
-            print($"计划隐藏 {hideCount} 条消息，保留从索引 {keepStartIndex} 开始的 {targetVisibleCount} 条消息");
+            // print($"计划隐藏 {hideCount} 条消息，保留从索引 {keepStartIndex} 开始的 {targetVisibleCount} 条消息");
 
             // 隐藏索引小于 keepStartIndex 的所有消息
             for (int i = 0; i < keepStartIndex && hidden < hideCount; i++)
@@ -2349,14 +2347,14 @@ namespace LLMUnitySamples
                 {
                     chatBubbles[i].Hide();
                     hidden++;
-                    print($"隐藏消息 {i}: {chatBubbles[i].GetText().Substring(0, Math.Min(15, chatBubbles[i].GetText().Length))}...");
+                    // print($"隐藏消息 {i}: {chatBubbles[i].GetText().Substring(0, Math.Min(15, chatBubbles[i].GetText().Length))}...");
                 }
             }
 
             UpdateBubblePositions();
             StartCoroutine(ScrollToBottomNextFrame());
 
-            print($"成功隐藏了 {hidden} 条消息，当前显示 {GetVisibleBubbleCount()} 条");
+            // print($"成功隐藏了 {hidden} 条消息，当前显示 {GetVisibleBubbleCount()} 条");
         }
 
         /// <summary>
