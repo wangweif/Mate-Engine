@@ -131,10 +131,12 @@ namespace LLMUnitySamples
         // 实时语音对话相关
         [Header("实时语音对话设置")]
         public bool enableRealTimeVoiceChat = true;
-        public float vadCheckInterval = 0.5f; // VAD检测间隔（秒）
+        public float vadCheckInterval = 0.1f; // VAD检测间隔（秒）
         public float noSpeechThreshold = 1.0f; // 无效语音阈值（秒）
         public float vadEnergyThreshold = 0.01f; // VAD能量阈值
         public float vadActivityRate = 0.6f; // VAD活动率阈值（60%的块检测到语音才认为有活动）
+        public float preRollSeconds = 0.4f; // 预录时长
+        public float postRollSeconds = 0.5f; // 尾音保留时长
         
         private bool isRealTimeVoiceChatActive = false;
         private Coroutine realTimeVoiceChatCoroutine;
@@ -149,6 +151,10 @@ namespace LLMUnitySamples
         private bool chatCancelledByVoice = false; // 是否因新语音打断了模型输出
         private AudioClip currentTTSClip = null; // 当前TTS音频
         private string currentSessionId = ""; // RAGFlow会话ID
+        private int preRollSamples;
+        private Queue<float> preRollBuffer;
+        private bool isInSpeech = false;
+        private List<float> currentSpeechBuffer = new List<float>();
 
         // 离线模式相关
         [Header("离线模式")]
@@ -1075,6 +1081,10 @@ namespace LLMUnitySamples
             lastActiveTime = Time.time;
             audioFileCount = 0;
             isProcessingAudio = false;
+            isInSpeech = false;
+            currentSpeechBuffer.Clear();
+            preRollBuffer = null;
+            preRollSamples = 0;
 
             // 切换到语音模式
             inputBubble.SetVoiceMode(true);
@@ -1150,6 +1160,10 @@ namespace LLMUnitySamples
             isRecording = true;
             lastReadPosition = 0;
             lastActiveTime = Time.time;
+            preRollSamples = Mathf.Max(1, Mathf.CeilToInt(preRollSeconds * sampleRate * recordingClip.channels));
+            preRollBuffer = new Queue<float>(preRollSamples);
+            currentSpeechBuffer.Clear();
+            isInSpeech = false;
 
             while (isRealTimeVoiceChatActive)
             {
@@ -1212,16 +1226,36 @@ namespace LLMUnitySamples
                 {
                     Debug.Log($"检测到语音活动 (时长: {audioDuration:F2}秒)");
                     lastActiveTime = Time.time;
-                    
-                    // 保存音频段
-                    AudioClip segment = AudioClip.Create($"AudioSegment_{audioFileCount++}", samplesToRead, recordingClip.channels, sampleRate, false);
-                    segment.SetData(samples, 0);
-                    audioSegments.Add(segment);
+
+                    if (!isInSpeech)
+                    {
+                        // 首次进入语音段时把预录音频拼进去
+                        currentSpeechBuffer.AddRange(preRollBuffer);
+                        isInSpeech = true;
+                    }
+
+                    currentSpeechBuffer.AddRange(samples);
                 }
-                // else
-                // {
-                //     Debug.Log("静音中...");
-                // }
+                else if (isInSpeech)
+                {
+                    // 已在语音段内，即便当前帧静音也保留，避免中间缺失
+                    currentSpeechBuffer.AddRange(samples);
+                }
+
+                // 推进预录缓冲，避免开头被截断（放在末尾，避免重复当前批次）
+                foreach (var s in samples)
+                {
+                    if (preRollBuffer.Count >= preRollSamples)
+                        preRollBuffer.Dequeue();
+
+                    preRollBuffer.Enqueue(s);
+                }
+
+                // 尾音保留，静音一段时间后再收尾
+                if (isInSpeech && Time.time - lastActiveTime > postRollSeconds)
+                {
+                    FinalizeSegment();
+                }
 
                 // 检查是否需要保存和处理（静音超过阈值）
                 if (Time.time - lastActiveTime > noSpeechThreshold)
@@ -1247,6 +1281,38 @@ namespace LLMUnitySamples
                 Microphone.End(microphoneDevice);
                 isRecording = false;
             }
+        }
+
+        void FinalizeSegment()
+        {
+            if (recordingClip == null || currentSpeechBuffer.Count == 0)
+            {
+                currentSpeechBuffer.Clear();
+                isInSpeech = false;
+                return;
+            }
+
+            int sampleCount = currentSpeechBuffer.Count / recordingClip.channels;
+            if (sampleCount <= 0)
+            {
+                currentSpeechBuffer.Clear();
+                isInSpeech = false;
+                return;
+            }
+
+            AudioClip clip = AudioClip.Create(
+                $"Speech_{audioFileCount++}",
+                sampleCount,
+                recordingClip.channels,
+                sampleRate,
+                false
+            );
+
+            clip.SetData(currentSpeechBuffer.ToArray(), 0);
+            audioSegments.Add(clip);
+
+            currentSpeechBuffer.Clear();
+            isInSpeech = false;
         }
 
         /// <summary>
@@ -1495,7 +1561,11 @@ namespace LLMUnitySamples
             try
             {
                 byte[] wavData = AudioClipToWav(audioClip);
-                
+                //  保存到本地
+                // string filePath = Path.Combine(Application.persistentDataPath, "audio.wav");
+                // File.WriteAllBytes(filePath, wavData);
+                // Debug.Log($"音频已保存到: {filePath}");
+
                 List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
                 formData.Add(new MultipartFormFileSection("file", wavData, "audio.wav", "audio/wav"));
                 formData.Add(new MultipartFormDataSection("model", whisperModel));
