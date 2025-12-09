@@ -1707,7 +1707,11 @@ namespace LLMUnitySamples
                     // 处理流式响应
                     if (request.downloadHandler != null)
                     {
-                        string responseText = request.downloadHandler.text;
+                        // 强制使用 UTF8 解码，避免服务器返回的 Content-Type 中 charset 异常（如“utf-8,text/event-stream”）导致 Unity 尝试创建无效编码而抛错
+                        byte[] rawData = request.downloadHandler.data;
+                        string responseText = (rawData != null && rawData.Length > 0)
+                            ? Encoding.UTF8.GetString(rawData)
+                            : "";
                         
                         // 只处理新增的数据
                         if (responseText != lastProcessedText && !string.IsNullOrEmpty(responseText))
