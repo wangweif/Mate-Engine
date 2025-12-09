@@ -122,7 +122,7 @@ namespace LLMUnitySamples
         // TTS API配置
         private const string ttsApiBaseUrl = "http://192.168.8.88:5000/tts";
         private const string ttsApiKey = "bjzntd@123456";
-        private const string ttsVoice = "zh-CN-XiaoshuangNeural";
+        private const string ttsVoice = "x4_yezi";
         // 按住说话拖动取消相关
         private bool isCancellingRecording = false;
         private Vector2 holdButtonDownPosition;
