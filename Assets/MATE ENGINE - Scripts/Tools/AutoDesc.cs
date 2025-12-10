@@ -105,21 +105,32 @@ namespace MATE_ENGINE___Scripts.Tools
             return SplitByMultipleNewLines(input);
         }
         /// <summary>
-        /// 去掉字符串最外层的一对引号
+        /// 去掉字符串最外层的一对引号和think标签
         /// </summary>
         private string RemoveOuterQuotes(string input)
         {
-            if (input.Length >= 2)
+            if (string.IsNullOrEmpty(input))
+                return input;
+    
+            string result = input;
+    
+            // 1. 移除外层引号
+            if (result.Length >= 2)
             {
-                // 检查是否以引号开头和结尾
-                if ((input[0] == '"' && input[^1] == '"') || 
-                    (input[0] == '\'' && input[^1] == '\''))
+                if ((result[0] == '"' && result[^1] == '"') || 
+                    (result[0] == '\'' && result[^1] == '\''))
                 {
-                    // 去掉第一个和最后一个字符（引号）
-                    return input.Substring(1, input.Length - 2);
+                    result = result.Substring(1, result.Length - 2);
                 }
             }
-            return input;
+    
+            // 2. 使用正则表达式移除 <think> 标签及内容
+            result = Regex.Replace(result, @"<think>[\s\S]*?</think>", "", RegexOptions.IgnoreCase);
+    
+            // 3. 清理可能残留的空白字符
+            result = result.Trim();
+    
+            return result;
         }
 
         /// <summary>
