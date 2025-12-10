@@ -38,13 +38,13 @@ MonoBehaviour:
     - line: '|   targetDevice: 2'
     - line: '|   useOnDemandResources: 0'
     - line: '|   accelerometerFrequency: 60'
-    - line: '|   companyName: "\u667A\u519C\u5929\u5730"'
-    - line: '|   productName: "\u519C\u79D1\u5C0F\u667A"'
+    - line: '|   companyName: Shinymoon'
+    - line: '|   productName: "\u5C0F\u667A"'
     - line: '|   defaultCursor: {instanceID: 0}'
     - line: '|   cursorHotspot: {x: 0, y: 0}'
     - line: '|   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b:
         0.1254902, a: 1}'
-    - line: '|   m_ShowUnitySplashScreen: 0'
+    - line: '|   m_ShowUnitySplashScreen: 1'
     - line: '|   m_ShowUnitySplashLogo: 0'
     - line: '|   m_SplashScreenOverlayOpacity: 1'
     - line: '|   m_SplashScreenAnimation: 2'
@@ -66,7 +66,10 @@ MonoBehaviour:
     - line: '|     y: 0'
     - line: '|     width: 1'
     - line: '|     height: 1'
-    - line: '|   m_SplashScreenLogos: []'
+    - line: '|   m_SplashScreenLogos:'
+    - line: '|   - logo: {fileID: 21300000, guid: b97c753c236d6b547984a7528a9b0579,
+        type: 3}'
+    - line: '|     duration: 2'
     - line: '|   m_VirtualRealitySplashScreen: {fileID: 2800000, guid: a8ea8f23a1821a445a4f5c4b7cc67fa5,
         type: 3}'
     - line: '|   m_HolographicTrackingLossScreen: {instanceID: 0}'
@@ -121,7 +124,7 @@ MonoBehaviour:
     - line: '|   usePlayerLog: 1'
     - line: '|   dedicatedServerOptimizations: 0'
     - line: '|   bakeCollisionMeshes: 0'
-    - line: '|   forceSingleInstance: 1'
+    - line: '|   forceSingleInstance: 0'
     - line: '|   useFlipModelSwapchain: 0'
     - line: '|   resizableWindow: 0'
     - line: '|   useMacAppStoreValidation: 0'
@@ -325,7 +328,7 @@ MonoBehaviour:
     - line: '|   - m_BuildTarget: '
     - line: '|     m_Icons:'
     - line: '|     - serializedVersion: 2'
-    - line: '|       m_Icon: {fileID: 2800000, guid: 93bce417cf8254041a9d6b1010215be8,
+    - line: '|       m_Icon: {fileID: 2800000, guid: af1bb1a58915997479a2994b9195f12a,
         type: 3}'
     - line: '|       m_Width: 128'
     - line: '|       m_Height: 128'

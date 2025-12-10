@@ -24,7 +24,7 @@ public class CommitManager : MonoBehaviour
     public string jsonConfigPath = "";
     public PPTInfo pptInfo;
 
-    // Windows API µ¼Èë
+    // Windows API å¯¼å…¥
     [DllImport("user32.dll")]
     private static extern IntPtr GetActiveWindow();
 
@@ -40,7 +40,7 @@ public class CommitManager : MonoBehaviour
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
-    // ´°¿ÚÏÔÊ¾ÃüÁî
+    // çª—å£æ˜¾ç¤ºå‘½ä»¤
     private const int SW_RESTORE = 9;
     private const int SW_SHOW = 5;
 
@@ -52,19 +52,19 @@ public class CommitManager : MonoBehaviour
         string jsonContent = File.ReadAllText(jsonFilePath);
         pptInfo = JsonUtility.FromJson<PPTInfo>(jsonContent);
         filePath = pptInfo.file_path;
-        // ½«descÊı×éÓÃ»»ĞĞ·ûÁ¬½Ó²¢·ÅÈëInputField
+        // å°†descæ•°ç»„ç”¨æ¢è¡Œç¬¦è¿æ¥å¹¶æ”¾å…¥InputField
         if (pptInfo.desc != null && pptInfo.desc.Length > 0)
         {
-            // Ê¹ÓÃ Environment.NewLine ×÷Îª»»ĞĞ·û£¨¿çÆ½Ì¨¼æÈİ£©
+            // ä½¿ç”¨ Environment.NewLine ä½œä¸ºæ¢è¡Œç¬¦ï¼ˆè·¨å¹³å°å…¼å®¹ï¼‰
             string descText = string.Join(Environment.NewLine, pptInfo.desc);
             inputField.text = descText;
         }
         else
         {
-            inputField.text = ""; // Èç¹ûÃ»ÓĞdescÄÚÈİ£¬Çå¿ÕÊäÈë¿ò
+            inputField.text = ""; // å¦‚æœæ²¡æœ‰descå†…å®¹ï¼Œæ¸…ç©ºè¾“å…¥æ¡†
         }
         FindAndSetupInputField();
-        EnsureUnityWindowOnTop(); // Æô¶¯Ê±È·±£Unity´°¿ÚÔÚÇ°Ì¨
+        EnsureUnityWindowOnTop(); // å¯åŠ¨æ—¶ç¡®ä¿Unityçª—å£åœ¨å‰å°
     }
 
     private void FindAndSetupInputField()
@@ -73,37 +73,37 @@ public class CommitManager : MonoBehaviour
 
         if (inputObj != null)
         {
-            Debug.Log("ÕÒµ½ InputField (Legacy) ¶ÔÏó: " + inputObj.name);
+            Debug.Log("æ‰¾åˆ° InputField (Legacy) å¯¹è±¡: " + inputObj.name);
 
             inputField = inputObj.GetComponent<InputField>();
 
             if (inputField != null)
             {
-                Debug.Log("³É¹¦»ñÈ¡ InputField ×é¼ş");
+                Debug.Log("æˆåŠŸè·å– InputField ç»„ä»¶");
             }
             else
             {
-                Debug.LogError("ÔÚ InputField (Legacy) ¶ÔÏóÉÏÕÒ²»µ½ InputField ×é¼ş£¡");
+                Debug.LogError("åœ¨ InputField (Legacy) å¯¹è±¡ä¸Šæ‰¾ä¸åˆ° InputField ç»„ä»¶ï¼");
 
-                // ¼ì²é¶ÔÏóÉÏÓĞÊ²Ã´×é¼ş
+                // æ£€æŸ¥å¯¹è±¡ä¸Šæœ‰ä»€ä¹ˆç»„ä»¶
                 Component[] components = inputObj.GetComponents<Component>();
                 foreach (Component comp in components)
                 {
-                    Debug.Log("ÕÒµ½×é¼ş: " + comp.GetType().Name);
+                    Debug.Log("æ‰¾åˆ°ç»„ä»¶: " + comp.GetType().Name);
                 }
             }
         }
         else
         {
-            Debug.LogError("ÕÒ²»µ½ÃûÎª 'InputField (Legacy)' µÄÓÎÏ·¶ÔÏó£¡");
+            Debug.LogError("æ‰¾ä¸åˆ°åä¸º 'InputField (Legacy)' çš„æ¸¸æˆå¯¹è±¡ï¼");
 
-            // ÁĞ³ö³¡¾°ÖĞËùÓĞ¶ÔÏó£¬°ïÖúµ÷ÊÔ
-            Debug.Log("³¡¾°ÖĞµÄ¶ÔÏóÁĞ±í:");
+            // åˆ—å‡ºåœºæ™¯ä¸­æ‰€æœ‰å¯¹è±¡ï¼Œå¸®åŠ©è°ƒè¯•
+            Debug.Log("åœºæ™¯ä¸­çš„å¯¹è±¡åˆ—è¡¨:");
             foreach (GameObject obj in FindObjectsOfType<GameObject>())
             {
                 if (obj.name.Contains("Input"))
                 {
-                    Debug.Log("ÕÒµ½¿ÉÄÜÏà¹ØµÄ¶ÔÏó: " + obj.name);
+                    Debug.Log("æ‰¾åˆ°å¯èƒ½ç›¸å…³çš„å¯¹è±¡: " + obj.name);
                 }
             }
         }
@@ -121,16 +121,16 @@ public class CommitManager : MonoBehaviour
                 string jsonContent = File.ReadAllText(jsonFilePath);
                 pptInfo = JsonUtility.FromJson<PPTInfo>(jsonContent);
                 filePath = pptInfo.file_path;
-                // ½«descÊı×éÓÃ»»ĞĞ·ûÁ¬½Ó²¢·ÅÈëInputField
+                // å°†descæ•°ç»„ç”¨æ¢è¡Œç¬¦è¿æ¥å¹¶æ”¾å…¥InputField
                 if (pptInfo.desc != null && pptInfo.desc.Length > 0)
                 {
-                    // Ê¹ÓÃ Environment.NewLine ×÷Îª»»ĞĞ·û£¨¿çÆ½Ì¨¼æÈİ£©
+                    // ä½¿ç”¨ Environment.NewLine ä½œä¸ºæ¢è¡Œç¬¦ï¼ˆè·¨å¹³å°å…¼å®¹ï¼‰
                     string descText = string.Join(Environment.NewLine, pptInfo.desc);
                     inputField.text = descText;
                 }
                 else
                 {
-                    inputField.text = ""; // Èç¹ûÃ»ÓĞdescÄÚÈİ£¬Çå¿ÕÊäÈë¿ò
+                    inputField.text = ""; // å¦‚æœæ²¡æœ‰descå†…å®¹ï¼Œæ¸…ç©ºè¾“å…¥æ¡†
                 }
             }
             catch (Exception e)
@@ -147,12 +147,12 @@ public class CommitManager : MonoBehaviour
 
     public void onclick()
     {
-        EnsureUnityWindowOnTop(); // µã»÷°´Å¥Ê±È·±£´°¿ÚÔÚÇ°Ì¨
+        EnsureUnityWindowOnTop(); // ç‚¹å‡»æŒ‰é’®æ—¶ç¡®ä¿çª—å£åœ¨å‰å°
         OpenFileDialog();
     }
 
     /// <summary>
-    /// È·±£Unity´°¿Ú´¦ÓÚÇ°Ì¨ºÍÖÃ¶¥×´Ì¬
+    /// ç¡®ä¿Unityçª—å£å¤„äºå‰å°å’Œç½®é¡¶çŠ¶æ€
     /// </summary>
     private void EnsureUnityWindowOnTop()
     {
@@ -162,56 +162,56 @@ public class CommitManager : MonoBehaviour
 
             if (unityWindowHandle != IntPtr.Zero)
             {
-                // »Ö¸´´°¿Ú£¨Èç¹û×îĞ¡»¯£©
+                // æ¢å¤çª—å£ï¼ˆå¦‚æœæœ€å°åŒ–ï¼‰
                 ShowWindow(unityWindowHandle, SW_RESTORE);
 
-                // ÉèÖÃÎªÇ°¾°´°¿Ú
+                // è®¾ç½®ä¸ºå‰æ™¯çª—å£
                 SetForegroundWindow(unityWindowHandle);
 
-                // ÖÃ¶¥´°¿Ú
+                // ç½®é¡¶çª—å£
                 BringWindowToTop(unityWindowHandle);
 
-                //Debug.Log("Unity´°¿ÚÒÑÖÃ¶¥£¬¾ä±ú: " + unityWindowHandle);
+                //Debug.Log("Unityçª—å£å·²ç½®é¡¶ï¼Œå¥æŸ„: " + unityWindowHandle);
             }
             else
             {
-                Debug.LogWarning("ÎŞ·¨»ñÈ¡Unity´°¿Ú¾ä±ú");
+                Debug.LogWarning("æ— æ³•è·å–Unityçª—å£å¥æŸ„");
             }
         }
         catch (Exception e)
         {
-            Debug.LogError("ÖÃ¶¥´°¿ÚÊ±³ö´í: " + e.Message);
+            Debug.LogError("ç½®é¡¶çª—å£æ—¶å‡ºé”™: " + e.Message);
         }
     }
 
     /// <summary>
-    /// »ñÈ¡Unity´°¿Ú¾ä±ú
+    /// è·å–Unityçª—å£å¥æŸ„
     /// </summary>
     private IntPtr GetUnityWindowHandle()
     {
         IntPtr handle = IntPtr.Zero;
 
-        // ·½·¨1£º»ñÈ¡»î¶¯´°¿Ú
+        // æ–¹æ³•1ï¼šè·å–æ´»åŠ¨çª—å£
         handle = GetActiveWindow();
 
-        // ·½·¨2£ºÈç¹û·½·¨1ÎŞĞ§£¬³¢ÊÔ»ñÈ¡Ç°¾°´°¿Ú
+        // æ–¹æ³•2ï¼šå¦‚æœæ–¹æ³•1æ— æ•ˆï¼Œå°è¯•è·å–å‰æ™¯çª—å£
         if (handle == IntPtr.Zero)
         {
             handle = GetForegroundWindow();
         }
 
-        // ·½·¨3£ºÈç¹ûÈÔÈ»ÎŞĞ§£¬³¢ÊÔÍ¨¹ı½ø³Ì»ñÈ¡
+        // æ–¹æ³•3ï¼šå¦‚æœä»ç„¶æ— æ•ˆï¼Œå°è¯•é€šè¿‡è¿›ç¨‹è·å–
         if (handle == IntPtr.Zero)
         {
             handle = GetWindowHandleByProcess();
         }
 
-        //Debug.Log("»ñÈ¡µ½µÄ´°¿Ú¾ä±ú: " + handle);
+        //Debug.Log("è·å–åˆ°çš„çª—å£å¥æŸ„: " + handle);
         return handle;
     }
 
     /// <summary>
-    /// Í¨¹ı½ø³ÌĞÅÏ¢»ñÈ¡´°¿Ú¾ä±ú£¨±¸Ñ¡·½°¸£©
+    /// é€šè¿‡è¿›ç¨‹ä¿¡æ¯è·å–çª—å£å¥æŸ„ï¼ˆå¤‡é€‰æ–¹æ¡ˆï¼‰
     /// </summary>
     private IntPtr GetWindowHandleByProcess()
     {
@@ -228,30 +228,30 @@ public class CommitManager : MonoBehaviour
 
     public void OpenFileDialog()
     {
-        // ÔÚ´ò¿ª¶Ô»°¿òÇ°ÔÙ´Î¼ì²é inputField
+        // åœ¨æ‰“å¼€å¯¹è¯æ¡†å‰å†æ¬¡æ£€æŸ¥ inputField
         if (inputField == null)
         {
-            Debug.LogError("inputField Îª null£¬ÎŞ·¨»ñÈ¡ÎÄ±¾ÄÚÈİ£¡");
-            FindAndSetupInputField(); // ÖØĞÂ³¢ÊÔ²éÕÒ
+            Debug.LogError("inputField ä¸º nullï¼Œæ— æ³•è·å–æ–‡æœ¬å†…å®¹ï¼");
+            FindAndSetupInputField(); // é‡æ–°å°è¯•æŸ¥æ‰¾
             return;
         }
 
-        // È·±£Unity´°¿ÚÔÚÇ°Ì¨
+        // ç¡®ä¿Unityçª—å£åœ¨å‰å°
         EnsureUnityWindowOnTop();
 
-        // µÈ´ıÒ»Ö¡£¬È·±£´°¿ÚÖÃ¶¥²Ù×÷Íê³É
+        // ç­‰å¾…ä¸€å¸§ï¼Œç¡®ä¿çª—å£ç½®é¡¶æ“ä½œå®Œæˆ
         StartCoroutine(OpenFileDialogCoroutine());
     }
 
     private IEnumerator OpenFileDialogCoroutine()
     {
-        // µÈ´ıÒ»Ö¡£¬È·±£SetForegroundWindowÉúĞ§
+        // ç­‰å¾…ä¸€å¸§ï¼Œç¡®ä¿SetForegroundWindowç”Ÿæ•ˆ
         yield return new WaitForEndOfFrame();
 
         OpenFileName ofn = new OpenFileName();
         ofn.structSize = Marshal.SizeOf(ofn);
 
-        // ¹Ø¼üĞŞÕı£ºÊ¹ÓÃ dlgOwner ¶ø²»ÊÇ hwndOwner
+        // å…³é”®ä¿®æ­£ï¼šä½¿ç”¨ dlgOwner è€Œä¸æ˜¯ hwndOwner
         ofn.dlgOwner = GetUnityWindowHandle();
 
         ofn.filter = "All Files\0*.*\0\0";
@@ -259,23 +259,23 @@ public class CommitManager : MonoBehaviour
         ofn.maxFile = ofn.file.Length;
         ofn.fileTitle = new string(new char[64]);
         ofn.maxFileTitle = ofn.fileTitle.Length;
-        ofn.title = "Ñ¡ÔñÎÄ¼ş";
+        ofn.title = "é€‰æ‹©æ–‡ä»¶";
         ofn.initialDir = UnityEngine.Application.streamingAssetsPath.Replace('/', '\\');
 
-        // ±êÖ¾Î»ËµÃ÷£º
-        // 0x00080000 = OFN_EXPLORER (Ê¹ÓÃĞÂÊ½¶Ô»°¿ò)
-        // 0x00001000 = OFN_ENABLESIZING (ÔÊĞíµ÷Õû´óĞ¡)
-        // 0x00000800 = OFN_PATHMUSTEXIST (Â·¾¶±ØĞë´æÔÚ)
-        // 0x00000008 = OFN_NOCHANGEDIR (²»¸Ä±äµ±Ç°Ä¿Â¼)
-        // 0x00040000 = OFN_FORCESHOWHIDDEN (Ç¿ÖÆÏÔÊ¾Òş²ØÎÄ¼ş)
+        // æ ‡å¿—ä½è¯´æ˜ï¼š
+        // 0x00080000 = OFN_EXPLORER (ä½¿ç”¨æ–°å¼å¯¹è¯æ¡†)
+        // 0x00001000 = OFN_ENABLESIZING (å…è®¸è°ƒæ•´å¤§å°)
+        // 0x00000800 = OFN_PATHMUSTEXIST (è·¯å¾„å¿…é¡»å­˜åœ¨)
+        // 0x00000008 = OFN_NOCHANGEDIR (ä¸æ”¹å˜å½“å‰ç›®å½•)
+        // 0x00040000 = OFN_FORCESHOWHIDDEN (å¼ºåˆ¶æ˜¾ç¤ºéšè—æ–‡ä»¶)
         ofn.flags = 0x00080000 | 0x00001000 | 0x00000800 | 0x00000008 | 0x00040000;
 
-        //Debug.Log("ÕıÔÚ´ò¿ªÎÄ¼ş¶Ô»°¿ò£¬¸¸´°¿Ú¾ä±ú: " + ofn.dlgOwner);
+        //Debug.Log("æ­£åœ¨æ‰“å¼€æ–‡ä»¶å¯¹è¯æ¡†ï¼Œçˆ¶çª—å£å¥æŸ„: " + ofn.dlgOwner);
 
         if (LocalDialog.GetOpenFileName(ofn))
         {
             string selectedFilePath = ofn.file;
-            //Debug.Log("Ñ¡ÖĞµÄÎÄ¼ş: " + selectedFilePath);
+            //Debug.Log("é€‰ä¸­çš„æ–‡ä»¶: " + selectedFilePath);
             //filePathObj.text = selectedFilePath;
             string newFileName = Path.GetFileName(selectedFilePath);
             string newFilePath = selectedFilePath;
@@ -286,84 +286,58 @@ public class CommitManager : MonoBehaviour
             PPTDataManager.SavePPTInfoToJson(newInfo, Path.ChangeExtension(newFileName, ".json"));
             dropdown.ReSetDropdown();
             dropdown.SetCurrentOptionText(newFileName);
-            // ÎÄ¼şÑ¡ÔñÍê³ÉºóÔÙ´ÎÈ·±£Unity´°¿ÚÔÚÇ°Ì¨
+            // æ–‡ä»¶é€‰æ‹©å®Œæˆåå†æ¬¡ç¡®ä¿Unityçª—å£åœ¨å‰å°
             EnsureUnityWindowOnTop();
         }
         else
         {
-            //Debug.Log("ÓÃ»§È¡ÏûÁËÎÄ¼şÑ¡Ôñ");
-            // È¡ÏûÑ¡ÔñºóÒ²ÒªÈ·±£Unity´°¿ÚÔÚÇ°Ì¨
+            //Debug.Log("ç”¨æˆ·å–æ¶ˆäº†æ–‡ä»¶é€‰æ‹©");
+            // å–æ¶ˆé€‰æ‹©åä¹Ÿè¦ç¡®ä¿Unityçª—å£åœ¨å‰å°
             EnsureUnityWindowOnTop();
         }
     }
 
     public void submit()
     {
-        /*if (filePath == null || filePath == "")
-        {
-            print("filePath == null || filePath == \"\"");
-            print("µ±Ç°filePath: " + filePath);
-            return;
-        }
-
-        PPTInfo = new PPTInfo();
-        PPTInfo.filename = System.IO.Path.GetFileName(filePath);
-        PPTInfo.file_path = filePath;
-
-        string[] strings = text.Split('\n');
-        PPTInfo.desc = strings;*/
-
         string jsonName = Path.ChangeExtension(fileName,".json");
         string[] strings = text.Split('\n');
         pptInfo.desc = strings;
         bool success = PPTDataManager.SavePPTInfoToJson(pptInfo, jsonName);
-
-        /*if (success)
-        {
-            print("±£´æ³É¹¦!");
-            // Çå¿ÕÊäÈë
-            if (inputField != null)
-                inputField.text = "";
-        }
-        else
-        {
-            print("±£´æÊ§°Ü!");
-        }*/
     }
 
     void OnApplicationFocus(bool hasFocus)
     {
         if (hasFocus)
         {
-            // µ±Ó¦ÓÃ»ñµÃ½¹µãÊ±£¬È·±£´°¿ÚÖÃ¶¥
+            // å½“åº”ç”¨è·å¾—ç„¦ç‚¹æ—¶ï¼Œç¡®ä¿çª—å£ç½®é¡¶
             EnsureUnityWindowOnTop();
         }
     }
 
-    // µ÷ÊÔ·½·¨£º²âÊÔ´°¿Ú¾ä±ú»ñÈ¡
-    [ContextMenu("²âÊÔ´°¿Ú¾ä±ú»ñÈ¡")]
+    // è°ƒè¯•æ–¹æ³•ï¼šæµ‹è¯•çª—å£å¥æŸ„è·å–
+    [ContextMenu("æµ‹è¯•çª—å£å¥æŸ„è·å–")]
     public void TestWindowHandle()
     {
         IntPtr handle = GetUnityWindowHandle();
-        //Debug.Log("²âÊÔ»ñÈ¡´°¿Ú¾ä±ú: " + handle);
+        //Debug.Log("æµ‹è¯•è·å–çª—å£å¥æŸ„: " + handle);
 
         if (handle != IntPtr.Zero)
         {
-            //Debug.Log("¾ä±úÓĞĞ§£¬³¢ÊÔÖÃ¶¥...");
+            //Debug.Log("å¥æŸ„æœ‰æ•ˆï¼Œå°è¯•ç½®é¡¶...");
             EnsureUnityWindowOnTop();
         }
     }
 
     private string FindJsonFilePath()
     {
-        // ³¢ÊÔÔÚStreamingAssetsÖĞ²éÕÒ
+        // å°è¯•åœ¨StreamingAssetsä¸­æŸ¥æ‰¾
         string streamingAssetsPath = Path.Combine(Application.streamingAssetsPath, "pptinfo", jsonConfigPath);
         if (File.Exists(streamingAssetsPath))
         {
             return streamingAssetsPath;
         }
 
-        // ³¢ÊÔÔÚÏîÄ¿¸ùÄ¿Â¼²éÕÒ
+        // å°è¯•åœ¨é¡¹ç›®æ ¹ç›®å½•æŸ¥æ‰¾
         string projectRoot = Directory.GetParent(Application.dataPath).FullName;
         string rootPath = Path.Combine(projectRoot, "pptinfo", jsonConfigPath);
         if (File.Exists(rootPath))
@@ -371,7 +345,7 @@ public class CommitManager : MonoBehaviour
             return rootPath;
         }
 
-        // ³¢ÊÔÔÚAssetsÎÄ¼ş¼ĞÖĞ²éÕÒ
+        // å°è¯•åœ¨Assetsæ–‡ä»¶å¤¹ä¸­æŸ¥æ‰¾
         string assetsPath = Path.Combine(Application.dataPath, "pptinfo", jsonConfigPath);
         if (File.Exists(assetsPath))
         {
