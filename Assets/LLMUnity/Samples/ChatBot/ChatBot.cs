@@ -8,6 +8,7 @@ using System.Linq;
 using System;
 using System.Text;
 using System.IO;
+using System.Threading;
 using UnityEngine.Networking;
 using UnityEngine.EventSystems;
 
@@ -116,13 +117,6 @@ namespace LLMUnitySamples
         private bool isRecording = false;
         private const int sampleRate = 16000;
         private const int maxRecordingLength = 60; // 最大录制60秒
-        private const string whisperApiUrl = "http://192.168.8.88:8001/v1/audio/transcriptions";
-        private const string whisperModel = "whisper-small";
-        
-        // TTS API配置
-        private const string ttsApiBaseUrl = "http://192.168.8.88:5000/tts";
-        private const string ttsApiKey = "bjzntd@123456";
-        private const string ttsVoice = "x4_yezi";
         // 按住说话拖动取消相关
         private bool isCancellingRecording = false;
         private Vector2 holdButtonDownPosition;
@@ -155,6 +149,8 @@ namespace LLMUnitySamples
         private Queue<float> preRollBuffer;
         private bool isInSpeech = false;
         private List<float> currentSpeechBuffer = new List<float>();
+        private XunFeiSpeechService xunFeiSpeechService;
+        private CancellationTokenSource ttsCts;
 
         // 离线模式相关
         [Header("离线模式")]
@@ -219,6 +215,9 @@ namespace LLMUnitySamples
             ShowLoadedMessages();
             _ = llmCharacter.Warmup(WarmUpCallback);
             FindAvatarSmart();
+
+            // 初始化讯飞语音服务
+            xunFeiSpeechService = new XunFeiSpeechService();
         }
 
         void SetupVoiceInputButtons()
@@ -927,56 +926,56 @@ namespace LLMUnitySamples
 
         async Task TranscribeAudio(AudioClip audioClip)
         {
-            try
-            {
-                // 将AudioClip转换为WAV格式的字节数组
-                byte[] wavData = AudioClipToWav(audioClip);
+            // try
+            // {
+            //     // 将AudioClip转换为WAV格式的字节数组
+            //     byte[] wavData = AudioClipToWav(audioClip);
                 
-                // 创建表单数据
-                List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
-                formData.Add(new MultipartFormFileSection("file", wavData, "audio.wav", "audio/wav"));
-                formData.Add(new MultipartFormDataSection("model", whisperModel));
-                formData.Add(new MultipartFormDataSection("language", "zh"));
-                // 发送请求
-                using (UnityWebRequest request = UnityWebRequest.Post(whisperApiUrl, formData))
-                {
-                    request.timeout = 30;
-                    var operation = request.SendWebRequest();
+            //     // 创建表单数据
+            //     List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
+            //     formData.Add(new MultipartFormFileSection("file", wavData, "audio.wav", "audio/wav"));
+            //     formData.Add(new MultipartFormDataSection("model", whisperModel));
+            //     formData.Add(new MultipartFormDataSection("language", "zh"));
+            //     // 发送请求
+            //     using (UnityWebRequest request = UnityWebRequest.Post(whisperApiUrl, formData))
+            //     {
+            //         request.timeout = 30;
+            //         var operation = request.SendWebRequest();
 
-                    while (!operation.isDone)
-                    {
-                        await Task.Yield();
-                    }
+            //         while (!operation.isDone)
+            //         {
+            //             await Task.Yield();
+            //         }
 
-                    if (request.result == UnityWebRequest.Result.Success)
-                    {
-                        string responseText = request.downloadHandler.text;
-                        Debug.Log($"Whisper API响应: {responseText}");
+            //         if (request.result == UnityWebRequest.Result.Success)
+            //         {
+            //             string responseText = request.downloadHandler.text;
+            //             Debug.Log($"Whisper API响应: {responseText}");
                         
-                        // 解析JSON响应
-                        string transcribedText = ParseWhisperResponse(responseText);
-                        if (!string.IsNullOrEmpty(transcribedText))
-                        {
-                            Debug.Log($"转文字结果: {transcribedText}");
-                            // 将转文字的结果设置为输入框文本并发送
-                            inputBubble.SetText(transcribedText);
-                            onInputFieldSubmit(transcribedText);
-                        }
-                        else
-                        {
-                            Debug.LogWarning("转文字结果为空");
-                        }
-                    }
-                    else
-                    {
-                        Debug.LogError($"Whisper API请求失败: {request.error}");
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"转文字过程中发生错误: {e.Message}");
-            }
+            //             // 解析JSON响应
+            //             string transcribedText = ParseWhisperResponse(responseText);
+            //             if (!string.IsNullOrEmpty(transcribedText))
+            //             {
+            //                 Debug.Log($"转文字结果: {transcribedText}");
+            //                 // 将转文字的结果设置为输入框文本并发送
+            //                 inputBubble.SetText(transcribedText);
+            //                 onInputFieldSubmit(transcribedText);
+            //             }
+            //             else
+            //             {
+            //                 Debug.LogWarning("转文字结果为空");
+            //             }
+            //         }
+            //         else
+            //         {
+            //             Debug.LogError($"Whisper API请求失败: {request.error}");
+            //         }
+            //     }
+            // }
+            // catch (Exception e)
+            // {
+            //     Debug.LogError($"转文字过程中发生错误: {e.Message}");
+            // }
         }
 
         byte[] AudioClipToWav(AudioClip clip)
@@ -1552,51 +1551,44 @@ namespace LLMUnitySamples
         }
 
         /// <summary>
-        /// 修改后的TranscribeAudio，支持回调返回结果
+        /// 使用讯飞STT转文字
         /// </summary>
         async Task<string> TranscribeAudioWithResult(AudioClip audioClip)
         {
+            if (audioClip == null)
+            {
+                return "";
+            }
+
+            if (xunFeiSpeechService == null)
+            {
+                Debug.LogError("讯飞语音服务未初始化，无法转文字");
+                return "";
+            }
+
+            if (isOfflineMode)
+            {
+                Debug.Log("离线模式：跳过转文字");
+                return "";
+            }
+
             try
             {
-                byte[] wavData = AudioClipToWav(audioClip);
-                //  保存到本地
-                // string filePath = Path.Combine(Application.persistentDataPath, "audio.wav");
-                // File.WriteAllBytes(filePath, wavData);
-                // Debug.Log($"音频已保存到: {filePath}");
-
-                List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
-                formData.Add(new MultipartFormFileSection("file", wavData, "audio.wav", "audio/wav"));
-                formData.Add(new MultipartFormDataSection("model", whisperModel));
-                formData.Add(new MultipartFormDataSection("language", "zh"));
-                
-                using (UnityWebRequest request = UnityWebRequest.Post(whisperApiUrl, formData))
+                byte[] pcmData = XunFeiSpeechService.AudioClipToPcm16(audioClip);
+                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
                 {
-                    request.timeout = 30;
-                    var operation = request.SendWebRequest();
-
-                    while (!operation.isDone)
-                    {
-                        await Task.Yield();
-                    }
-
-                    if (request.result == UnityWebRequest.Result.Success)
-                    {
-                        string responseText = request.downloadHandler.text;
-                        Debug.Log($"Whisper API响应: {responseText}");
-                        
-                        string transcribedText = ParseWhisperResponse(responseText);
-                        return transcribedText;
-                    }
-                    else
-                    {
-                        Debug.LogError($"Whisper API请求失败: {request.error}");
-                        return "";
-                    }
+                    string transcribedText = await xunFeiSpeechService.RequestSttAsync(pcmData, cts.Token);
+                    return transcribedText;
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.LogWarning("讯飞转文字任务被取消");
+                return "";
             }
             catch (Exception e)
             {
-                Debug.LogError($"转文字过程中发生错误: {e.Message}");
+                Debug.LogError($"讯飞转文字失败: {e.Message}");
                 return "";
             }
         }
@@ -1986,6 +1978,13 @@ namespace LLMUnitySamples
         /// </summary>
         void StopCurrentTTS()
         {
+            if (ttsCts != null)
+            {
+                ttsCts.Cancel();
+                ttsCts.Dispose();
+                ttsCts = null;
+            }
+
             if (currentTTSPlayCoroutine != null)
             {
                 StopCoroutine(currentTTSPlayCoroutine);
@@ -2009,6 +2008,25 @@ namespace LLMUnitySamples
         }
 
         /// <summary>
+        /// 尝试删除临时文件
+        /// </summary>
+        void TryDeleteFile(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"清理临时文件失败: {e.Message}");
+            }
+        }
+
+        /// <summary>
         /// 打断当前模型输出（聊天）
         /// </summary>
         void CancelCurrentChat()
@@ -2029,7 +2047,7 @@ namespace LLMUnitySamples
         }
 
         /// <summary>
-        /// 从HTTP API获取TTS并播放
+        /// 使用讯飞TTS获取音频并播放
         /// </summary>
         IEnumerator PlayTTSFromAPI(string text, System.Action<bool> onComplete)
         {
@@ -2051,11 +2069,46 @@ namespace LLMUnitySamples
 
             isTTSPlaying = true;
 
-            // 构建TTS API URL
-            string encodedText = UnityEngine.Networking.UnityWebRequest.EscapeURL(text);
-            string ttsUrl = $"{ttsApiBaseUrl}?text={encodedText}&voice={ttsVoice}&api_key={ttsApiKey}";
-            
-            Debug.Log($"请求TTS: {ttsUrl}");
+            // 取消上一请求
+            ttsCts?.Cancel();
+            ttsCts?.Dispose();
+            ttsCts = new CancellationTokenSource();
+
+            if (xunFeiSpeechService == null)
+            {
+                Debug.LogError("讯飞语音服务未初始化");
+                isTTSPlaying = false;
+                onComplete?.Invoke(false);
+                yield break;
+            }
+
+            Task<byte[]> ttsTask = xunFeiSpeechService.RequestTtsAsync(text, ttsCts.Token);
+            while (!ttsTask.IsCompleted)
+            {
+                if (ttsCts.IsCancellationRequested || !isTTSPlaying)
+                {
+                    onComplete?.Invoke(false);
+                    yield break;
+                }
+                yield return null;
+            }
+
+            if (ttsTask.IsCanceled || !ttsTask.IsCompletedSuccessfully)
+            {
+                Debug.LogError($"讯飞TTS请求失败: {(ttsTask.Exception != null ? ttsTask.Exception.Message : "被取消")}");
+                isTTSPlaying = false;
+                onComplete?.Invoke(false);
+                yield break;
+            }
+
+            byte[] audioData = ttsTask.Result;
+            if (audioData == null || audioData.Length == 0)
+            {
+                Debug.LogWarning("讯飞TTS返回空音频数据");
+                isTTSPlaying = false;
+                onComplete?.Invoke(false);
+                yield break;
+            }
 
             // 创建临时文件路径
             string tempDir = Path.Combine(Application.persistentDataPath, "TTSTemp");
@@ -2064,187 +2117,84 @@ namespace LLMUnitySamples
                 Directory.CreateDirectory(tempDir);
             }
             string tempFilePath = Path.Combine(tempDir, $"tts_{System.Guid.NewGuid()}.mp3");
+            File.WriteAllBytes(tempFilePath, audioData);
+            Debug.Log($"讯飞TTS音频已保存: {tempFilePath}, 大小: {audioData.Length} 字节");
 
             AudioClip audioClip = null;
-            bool shouldPlay = true;
-
-            // 下载MP3文件
-            using (UnityWebRequest request = UnityWebRequest.Get(ttsUrl))
+            string fileUrl = "file://" + tempFilePath;
+            using (UnityWebRequest audioRequest = UnityWebRequestMultimedia.GetAudioClip(fileUrl, AudioType.MPEG))
             {
-                request.timeout = 30;
-                yield return request.SendWebRequest();
+                yield return audioRequest.SendWebRequest();
 
-                if (request.result == UnityWebRequest.Result.Success)
+                if (audioRequest.result == UnityWebRequest.Result.Success)
                 {
-                    // 检查是否被中断
-                    if (!isTTSPlaying)
-                    {
-                        Debug.Log("TTS下载过程中被中断");
-                        onComplete?.Invoke(false);
-                        yield break;
-                    }
-
-                    // 保存到临时文件
-                    byte[] audioData = request.downloadHandler.data;
-                    File.WriteAllBytes(tempFilePath, audioData);
-                    Debug.Log($"TTS MP3文件已保存到: {tempFilePath}, 大小: {audioData.Length} 字节");
-
-                    // 从文件加载AudioClip
-                    string fileUrl = "file://" + tempFilePath;
-                    using (UnityWebRequest audioRequest = UnityWebRequestMultimedia.GetAudioClip(fileUrl, AudioType.MPEG))
-                    {
-                        yield return audioRequest.SendWebRequest();
-
-                        // 再次检查是否被中断
-                        if (!isTTSPlaying)
-                        {
-                            Debug.Log("TTS加载过程中被中断");
-                            try
-                            {
-                                if (File.Exists(tempFilePath))
-                                {
-                                    File.Delete(tempFilePath);
-                                }
-                            }
-                            catch { }
-                            onComplete?.Invoke(false);
-                            yield break;
-                        }
-
-                        if (audioRequest.result == UnityWebRequest.Result.Success)
-                        {
-                            audioClip = DownloadHandlerAudioClip.GetContent(audioRequest);
-                            if (audioClip != null)
-                            {
-                                Debug.Log($"TTS音频加载成功，时长: {audioClip.length:F2}秒");
-                            }
-                            else
-                            {
-                                Debug.LogError("TTS音频剪辑为空");
-                                shouldPlay = false;
-                            }
-                        }
-                        else
-                        {
-                            Debug.LogError($"加载TTS音频文件失败: {audioRequest.error}");
-                            shouldPlay = false;
-                        }
-                    }
+                    audioClip = DownloadHandlerAudioClip.GetContent(audioRequest);
                 }
                 else
                 {
-                    Debug.LogError($"TTS API请求失败: {request.error}, URL: {ttsUrl}");
-                    shouldPlay = false;
-                }
-            }
-
-            // 播放音频
-            if (shouldPlay && audioClip != null && isTTSPlaying)
-            {
-                AudioSource audioSourceToUse = ttsAudioSource != null ? ttsAudioSource : streamAudioSource;
-                if (audioSourceToUse != null)
-                {
-                    audioSourceToUse.loop = false;
-                    // 停止当前播放
-                    if (audioSourceToUse.isPlaying)
-                    {
-                        audioSourceToUse.Stop();
-                    }
-                    
-                    // 记录当前clip，方便打断时销毁
-                    currentTTSClip = audioClip;
-                    audioSourceToUse.clip = audioClip;
-                    audioSourceToUse.Play();
-                    
-                    // 等待播放完成，但检查是否被中断
-                    while (audioSourceToUse.isPlaying && isTTSPlaying && audioSourceToUse.clip == audioClip)
-                    {
-                        yield return null;
-                    }
-                    
-                    // 如果被中断，停止播放
-                    if (!isTTSPlaying || audioSourceToUse.clip != audioClip)
-                    {
-                        if (audioSourceToUse.isPlaying)
-                        {
-                            audioSourceToUse.Stop();
-                        }
-                        Debug.Log("TTS播放被中断");
-                    }
-                    else
-                    {
-                        Debug.Log("TTS播放完成");
-                    }
-                    
-                    // 清理临时文件
-                    try
-                    {
-                        if (File.Exists(tempFilePath))
-                        {
-                            File.Delete(tempFilePath);
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogWarning($"清理临时文件失败: {e.Message}");
-                    }
-                    
-                    // 清理临时文件
-                    try
-                    {
-                        if (File.Exists(tempFilePath))
-                        {
-                            File.Delete(tempFilePath);
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogWarning($"清理临时文件失败: {e.Message}");
-                    }
-                    
-                    // 清理AudioClip（若未被中断则销毁当前clip）
-                    if (currentTTSClip != null)
-                    {
-                        Destroy(currentTTSClip);
-                        currentTTSClip = null;
-                    }
-                    
-                    isTTSPlaying = false;
-                    onComplete?.Invoke(true);
-                }
-                else
-                {
-                    Debug.LogError("没有可用的AudioSource播放TTS");
-                    if (audioClip != null)
-                    {
-                        Destroy(audioClip);
-                    }
+                    Debug.LogError($"加载讯飞TTS音频失败: {audioRequest.error}");
                     isTTSPlaying = false;
                     onComplete?.Invoke(false);
                 }
             }
-            else
+
+            if (audioClip == null || !isTTSPlaying)
             {
-                // 清理临时文件
-                try
-                {
-                    if (File.Exists(tempFilePath))
-                    {
-                        File.Delete(tempFilePath);
-                    }
-                }
-                catch { }
-
-                // 若被中断/失败，清理当前clip
-                if (currentTTSClip != null)
-                {
-                    Destroy(currentTTSClip);
-                    currentTTSClip = null;
-                }
-
+                TryDeleteFile(tempFilePath);
                 isTTSPlaying = false;
                 onComplete?.Invoke(false);
+                yield break;
             }
+
+            AudioSource audioSourceToUse = ttsAudioSource != null ? ttsAudioSource : streamAudioSource;
+            if (audioSourceToUse == null)
+            {
+                Debug.LogError("没有可用的AudioSource播放TTS");
+                Destroy(audioClip);
+                TryDeleteFile(tempFilePath);
+                isTTSPlaying = false;
+                onComplete?.Invoke(false);
+                yield break;
+            }
+
+            audioSourceToUse.loop = false;
+            if (audioSourceToUse.isPlaying)
+            {
+                audioSourceToUse.Stop();
+            }
+
+            currentTTSClip = audioClip;
+            audioSourceToUse.clip = audioClip;
+            audioSourceToUse.Play();
+
+            while (audioSourceToUse.isPlaying && isTTSPlaying && audioSourceToUse.clip == audioClip)
+            {
+                yield return null;
+            }
+
+            if (!isTTSPlaying || audioSourceToUse.clip != audioClip)
+            {
+                if (audioSourceToUse.isPlaying)
+                {
+                    audioSourceToUse.Stop();
+                }
+                Debug.Log("讯飞TTS播放被中断");
+            }
+            else
+            {
+                Debug.Log("讯飞TTS播放完成");
+            }
+
+            TryDeleteFile(tempFilePath);
+
+            if (currentTTSClip != null)
+            {
+                Destroy(currentTTSClip);
+                currentTTSClip = null;
+            }
+
+            isTTSPlaying = false;
+            onComplete?.Invoke(true);
         }
 
         /// <summary>
