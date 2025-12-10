@@ -291,6 +291,7 @@ public class CommitManager : MonoBehaviour
             newInfo.filename = newFileName; 
             newInfo.file_path = newFilePath;
             newInfo.desc = new string[] {""};
+            newInfo.is_uploaded = false;
             PPTDataManager.SavePPTInfoToJson(newInfo, Path.ChangeExtension(newFileName, ".json"));
             dropdown.ReSetDropdown();
             dropdown.SetCurrentOptionText(newFileName);
@@ -307,7 +308,6 @@ public class CommitManager : MonoBehaviour
 
     public void submit()
     {
-
         string jsonName = Path.ChangeExtension(fileName,".json");
         string[] strings = text.Split('\n');
         pptInfo.desc = strings;
@@ -316,7 +316,7 @@ public class CommitManager : MonoBehaviour
         if (success)
         {
             // 保存成功后上传文件到知识库
-            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath) && !pptInfo.is_uploaded)
             {
                 StartCoroutine(UploadFileToKnowledgeBase(filePath));
             }
@@ -694,6 +694,8 @@ public class CommitManager : MonoBehaviour
                                 if (code == 200 || code == 0)
                                 {
                                     Debug.Log($"文档解析完成: {docIds}");
+                                    pptInfo.is_uploaded = true;
+                                    PPTDataManager.SavePPTInfoToJson(pptInfo, Path.ChangeExtension(pptInfo.filename, ".json"));
                                 }
                                 else
                                 {

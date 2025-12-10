@@ -10,4 +10,6 @@ public class PPTInfo
     public string filename;
     public string file_path;
     public string[] desc;
+
+    public bool is_uploaded;
 }
