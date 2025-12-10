@@ -25,6 +25,8 @@ public class CommitManager : MonoBehaviour
     public string fileName = "";
     public string jsonConfigPath = "";
     public PPTInfo pptInfo;
+    public GameObject onSuccess;
+    public GameObject onFailure;
 
     // Windows API 导入
     [DllImport("user32.dll")]
@@ -319,6 +321,7 @@ public class CommitManager : MonoBehaviour
             if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath) && !pptInfo.is_uploaded)
             {
                 StartCoroutine(UploadFileToKnowledgeBase(filePath));
+                StartCoroutine(ShowFailureMessage(onSuccess));
             }
             else
             {
@@ -328,8 +331,18 @@ public class CommitManager : MonoBehaviour
         else
         {
             Debug.LogError("保存PPT信息失败，跳过上传到知识库");
+            StartCoroutine(ShowFailureMessage(onFailure));
         }
 
+    }
+    private IEnumerator ShowFailureMessage(GameObject obj)
+    {
+        obj.SetActive(true);
+        print($"{obj.name}展示");
+        // 等待1秒
+        yield return new WaitForSeconds(3f);
+    
+        obj.SetActive(false);
     }
 
     void OnApplicationFocus(bool hasFocus)
