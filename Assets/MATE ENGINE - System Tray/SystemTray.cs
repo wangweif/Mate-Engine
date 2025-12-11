@@ -48,13 +48,13 @@ public class SystemTray : MonoBehaviour
         var app = FindObjectOfType<RemoveTaskbarApp>();
         bool hidden = app != null && app.IsHidden;
         string toggleLabel = hidden ? "✖ Show App in Taskbar" : "✔ Hide App from Taskbar";
-        context.Add((toggleLabel, () =>
-        {
-            if (app != null) app.ToggleAppMode();
-        }
-        ));
+        // context.Add((toggleLabel, () =>
+        // {
+        //     if (app != null) app.ToggleAppMode();
+        // }
+        // ));
 
-        context.Add(("Quit MateEngine", QuitApp));
+        context.Add(("退出程序", QuitApp));
         return context;
     }
 
