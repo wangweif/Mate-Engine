@@ -32,6 +32,14 @@ public class VRMLoader : MonoBehaviour
 
     void Start()
     {
+        string projectRoot = Application.dataPath.Replace("/Assets", "");
+        string defaultModelPath = Path.Combine(projectRoot, "xiaozhi.vrm");
+
+        if (File.Exists(defaultModelPath))
+        {
+            LoadVRM(defaultModelPath);
+            return;
+        }
         string savedPath = SaveLoadHandler.Instance != null
             ? SaveLoadHandler.Instance.data.selectedModelPath
             : null;

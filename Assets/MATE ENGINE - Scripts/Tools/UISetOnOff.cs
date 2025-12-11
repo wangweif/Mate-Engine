@@ -2,6 +2,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using UnityEditor;
+using UnityEditor.Presets;
+using Xamin;
 
 
 public class UISetOnOff : MonoBehaviour
@@ -11,6 +14,7 @@ public class UISetOnOff : MonoBehaviour
     public SmartWindowsTTS windowsTTS;
     public static int count = 0;
     public DropdownManager option;
+    public Button play;
 
     private bool isPlayingSequence = false; // 防止重复执行
     private int currentPageIndex = 0; // 当前播放的页面索引
@@ -24,6 +28,9 @@ public class UISetOnOff : MonoBehaviour
 
     // 新增：用于存储每页的恢复时间
     private Dictionary<int, float> pageResumeTimes = new Dictionary<int, float>();
+    
+    public Sprite playImage;
+    public Sprite displayImage;
 
     public void ToggleTarget()
     {
@@ -72,6 +79,8 @@ public class UISetOnOff : MonoBehaviour
             // 奇数次点击：开始播放或继续播放
             if (count == 1)
             {
+
+                play.image = displayImage;
                 // 第一次点击：开始播放
                 Debug.Log("🎬 第一次点击 - 开始播放演示");
                 if (LoadAndSetPPTInfoFromJson())
@@ -99,6 +108,7 @@ public class UISetOnOff : MonoBehaviour
             {
                 // 其他奇数次点击：继续播放
                 Debug.Log("▶️ 继续播放演示");
+                play.image = displayImage;
                 presentationCoroutine = StartCoroutine(ResumePresentationSequence());
             }
         }
@@ -106,6 +116,7 @@ public class UISetOnOff : MonoBehaviour
         {
             // 偶数次点击：暂停播放
             Debug.Log("⏸️ 暂停播放演示");
+            play.image = playImage;
             PausePresentation();
         }
     }

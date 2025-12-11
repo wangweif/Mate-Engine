@@ -15,7 +15,7 @@ public class AudioCacheManager : MonoBehaviour
 
     [Header("HTTP TTS API 配置")] private const string ttsApiBaseUrl = "http://192.168.8.88:5000/tts";
     private const string ttsApiKey = "bjzntd@123456";
-    private const string ttsVoice = "zh-CN-XiaoshuangNeural";
+    private const string ttsVoice = "x4_yezi";
 
     // 音频文件存储路径
     private string cacheDirectory;
