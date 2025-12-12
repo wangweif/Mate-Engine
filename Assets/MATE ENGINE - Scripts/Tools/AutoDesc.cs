@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Linq;
+using TMPro;
 
 namespace MATE_ENGINE___Scripts.Tools
 {
@@ -19,7 +20,10 @@ namespace MATE_ENGINE___Scripts.Tools
         private DropdownManager dropdown;
 
         private string filePath;
-        private string baseUrl = "http://192.168.8.88:7899"; 
+        private string baseUrl = "http://192.168.8.88:7899";
+
+        public GameObject loading;
+        public TMP_Text LoadingText;
         
         // 定义返回数据的结构
         [System.Serializable]
@@ -53,6 +57,8 @@ namespace MATE_ENGINE___Scripts.Tools
                 Debug.LogError($"文件不存在: {filePath}");
                 yield break;
             }
+            LoadingText.SetText("正在生成演讲稿...");
+            StartCoroutine(ShowFailureMessage(loading));
             
             string url = $"{baseUrl}/ppt";
             
@@ -83,12 +89,13 @@ namespace MATE_ENGINE___Scripts.Tools
 
                     string desc = string.Join(Environment.NewLine, descArray);
                     inputField.text = desc;
+                    LoadingText.SetText("演讲稿生成完成！");
+                    StartCoroutine(ShowFailureMessage(loading));
                 }
                 else
                 {
-                    Debug.LogError($"上传失败: {request.error}");
-                    Debug.LogError($"状态码: {request.responseCode}");
-                    Debug.LogError($"错误详情: {request.downloadHandler?.text}");
+                    LoadingText.SetText("生成演讲稿失败！");
+                    StartCoroutine(ShowFailureMessage(loading));
                     
                     // 显示错误信息
                     if (inputField != null)
@@ -97,6 +104,16 @@ namespace MATE_ENGINE___Scripts.Tools
                     }
                 }
             }
+        }
+        
+        private IEnumerator ShowFailureMessage(GameObject obj)
+        {
+            obj.SetActive(true);
+            print($"{obj.name}展示");
+            // 等待1秒
+            yield return new WaitForSeconds(3f);
+    
+            obj.SetActive(false);
         }
 
         public string[] toStringArray(string input)
