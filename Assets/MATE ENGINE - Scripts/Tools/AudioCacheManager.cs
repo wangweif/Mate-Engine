@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 using UnityEngine.Networking;
 
 public class AudioCacheManager : MonoBehaviour
@@ -14,12 +15,11 @@ public class AudioCacheManager : MonoBehaviour
     private string currentPlayingKey;
     private float pauseTime;
 
-    [Header("HTTP TTS API 配置")] private const string ttsApiBaseUrl = "http://192.168.8.88:5000/tts";
-    private const string ttsApiKey = "bjzntd@123456";
-    private const string ttsVoice = "x4_yezi";
-
     // 音频文件存储路径
     private string cacheDirectory;
+    
+    // 讯飞语音服务
+    private XunFeiSpeechService xunFeiSpeechService;
 
     void Awake()
     {
@@ -27,6 +27,9 @@ public class AudioCacheManager : MonoBehaviour
         cacheDirectory = Path.Combine(Application.persistentDataPath, "TTSCache");
         if (!Directory.Exists(cacheDirectory))
             Directory.CreateDirectory(cacheDirectory);
+
+        // 初始化讯飞语音服务
+        xunFeiSpeechService = new XunFeiSpeechService();
 
         Debug.Log($"🎵 音频缓存目录: {cacheDirectory}");
     }
@@ -140,39 +143,83 @@ try {{
     }
 
     /// <summary>
-    /// 生成并缓存音频
+    /// 生成并缓存音频（使用讯飞TTS）
     /// </summary>
     private IEnumerator GenerateAndCacheAudioByHTTP(string text, string key, string filePath,
         System.Action<AudioClip> onComplete)
     {
-        // 构建TTS API URL
-        string encodedText = UnityEngine.Networking.UnityWebRequest.EscapeURL(text);
-        string ttsUrl = $"{ttsApiBaseUrl}?text={encodedText}&voice={ttsVoice}&api_key={ttsApiKey}";
-
-        Debug.Log($"请求TTS: {ttsUrl}");
-        
-        // 下载MP3文件
-        using (UnityWebRequest request = UnityWebRequest.Get(ttsUrl))
+        if (string.IsNullOrEmpty(text))
         {
-            request.timeout = 30;
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
-            {
-                // 保存到文件
-                byte[] audioData = request.downloadHandler.data;
-                File.WriteAllBytes(filePath, audioData);
-                Debug.Log($"TTS MP3文件已保存到: {filePath}, 大小: {audioData.Length} 字节");
-
-                // 从文件加载AudioClip
-                yield return StartCoroutine(LoadAudioFile(filePath, key, onComplete));
-            }
-            else
-            {
-                Debug.LogError($"TTS API请求失败: {request.error}, URL: {ttsUrl}");
-                onComplete?.Invoke(null);
-            }
+            Debug.LogError("TTS文本为空");
+            onComplete?.Invoke(null);
+            yield break;
         }
+
+        if (xunFeiSpeechService == null)
+        {
+            Debug.LogError("讯飞语音服务未初始化");
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        Debug.Log($"🎵 请求讯飞TTS: {key}");
+
+        // 使用讯飞TTS获取音频数据
+        Task<byte[]> ttsTask = null;
+        CancellationTokenSource cts = new CancellationTokenSource();
+        
+        try
+        {
+            ttsTask = xunFeiSpeechService.RequestTtsAsync(text, cts.Token);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"讯飞TTS请求异常: {e.Message}");
+            cts?.Dispose();
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        // 等待TTS任务完成
+        while (!ttsTask.IsCompleted)
+        {
+            yield return null;
+        }
+
+        // 释放 CancellationTokenSource
+        cts?.Dispose();
+
+        // 检查任务结果
+        if (ttsTask.IsCanceled || !ttsTask.IsCompletedSuccessfully)
+        {
+            Debug.LogError($"讯飞TTS请求失败: {(ttsTask.Exception != null ? ttsTask.Exception.Message : "被取消")}");
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        byte[] audioData = ttsTask.Result;
+        if (audioData == null || audioData.Length == 0)
+        {
+            Debug.LogWarning("讯飞TTS返回空音频数据");
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        // 保存到文件
+        try
+        {
+            File.WriteAllBytes(filePath, audioData);
+            Debug.Log($"✅ 讯飞TTS MP3文件已保存到: {filePath}, 大小: {audioData.Length} 字节");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"保存TTS文件失败: {e.Message}");
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        // 从文件加载AudioClip
+        yield return StartCoroutine(LoadAudioFile(filePath, key, onComplete));
     }
 
     /// <summary>
