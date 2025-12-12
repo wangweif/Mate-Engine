@@ -264,7 +264,7 @@ public class CommitManager : MonoBehaviour
         // 关键修正：使用 dlgOwner 而不是 hwndOwner
         ofn.dlgOwner = GetUnityWindowHandle();
 
-        ofn.filter = "All Files\0*.*\0\0";
+        ofn.filter = "PowerPoint Files\0*.ppt;*.pptx\0All Files\0*.*\0\0";
         ofn.file = new string(new char[256]);
         ofn.maxFile = ofn.file.Length;
         ofn.fileTitle = new string(new char[64]);
