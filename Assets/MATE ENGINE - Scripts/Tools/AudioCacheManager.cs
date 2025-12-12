@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -9,7 +10,7 @@ using UnityEngine.Networking;
 public class AudioCacheManager : MonoBehaviour
 {
     private Dictionary<string, AudioClip> audioCache = new Dictionary<string, AudioClip>();
-    private AudioSource audioSource;
+    [SerializeField]private AudioSource audioSource;
     private string currentPlayingKey;
     private float pauseTime;
 

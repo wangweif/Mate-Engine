@@ -8,6 +8,7 @@ using Debug = UnityEngine.Debug;
 
 public class SmartWindowsTTS : MonoBehaviour
 {
+    [SerializeField]
     private AudioCacheManager audioCache;
     private bool isAvailable = false;
     private string statusMessage = "未初始化";
