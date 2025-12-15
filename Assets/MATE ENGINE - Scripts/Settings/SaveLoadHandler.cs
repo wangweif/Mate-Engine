@@ -219,6 +219,7 @@ public class SaveLoadHandler : MonoBehaviour
         if (string.IsNullOrEmpty(data.selectedParticleTheme)) data.selectedParticleTheme = "Standard";
         if (data == null) data = new SettingsData();
         if (data.alarms == null) data.alarms = new List<SettingsData.AlarmEntry>();
+        data.avatarSize = 0.5f;
         if (data.settingsVersion < 1)
         {
             data.settingsVersion = 1;
