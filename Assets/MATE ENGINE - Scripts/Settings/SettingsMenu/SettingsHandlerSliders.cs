@@ -158,7 +158,7 @@ public class SettingsHandlerSliders : MonoBehaviour
         soundThresholdSlider?.SetValueWithoutNotify(0.2f);
         idleSwitchTimeSlider?.SetValueWithoutNotify(10f);
         idleTransitionTimeSlider?.SetValueWithoutNotify(1f);
-        avatarSizeSlider?.SetValueWithoutNotify(1.0f);
+        avatarSizeSlider?.SetValueWithoutNotify(0.5f);
         fpsLimitSlider?.SetValueWithoutNotify(90);
         headBlendSlider?.SetValueWithoutNotify(0.7f);
         spineBlendSlider?.SetValueWithoutNotify(0.5f);

@@ -115,7 +115,7 @@ public class SaveLoadHandler : MonoBehaviour
         public bool enableDanceSwitch = false;
         public float danceSwitchTime = 15f;
         public float danceTransitionTime = 2f;
-        public float avatarSize = 1.0f;
+        public float avatarSize = 0.5f;
         public bool enableDancing = true;
         public bool enableMouseTracking = true;
         public int fpsLimit = 90;

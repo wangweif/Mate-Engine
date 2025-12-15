@@ -4,13 +4,10 @@ using UnityEngine;
 using UnityEngine.UI;
 using VRM;
 using UniGLTF;
-using SFB;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 using UniVRM10;
 using System;
-using Newtonsoft.Json;
+using System.Reflection;
+using System.Linq;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -18,143 +15,61 @@ using UnityEditor;
 
 public class VRMLoader : MonoBehaviour
 {
-    public Button loadVRMButton;
     public GameObject mainModel;
     public GameObject customModelOutput;
     public RuntimeAnimatorController animatorController;
     public GameObject componentTemplatePrefab;
 
     private GameObject currentModel;
-    private bool isLoading = false;
-    private const string LegacyModelPathKey = "SavedPathModel";
     private RuntimeGltfInstance currentGltf;
-    private AssetBundle currentBundle;
 
     void Start()
     {
-        string projectRoot = Application.dataPath.Replace("/Assets", "");
-        string defaultModelPath = Path.Combine(projectRoot, "xiaozhi.vrm");
+        string defaultModelPath;
+
+        // 在编辑器中，Application.dataPath是项目/Assets目录
+        // 在打包后，Application.dataPath是游戏数据目录，需要回到上级目录
+        if (Application.dataPath.Contains("/Assets"))
+        {
+            // 编辑器模式
+            string projectRoot = Application.dataPath.Replace("/Assets", "");
+            defaultModelPath = Path.Combine(projectRoot, "xiaozhi.vrm");
+        }
+        else
+        {
+            // 打包模式：Application.dataPath是xxx_Data目录，需要回到上一级目录（exe所在目录）
+            string exeDirectory = Directory.GetParent(Application.dataPath).FullName;
+            defaultModelPath = Path.Combine(exeDirectory, "xiaozhi.vrm");
+        }
+
+        Debug.Log($"[VRMLoader] Looking for xiaozhi.vrm at: {defaultModelPath}");
+        Debug.Log($"[VRMLoader] Application.dataPath: {Application.dataPath}");
+        Debug.Log($"[VRMLoader] Executable directory: {Directory.GetParent(Application.dataPath)?.FullName}");
+        Debug.Log($"[VRMLoader] File exists: {File.Exists(defaultModelPath)}");
 
         if (File.Exists(defaultModelPath))
         {
-            LoadVRM(defaultModelPath);
+            Debug.Log($"[VRMLoader] Found xiaozhi.vrm, loading...");
+            LoadDefaultModelOnly(defaultModelPath);
             return;
         }
-        string savedPath = SaveLoadHandler.Instance != null
-            ? SaveLoadHandler.Instance.data.selectedModelPath
-            : null;
 
-        if (string.IsNullOrEmpty(savedPath) && PlayerPrefs.HasKey(LegacyModelPathKey))
-        {
-            savedPath = PlayerPrefs.GetString(LegacyModelPathKey);
-            if (SaveLoadHandler.Instance != null)
-            {
-                SaveLoadHandler.Instance.data.selectedModelPath = savedPath;
-                SaveLoadHandler.Instance.SaveToDisk();
-            }
-            PlayerPrefs.DeleteKey(LegacyModelPathKey);
-            PlayerPrefs.Save();
-        }
-        if (SaveLoadHandler.Instance != null && SaveLoadHandler.Instance.data.enableRandomAvatar)
-        {
-            TryLoadRandomAvatar();
-            return;
-        }
-        if (!string.IsNullOrEmpty(savedPath))
-            LoadVRM(savedPath);
+        // 如果默认模型不存在，使用内置默认模型
+        Debug.LogWarning($"[VRMLoader] xiaozhi.vrm not found, using default model instead");
+        ActivateDefaultModel();
     }
-    private void TryLoadRandomAvatar()
+    // 已移除随机头像加载功能
+    // private void TryLoadRandomAvatar() - 功能已禁用
+
+
+    // 已移除文件对话框加载功能 - 仅支持默认模型
+    // public void OpenFileDialogAndLoadVRM() - 功能已禁用
+
+    /// <summary>
+    /// 仅用于加载默认模型的简化方法
+    /// </summary>
+    private async void LoadDefaultModelOnly(string path)
     {
-        var options = new System.Collections.Generic.List<string>();
-        if (mainModel != null) options.Add("__DEFAULT__");
-
-        var lib = FindFirstObjectByType<AvatarLibraryMenu>();
-        if (lib != null && lib.dlcAvatars != null)
-        {
-            for (int i = 0; i < lib.dlcAvatars.Count; i++)
-            {
-                var p = lib.dlcAvatars[i]?.prefab;
-                if (p != null) options.Add(p.name);
-            }
-        }
-
-        try
-        {
-            string avatarsPath = System.IO.Path.Combine(Application.persistentDataPath, "avatars.json");
-            if (System.IO.File.Exists(avatarsPath))
-            {
-                var entries = JsonConvert.DeserializeObject<System.Collections.Generic.List<AvatarLibraryMenu.AvatarEntry>>(System.IO.File.ReadAllText(avatarsPath));
-                if (entries != null)
-                {
-                    for (int i = 0; i < entries.Count; i++)
-                    {
-                        var fp = entries[i].filePath;
-                        if (!string.IsNullOrEmpty(fp)) options.Add(fp);
-                    }
-                }
-            }
-        }
-        catch { }
-
-        if (options.Count == 0)
-        {
-            ActivateDefaultModel();
-            return;
-        }
-
-        int idx = UnityEngine.Random.Range(0, options.Count);
-        string pick = options[idx];
-        if (pick == "__DEFAULT__") ActivateDefaultModel();
-        else LoadVRM(pick);
-    }
-
-
-    public void OpenFileDialogAndLoadVRM()
-    {
-        if (isLoading) return;
-
-        isLoading = true;
-        var extensions = new[] { new ExtensionFilter("Model Files", "vrm", "me", "prefab") };
-        string[] paths = StandaloneFileBrowser.OpenFilePanel("Select Model File", "", extensions, false);
-        if (paths.Length > 0 && !string.IsNullOrEmpty(paths[0]))
-            LoadVRM(paths[0]);
-
-        isLoading = false;
-    }
-
-    public async void LoadVRM(string path)
-    {
-        if (path.EndsWith(".me", StringComparison.OrdinalIgnoreCase))
-        {
-            LoadAssetBundleModel(path);
-            if (SaveLoadHandler.Instance != null)
-            {
-                SaveLoadHandler.Instance.data.selectedModelPath = path;
-                SaveLoadHandler.Instance.SaveToDisk();
-            }
-            return;
-        }
-
-        if (IsDLCReference(path))
-        {
-            GameObject prefab = FindDLCByName(path);
-            if (prefab != null)
-            {
-                GameObject instance = Instantiate(prefab);
-                FinalizeLoadedModel(instance, path);
-                if (SaveLoadHandler.Instance != null)
-                {
-                    SaveLoadHandler.Instance.data.selectedModelPath = path;
-                    SaveLoadHandler.Instance.SaveToDisk();
-                }
-            }
-            else
-            {
-                Debug.LogError("[VRMLoader] DLC Prefab not found: " + path);
-            }
-            return;
-        }
-
         if (!File.Exists(path)) return;
 
         try
@@ -178,7 +93,6 @@ public class VRMLoader : MonoBehaviour
                         currentGltf = instance10;
                         loadedModel.AddComponent<GltfInstanceDisposer>().Bind(instance10);
                     }
-
                 }
             }
             catch { }
@@ -199,7 +113,6 @@ public class VRMLoader : MonoBehaviour
                             currentGltf = instance;
                             loadedModel.AddComponent<GltfInstanceDisposer>().Bind(instance);
                         }
-
                     }
                     finally
                     {
@@ -211,46 +124,64 @@ public class VRMLoader : MonoBehaviour
 
             if (loadedModel == null) return;
 
-            FinalizeLoadedModel(loadedModel, path);
-            if (SaveLoadHandler.Instance != null)
-            {
-                SaveLoadHandler.Instance.data.selectedModelPath = path;
-                SaveLoadHandler.Instance.SaveToDisk();
-            }
+            FinalizeDefaultModel(loadedModel);
         }
         catch (Exception ex)
         {
-            Debug.LogError("[VRMLoader] Failed to load model: " + ex.Message);
+            Debug.LogError("[VRMLoader] Failed to load default model: " + ex.Message);
+            // 如果默认模型加载失败，使用内置默认模型
+            ActivateDefaultModel();
         }
     }
 
-    private void LoadAssetBundleModel(string path)
+    /// <summary>
+    /// 已禁用 - 只允许加载默认模型
+    /// </summary>
+    public async void LoadVRM(string path)
     {
-        var bundle = AssetBundle.LoadFromFile(path);
-        if (bundle == null)
-        {
-            Debug.LogError("[VRMLoader] Failed to load AssetBundle at: " + path);
-            return;
-        }
-
-        var prefab = bundle.LoadAllAssets<GameObject>().FirstOrDefault();
-        if (prefab == null)
-        {
-            Debug.LogError("[VRMLoader] No prefab found in AssetBundle.");
-            bundle.Unload(true);
-            return;
-        }
-
-        var instance = Instantiate(prefab);
-        FinalizeLoadedModel(instance, path, bundle);
+        Debug.LogWarning("[VRMLoader] LoadVRM is disabled - only default model loading is supported");
+        // 不执行任何加载操作，只保留方法签名以避免编译错误
+        return;
     }
 
-    private void FinalizeLoadedModel(GameObject loadedModel, string path, AssetBundle bundle = null)
+    // 已移除AssetBundle加载功能 - 只支持默认模型
+    // private void LoadAssetBundleModel() - 功能已禁用
+
+    /// <summary>
+    /// 专门用于处理默认模型的最终设置
+    /// </summary>
+    private void FinalizeDefaultModel(GameObject loadedModel)
     {
         DisableMainModel();
         ClearPreviousCustomModel();
 
-        currentBundle = bundle;
+        loadedModel.transform.SetParent(customModelOutput.transform, false);
+        loadedModel.transform.localPosition = Vector3.zero;
+        loadedModel.transform.localRotation = Quaternion.identity;
+        loadedModel.transform.localScale = Vector3.one;
+        currentModel = loadedModel;
+
+        EnableSkinnedMeshRenderers(currentModel);
+        AssignAnimatorController(currentModel);
+        InjectComponentsFromPrefab(componentTemplatePrefab, currentModel);
+
+        var changer = FindFirstObjectByType<MEValueChanger>();
+        if (changer != null)
+            changer.SendMessage("TryAttachCustomVRM", SendMessageOptions.DontRequireReceiver);
+
+        Debug.Log("[VRMLoader] Default model loaded successfully");
+
+        if (MEModLoader.Instance != null)
+            MEModLoader.Instance.AssignHandlersForCurrentAvatar(loadedModel);
+
+        StartCoroutine(ReleaseRamAndUnloadAssetsCo());
+        SettingsHandlerUtility.ReloadAllSettingsHandlers();
+    }
+
+    private void FinalizeLoadedModel(GameObject loadedModel, string path)
+    {
+        DisableMainModel();
+        ClearPreviousCustomModel();
 
         loadedModel.transform.SetParent(customModelOutput.transform, false);
         loadedModel.transform.localPosition = Vector3.zero;
@@ -296,17 +227,8 @@ public class VRMLoader : MonoBehaviour
             }
         }
 
-        Texture2D safeThumbnail = MakeReadableCopy(thumbnail);
-        int polyCount = GetTotalPolygons(loadedModel);
-
-        if (!IsDLCReference(path))
-            AvatarLibraryMenu.AddAvatarToLibrary(displayName, author, version, fileType, path, safeThumbnail, polyCount);
-
-        if (safeThumbnail != null) Destroy(safeThumbnail);
-
-        var libraryMenu = FindFirstObjectByType<AvatarLibraryMenu>();
-        if (libraryMenu != null)
-            libraryMenu.ReloadAvatars();
+        // 只为默认模型加载，不需要保存到库或刷新库UI
+        // 已移除库保存和刷新功能
 
         StartCoroutine(DelayedRefreshStats());
 
@@ -332,25 +254,19 @@ public class VRMLoader : MonoBehaviour
         return readable;
     }
 
+    /// <summary>
+    /// 重置到默认模型
+    /// </summary>
     public void ResetModel()
     {
-        string vrmFolder = Path.Combine(Application.persistentDataPath, "VRM");
-        if (Directory.Exists(vrmFolder))
-            Directory.Delete(vrmFolder, true);
-
         ClearPreviousCustomModel(skipRawImageCleanup: true);
         EnableMainModel();
-
-        if (SaveLoadHandler.Instance != null)
-        {
-            SaveLoadHandler.Instance.data.selectedModelPath = "";
-            SaveLoadHandler.Instance.SaveToDisk();
-        }
 
         if (MEModLoader.Instance != null && mainModel != null)
             MEModLoader.Instance.AssignHandlersForCurrentAvatar(mainModel);
 
         StartCoroutine(ReleaseRamAndUnloadAssetsCo());
+        Debug.Log("[VRMLoader] Reset to default model");
     }
 
     private void DisableMainModel()
@@ -375,12 +291,6 @@ public class VRMLoader : MonoBehaviour
                 CleanupRawImages(child.gameObject);
                 Destroy(child.gameObject);
             }
-        }
-
-        if (currentBundle != null)
-        {
-            currentBundle.Unload(true);
-            currentBundle = null;
         }
 
         currentGltf = null;
@@ -477,17 +387,12 @@ public class VRMLoader : MonoBehaviour
         ClearPreviousCustomModel(skipRawImageCleanup: true);
         EnableMainModel();
 
-        if (SaveLoadHandler.Instance != null)
-        {
-            SaveLoadHandler.Instance.data.selectedModelPath = "";
-            SaveLoadHandler.Instance.SaveToDisk();
-        }
-
         if (MEModLoader.Instance != null && mainModel != null)
             MEModLoader.Instance.AssignHandlersForCurrentAvatar(mainModel);
 
         StartCoroutine(ReleaseRamAndUnloadAssetsCo());
         SettingsHandlerUtility.ReloadAllSettingsHandlers();
+        Debug.Log("[VRMLoader] Activated default model");
     }
 
     private System.Collections.IEnumerator ReleaseRamAndUnloadAssetsCo()
@@ -514,31 +419,9 @@ public class VRMLoader : MonoBehaviour
             rawImage.texture = null;
     }
 
-    private bool IsDLCReference(string path)
-    {
-#if UNITY_EDITOR
-        if (path.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase))
-            return true;
-#endif
-        if (!File.Exists(path) && !path.EndsWith(".vrm") && !path.EndsWith(".me"))
-            return true;
-        return false;
-    }
-
-    private GameObject FindDLCByName(string name)
-    {
-        var library = FindFirstObjectByType<AvatarLibraryMenu>();
-        if (library == null) return null;
-        foreach (var dlc in library.dlcAvatars)
-        {
-#if UNITY_EDITOR
-            string assetPath = AssetDatabase.GetAssetPath(dlc.prefab);
-            if (assetPath == name) return dlc.prefab;
-#endif
-            if (dlc.prefab != null && dlc.prefab.name == name) return dlc.prefab;
-        }
-        return null;
-    }
+    // 已移除DLC相关方法，因为只支持默认模型加载
+    // private bool IsDLCReference() - 功能已禁用
+    // private GameObject FindDLCByName() - 功能已禁用
 
     public GameObject GetCurrentModel()
     {
