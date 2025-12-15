@@ -19,6 +19,10 @@ namespace MATE_ENGINE___Scripts.Tools
         [SerializeField]
         private DropdownManager dropdown;
 
+        [SerializeField] private Button submit;
+        [SerializeField] private Button autoDesc;
+        [SerializeField] private Button selectFile;
+
         private string filePath;
         private string baseUrl = "http://192.168.8.88:7899";
 
@@ -35,6 +39,11 @@ namespace MATE_ENGINE___Scripts.Tools
         // 调用这个方法开始整个流程
         public void StartGetDescProcess()
         {
+            autoDesc.interactable = false;
+            submit.interactable = false;
+            inputField.interactable = false;
+            dropdown.SetInteractable(false);
+            selectFile.interactable = false;
             StartCoroutine(GetDescFromHTTP());
         }
         
@@ -46,6 +55,11 @@ namespace MATE_ENGINE___Scripts.Tools
             filePath = pptInfo.file_path;
             // 上传PPT文件并获取演讲稿
             yield return StartCoroutine(UploadPPTFile(filePath));
+            submit.interactable = true;
+            inputField.interactable =  true;
+            autoDesc.interactable =  true;
+            dropdown.SetInteractable(true);
+            selectFile.interactable = true;
             
         }
         
@@ -96,12 +110,6 @@ namespace MATE_ENGINE___Scripts.Tools
                 {
                     LoadingText.SetText("生成演讲稿失败！");
                     StartCoroutine(ShowFailureMessage(loading));
-                    
-                    // 显示错误信息
-                    if (inputField != null)
-                    {
-                        inputField.text = $"错误: {request.error}\n状态码: {request.responseCode}";
-                    }
                 }
             }
         }

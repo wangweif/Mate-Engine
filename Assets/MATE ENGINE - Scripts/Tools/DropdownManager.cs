@@ -89,4 +89,9 @@ public class DropdownManager : MonoBehaviour
         Debug.LogWarning($"未找到匹配的选项: {optionText}");
         return false;
     }
+    
+    public void SetInteractable(bool interactable)
+    {
+        dropdown.interactable = interactable;
+    }
 }
