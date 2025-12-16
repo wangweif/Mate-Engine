@@ -566,6 +566,15 @@ public class UISetOnOff : MonoBehaviour
                 Debug.Log("⏸️ 播放被暂停，停止等待");
                 yield break;
             }
+            
+            // 检查PPT是否还在运行（实时检测）
+            if (pptController != null && !pptController.IsPPTOpen())
+            {
+                Debug.Log("检测到PPT已关闭，停止语音播放");
+                StopPresentation();
+                play.image = playImage;
+                yield break;
+            }
 
             // 显示播放进度（可选）
             float progress = windowsTTS.GetPlaybackProgress();
