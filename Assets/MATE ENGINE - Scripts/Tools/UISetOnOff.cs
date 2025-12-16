@@ -27,8 +27,108 @@ public class UISetOnOff : MonoBehaviour
     // 新增：用于存储每页的恢复时间
     private Dictionary<int, float> pageResumeTimes = new Dictionary<int, float>();
     
+    // 新增：跟踪当前加载的PPT路径
+    private string currentPPTPath = null;
+    
     public Sprite playImage;
     public Sprite displayImage;
+
+    /// <summary>
+    /// 初始化，监听下拉框变化
+    /// </summary>
+    void Start()
+    {
+        if (option != null && option.dropdown != null)
+        {
+            // 监听下拉框值变化事件
+            option.dropdown.onValueChanged.AddListener(OnDropdownValueChanged);
+            Debug.Log("✅ 已注册下拉框变化监听器");
+        }
+    }
+
+    /// <summary>
+    /// 下拉框值变化时的回调
+    /// </summary>
+    private void OnDropdownValueChanged(int index)
+    {
+        Debug.Log($"🔄 检测到下拉框变化，索引: {index}");
+        
+        // 如果正在播放，先停止
+        if (isPlayingSequence)
+        {
+            Debug.Log("⏹️ 检测到PPT切换，停止当前播放");
+            StopPresentation();
+        }
+        
+        // 重置播放状态和历史记录
+        ResetPlaybackState();
+    }
+
+    /// <summary>
+    /// 处理PPT路径变更
+    /// </summary>
+    /// <param name="newPath">新的PPT路径</param>
+    /// <param name="resetButton">是否重置按钮状态，默认为true</param>
+    /// <param name="resetCount">是否重置计数器，默认为true</param>
+    private void HandlePPTPathChange(string newPath, bool resetButton = true, bool resetCount = true)
+    {
+        Debug.Log($"🔄 检测到PPT路径变更");
+        Debug.Log($"   旧路径: {currentPPTPath}");
+        Debug.Log($"   新路径: {newPath}");
+        
+        // 关闭当前打开的PPT
+        if (pptController != null && pptController.IsPPTOpen())
+        {
+            Debug.Log("🛑 关闭当前PPT...");
+            pptController.ClosePPT();
+        }
+        
+        // 重置所有播放状态（但可能不重置按钮和计数器）
+        ResetPlaybackState(resetButton, resetCount);
+        
+        // 更新当前PPT路径
+        currentPPTPath = newPath;
+        
+        Debug.Log("✅ PPT路径变更处理完成");
+    }
+
+    /// <summary>
+    /// 重置播放状态（不关闭PPT）
+    /// </summary>
+    /// <param name="resetButton">是否重置按钮图标，默认为true</param>
+    /// <param name="resetCount">是否重置计数器，默认为true</param>
+    private void ResetPlaybackState(bool resetButton = true, bool resetCount = true)
+    {
+        // 停止演示协程
+        if (presentationCoroutine != null)
+        {
+            StopCoroutine(presentationCoroutine);
+            presentationCoroutine = null;
+        }
+
+        // 重置所有播放相关的状态
+        isPlayingSequence = false;
+        currentPageIndex = 0;
+        if (resetCount)
+        {
+            count = 0;
+        }
+        pageResumeTimes.Clear();
+
+        // 停止语音播放
+        if (windowsTTS != null)
+        {
+            windowsTTS.StopSpeaking();
+        }
+
+        // 重置播放按钮图标为播放状态（如果需要）
+        if (resetButton && play != null && playImage != null)
+        {
+            play.image = playImage;
+        }
+
+        Debug.Log("🔄 播放状态已完全重置（历史记录已清除）");
+    }
 
     public void ToggleTarget()
     {
@@ -65,21 +165,13 @@ public class UISetOnOff : MonoBehaviour
         count++;
         Debug.Log($"Macaroon按钮被点击了! 点击次数: {count}");
 
-        if (isPlayingSequence && count % 2 == 1)
-        {
-            Debug.LogWarning("⚠ 演示正在进行中，请等待完成");
-            count--; // 恢复计数
-            return;
-        }
-
         if (count % 2 == 1)
         {
             // 奇数次点击：开始播放或继续播放
             if (count == 1)
             {
-
-                play.image = displayImage;
                 // 第一次点击：开始播放
+                play.image = displayImage;
                 Debug.Log("🎬 第一次点击 - 开始播放演示");
                 if (LoadAndSetPPTInfoFromJson())
                 {
@@ -105,6 +197,12 @@ public class UISetOnOff : MonoBehaviour
             else
             {
                 // 其他奇数次点击：继续播放
+                if (isPlayingSequence)
+                {
+                    Debug.LogWarning("⚠ 演示已经在播放中");
+                    count--; // 恢复计数
+                    return;
+                }
                 Debug.Log("▶️ 继续播放演示");
                 play.image = displayImage;
                 presentationCoroutine = StartCoroutine(ResumePresentationSequence());
@@ -618,6 +716,19 @@ public class UISetOnOff : MonoBehaviour
 
             if (pptInfo != null && !string.IsNullOrEmpty(pptInfo.file_path))
             {
+                // 检查PPT路径是否发生变化
+                if (!string.IsNullOrEmpty(currentPPTPath) && currentPPTPath != pptInfo.file_path)
+                {
+                    // PPT路径已变更，处理变更逻辑（不重置按钮图标和计数器，因为用户刚点击了播放）
+                    HandlePPTPathChange(pptInfo.file_path, false, false);
+                }
+                else if (string.IsNullOrEmpty(currentPPTPath))
+                {
+                    // 首次加载PPT
+                    currentPPTPath = pptInfo.file_path;
+                    Debug.Log($"📌 首次加载PPT: {currentPPTPath}");
+                }
+                
                 // 设置PPT信息到控制器
                 pptController.SetPPTInfo(pptInfo.filename, pptInfo.file_path);
 
