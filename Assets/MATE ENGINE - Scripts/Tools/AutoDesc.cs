@@ -29,6 +29,10 @@ namespace MATE_ENGINE___Scripts.Tools
         public GameObject loading;
         public TMP_Text LoadingText;
         
+        // 跟踪请求状态
+        private bool isRequestInProgress = false;
+        private UnityWebRequest currentRequest = null;
+        
         // 定义返回数据的结构
         [System.Serializable]
         public class ApiResponse
@@ -36,14 +40,77 @@ namespace MATE_ENGINE___Scripts.Tools
             public string content;
         }
 
+        // 当组件启用时重置UI状态
+        private void OnEnable()
+        {
+            ResetUIState();
+        }
+
+        // 当组件禁用或销毁时取消正在进行的请求
+        private void OnDisable()
+        {
+            CancelCurrentRequest();
+        }
+
+        private void OnDestroy()
+        {
+            CancelCurrentRequest();
+        }
+
+        // 重置UI状态，确保所有组件可交互
+        private void ResetUIState()
+        {
+            if (!isRequestInProgress)
+            {
+                EnableAllControls();
+            }
+        }
+
+        // 启用所有控件
+        private void EnableAllControls()
+        {
+            if (submit != null) submit.interactable = true;
+            if (inputField != null) inputField.interactable = true;
+            if (autoDesc != null) autoDesc.interactable = true;
+            if (dropdown != null) dropdown.SetInteractable(true);
+            if (selectFile != null) selectFile.interactable = true;
+        }
+
+        // 禁用所有控件
+        private void DisableAllControls()
+        {
+            if (autoDesc != null) autoDesc.interactable = false;
+            if (submit != null) submit.interactable = false;
+            if (inputField != null) inputField.interactable = false;
+            if (dropdown != null) dropdown.SetInteractable(false);
+            if (selectFile != null) selectFile.interactable = false;
+        }
+
+        // 取消当前请求
+        private void CancelCurrentRequest()
+        {
+            if (currentRequest != null && !currentRequest.isDone)
+            {
+                currentRequest.Abort();
+                currentRequest.Dispose();
+                currentRequest = null;
+                Debug.Log("演讲稿生成请求已取消");
+            }
+            isRequestInProgress = false;
+        }
+
         // 调用这个方法开始整个流程
         public void StartGetDescProcess()
         {
-            autoDesc.interactable = false;
-            submit.interactable = false;
-            inputField.interactable = false;
-            dropdown.SetInteractable(false);
-            selectFile.interactable = false;
+            // 如果已有请求在进行中，不允许重复请求
+            if (isRequestInProgress)
+            {
+                Debug.LogWarning("已有演讲稿生成请求在进行中，请等待完成");
+                return;
+            }
+
+            DisableAllControls();
+            isRequestInProgress = true;
             StartCoroutine(GetDescFromHTTP());
         }
         
@@ -55,12 +122,10 @@ namespace MATE_ENGINE___Scripts.Tools
             filePath = pptInfo.file_path;
             // 上传PPT文件并获取演讲稿
             yield return StartCoroutine(UploadPPTFile(filePath));
-            submit.interactable = true;
-            inputField.interactable =  true;
-            autoDesc.interactable =  true;
-            dropdown.SetInteractable(true);
-            selectFile.interactable = true;
             
+            // 请求完成，重置状态并启用控件
+            isRequestInProgress = false;
+            EnableAllControls();
         }
         
         IEnumerator UploadPPTFile(string filePath)
@@ -86,31 +151,52 @@ namespace MATE_ENGINE___Scripts.Tools
             // 添加文件数据
             formData.Add(new MultipartFormFileSection("file", fileData, fileName, "application/vnd.openxmlformats-officedocument.presentationml.presentation"));
             
-            using (UnityWebRequest request = UnityWebRequest.Post(url, formData))
+            currentRequest = UnityWebRequest.Post(url, formData);
+            
+            // 设置超时时间（秒）
+            currentRequest.timeout = 300;
+            
+            // 发送请求
+            yield return currentRequest.SendWebRequest();
+
+            // 检查GameObject是否仍然存在（可能在请求过程中被销毁）
+            if (this == null || currentRequest == null)
             {
-                // 设置超时时间（秒）
-                request.timeout = 300;
-                
-                // 发送请求
-                yield return request.SendWebRequest();
+                yield break;
+            }
 
-                if (request.result == UnityWebRequest.Result.Success)
+            if (currentRequest.result == UnityWebRequest.Result.Success)
+            {
+                Debug.Log("演讲稿生成成功！");
+                string descText = currentRequest.downloadHandler.text;
+
+                string[] descArray = toStringArray(descText);
+
+                string desc = string.Join(Environment.NewLine, descArray);
+                if (inputField != null)
                 {
-                    Debug.Log("演讲稿生成成功！");
-                    string descText = request.downloadHandler.text;
-
-                    string[] descArray = toStringArray(descText);
-
-                    string desc = string.Join(Environment.NewLine, descArray);
                     inputField.text = desc;
-                    LoadingText.SetText("演讲稿生成完成！");
-                    StartCoroutine(ShowFailureMessage(loading));
                 }
-                else
+                if (LoadingText != null)
+                {
+                    LoadingText.SetText("演讲稿生成完成！");
+                }
+                StartCoroutine(ShowFailureMessage(loading));
+            }
+            else
+            {
+                if (LoadingText != null)
                 {
                     LoadingText.SetText("生成演讲稿失败！");
-                    StartCoroutine(ShowFailureMessage(loading));
                 }
+                StartCoroutine(ShowFailureMessage(loading));
+            }
+
+            // 清理请求对象
+            if (currentRequest != null)
+            {
+                currentRequest.Dispose();
+                currentRequest = null;
             }
         }
         
