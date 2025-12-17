@@ -12,6 +12,11 @@ public class AudioCacheManager : MonoBehaviour
 {
     private Dictionary<string, AudioClip> audioCache = new Dictionary<string, AudioClip>();
     [SerializeField]private AudioSource audioSource;
+    
+    [Header("可选: 使用外部AudioSource的设置")]
+    [Tooltip("如果设置了,将复制这个AudioSource的pitch、volume等设置")]
+    public AudioSource referenceAudioSource; // 引用ChatBot的AudioSource
+    
     private string currentPlayingKey;
     private float pauseTime;
 
@@ -23,7 +28,6 @@ public class AudioCacheManager : MonoBehaviour
 
     void Awake()
     {
-        audioSource = gameObject.AddComponent<AudioSource>();
         cacheDirectory = Path.Combine(Application.persistentDataPath, "TTSCache");
         if (!Directory.Exists(cacheDirectory))
             Directory.CreateDirectory(cacheDirectory);
@@ -32,6 +36,27 @@ public class AudioCacheManager : MonoBehaviour
         xunFeiSpeechService = new XunFeiSpeechService();
 
         Debug.Log($"🎵 音频缓存目录: {cacheDirectory}");
+    }
+    
+    /// <summary>
+    /// 获取实际使用的AudioSource
+    /// </summary>
+    private AudioSource GetAudioSource()
+    {
+        // 优先使用referenceAudioSource
+        if (referenceAudioSource != null)
+        {
+            return referenceAudioSource;
+        }
+        
+        // 如果没有referenceAudioSource,使用或创建audioSource
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+            Debug.Log("🔊 创建新的AudioSource用于PPT演讲稿播放");
+        }
+        
+        return audioSource;
     }
 
     /// <summary>
@@ -314,19 +339,30 @@ try {{
     // 播放控制方法
     public void PlayAudio(string key, AudioClip clip, float startTime = 0f)
     {
+        AudioSource activeAudioSource = GetAudioSource();
+        
+        // 先停止之前的播放,避免重复
+        if (activeAudioSource.isPlaying)
+        {
+            activeAudioSource.Stop();
+        }
+        
         currentPlayingKey = key;
-        audioSource.clip = clip;
-        audioSource.time = Mathf.Clamp(startTime, 0f, clip.length);
-        audioSource.Play();
-        Debug.Log($"▶️ 播放音频: {key}, 开始时间: {startTime:F2}s");
+        activeAudioSource.clip = clip;
+        activeAudioSource.loop = false; // 强制不循环
+        activeAudioSource.time = Mathf.Clamp(startTime, 0f, clip.length);
+        activeAudioSource.Play();
+        
+        Debug.Log($"▶️ 播放音频: {key}, 使用AudioSource: {activeAudioSource.gameObject.name}, pitch={activeAudioSource.pitch}");
     }
 
     public float PauseAudio()
     {
-        if (audioSource.isPlaying)
+        AudioSource activeAudioSource = GetAudioSource();
+        if (activeAudioSource.isPlaying)
         {
-            pauseTime = audioSource.time;
-            audioSource.Pause();
+            pauseTime = activeAudioSource.time;
+            activeAudioSource.Pause();
             Debug.Log($"⏸️ 暂停音频, 位置: {pauseTime:F2}s");
             return pauseTime;
         }
@@ -336,17 +372,19 @@ try {{
 
     public void ResumeAudio()
     {
-        if (audioSource.clip != null)
+        AudioSource activeAudioSource = GetAudioSource();
+        if (activeAudioSource.clip != null)
         {
-            audioSource.time = pauseTime;
-            audioSource.Play();
+            activeAudioSource.time = pauseTime;
+            activeAudioSource.Play();
             Debug.Log($"▶️ 恢复音频, 位置: {pauseTime:F2}s");
         }
     }
 
     public void StopAudio()
     {
-        audioSource.Stop();
+        AudioSource activeAudioSource = GetAudioSource();
+        activeAudioSource.Stop();
         currentPlayingKey = null;
         pauseTime = 0f;
         Debug.Log("⏹️ 停止音频");
@@ -354,7 +392,8 @@ try {{
 
     public float GetCurrentTime()
     {
-        return audioSource.isPlaying ? audioSource.time : pauseTime;
+        AudioSource activeAudioSource = GetAudioSource();
+        return activeAudioSource.isPlaying ? activeAudioSource.time : pauseTime;
     }
 
     public float GetClipLength(string key)
@@ -364,7 +403,8 @@ try {{
 
     public bool IsPlaying()
     {
-        return audioSource.isPlaying;
+        AudioSource activeAudioSource = GetAudioSource();
+        return activeAudioSource.isPlaying;
     }
 
     public string GetCurrentKey()
