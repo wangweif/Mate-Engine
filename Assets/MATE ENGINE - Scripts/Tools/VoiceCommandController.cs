@@ -22,7 +22,7 @@ public class VoiceControlDemo : MonoBehaviour
     public string configFile = "VoiceCommandConfig.json";
 
     [Header("语音助手设置")]
-    public bool enableVoiceAssistant = false;
+    public bool enableVoiceAssistant = true;
     public float commandTimeout = 30f;
     public float wakeWordTimeout = 10f; // 唤醒后等待命令的超时时间
 
@@ -48,7 +48,7 @@ public class VoiceControlDemo : MonoBehaviour
     private KeywordRecognizer commandRecognizer;
     private VoiceCommandConfig commandConfig;
     private bool isListeningForCommands = false;
-    private bool isWaitingForWakeWord = true;
+    private bool isWaitingForWakeWord = false;
     private bool isProcessingCommand = false; // 防止重复触发
     private Coroutine wakeWordTimeoutCoroutine = null;
     
