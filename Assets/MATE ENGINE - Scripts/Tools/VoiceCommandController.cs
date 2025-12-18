@@ -48,7 +48,7 @@ public class VoiceControlDemo : MonoBehaviour
     private KeywordRecognizer commandRecognizer;
     private VoiceCommandConfig commandConfig;
     private bool isListeningForCommands = false;
-    private bool isWaitingForWakeWord = false;
+    private bool isWaitingForWakeWord = true;
     private bool isProcessingCommand = false; // 防止重复触发
     private Coroutine wakeWordTimeoutCoroutine = null;
     
