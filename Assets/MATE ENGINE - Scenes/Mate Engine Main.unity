@@ -5960,6 +5960,18 @@ MonoBehaviour:
   enableVoiceAssistant: 1
   commandTimeout: 30
   wakeWordTimeout: 10
+  enableVoiceResponse: 1
+  audioSource: {fileID: 1197370323}
+  wakeResponseAudio: {fileID: 8300000, guid: e8e76659f8bf76f44aaa9780d551932c, type: 3}
+  listeningAudio: {fileID: 0}
+  processingAudio: {fileID: 0}
+  executingAudio: {fileID: 0}
+  errorAudio: {fileID: 0}
+  wakeResponseText: "\u6211\u5728,\u8BF7\u8BF4"
+  listeningText: "\u6B63\u5728\u542C..."
+  processingText: "\u6B63\u5728\u5904\u7406..."
+  executingText: "\u6B63\u5728\u6267\u884C\u547D\u4EE4"
+  errorText: "\u62B1\u6B49,\u51FA\u9519\u4E86"
 --- !u!4 &318645893
 Transform:
   m_ObjectHideFlags: 0
@@ -27919,7 +27931,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 1, g: 0.26999998, b: 0.96203995, a: 1}
-  m_Intensity: 5.281977e-32
+  m_Intensity: 3.7740857e-32
   m_Range: 0.5
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -68139,7 +68151,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0, g: 0.44799995, b: 1, a: 1}
-  m_Intensity: 1.0563954e-31
+  m_Intensity: 7.5481713e-32
   m_Range: 1
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -89170,7 +89182,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0, g: 0.44799995, b: 1, a: 1}
-  m_Intensity: 7.9229653e-32
+  m_Intensity: 5.6611285e-32
   m_Range: 1
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -224196,7 +224208,7 @@ MonoBehaviour:
     groupID: ambi_lights
     exclusiveTags:
     - lights
-    fadeCurrentValue: 2.6409884e-32
+    fadeCurrentValue: 1.8870428e-32
     fadeTarget: 0
     isFading: 1
     hasYSet: 0
@@ -224220,7 +224232,7 @@ MonoBehaviour:
     groupID: ambi_lights
     exclusiveTags:
     - lights
-    fadeCurrentValue: 2.6409884e-32
+    fadeCurrentValue: 1.8870428e-32
     fadeTarget: 0
     isFading: 1
     hasYSet: 0
@@ -224244,7 +224256,7 @@ MonoBehaviour:
     groupID: ambi_lights
     exclusiveTags:
     - lights
-    fadeCurrentValue: 2.6409884e-32
+    fadeCurrentValue: 1.8870428e-32
     fadeTarget: 0
     isFading: 1
     hasYSet: 0

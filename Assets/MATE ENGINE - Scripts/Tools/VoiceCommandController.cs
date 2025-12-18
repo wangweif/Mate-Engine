@@ -26,11 +26,30 @@ public class VoiceControlDemo : MonoBehaviour
     public float commandTimeout = 30f;
     public float wakeWordTimeout = 10f; // 唤醒后等待命令的超时时间
 
+    [Header("语音回应设置")]
+    public bool enableVoiceResponse = true; // 是否启用语音回应
+    public AudioSource audioSource; // 用于播放音频
+    
+    [Header("预录音频文件")]
+    public AudioClip wakeResponseAudio; // 唤醒回应音频 "我在,请说"
+    public AudioClip listeningAudio; // 监听提示音频 (可选)
+    public AudioClip processingAudio; // 处理提示音频 (可选)
+    public AudioClip executingAudio; // 执行提示音频 (可选)
+    public AudioClip errorAudio; // 错误提示音频 (可选)
+    
+    [Header("备用文字(用于日志)")]
+    public string wakeResponseText = "我在,请说"; // 唤醒回应文字
+    public string listeningText = "正在听..."; // 监听提示
+    public string processingText = "正在处理..."; // 处理提示
+    public string executingText = "正在执行命令"; // 执行提示
+    public string errorText = "抱歉,出错了"; // 错误提示
+
     private KeywordRecognizer wakeWordRecognizer;
     private KeywordRecognizer commandRecognizer;
     private VoiceCommandConfig commandConfig;
     private bool isListeningForCommands = false;
     private bool isWaitingForWakeWord = false;
+    private bool isProcessingCommand = false; // 防止重复触发
     private Coroutine wakeWordTimeoutCoroutine = null;
     
     // 讯飞语音服务
@@ -42,6 +61,7 @@ public class VoiceControlDemo : MonoBehaviour
     private bool isRecording = false;
     private const int sampleRate = 16000;
     private const int maxRecordingLength = 60; // 最大录制60秒
+
 
     void Start()
     {
@@ -134,12 +154,61 @@ public class VoiceControlDemo : MonoBehaviour
     {
         Debug.Log($"识别到唤醒词: {args.text} (置信度: {args.confidence})");
 
+        // 如果正在处理指令,忽略新的唤醒
+        if (isProcessingCommand)
+        {
+            Debug.LogWarning("正在处理指令中,忽略重复唤醒");
+            return;
+        }
+
         // 停止唤醒词监听
         StopWakeWordListening();
+
+        // 设置处理状态
+        isProcessingCommand = true;
+
+        // 播放唤醒回应,然后开始语音识别
+        StartCoroutine(PlayWakeResponseAndListen());
+    }
+
+    /// <summary>
+    /// 播放唤醒回应并开始监听
+    /// </summary>
+    private IEnumerator PlayWakeResponseAndListen()
+    {
+        if (enableVoiceResponse && wakeResponseAudio != null && audioSource != null)
+        {
+            Debug.Log($"播放唤醒回应: {wakeResponseText}");
+            
+            // 确保AudioSource不循环播放
+            audioSource.loop = false;
+            
+            // 停止当前播放(如果有)
+            if (audioSource.isPlaying)
+            {
+                audioSource.Stop();
+            }
+            
+            // 播放预录音频
+            audioSource.clip = wakeResponseAudio;
+            audioSource.Play();
+            
+            // 等待音频播放完成
+            yield return new WaitForSeconds(wakeResponseAudio.length);
+            
+            // 短暂停顿
+            yield return new WaitForSeconds(0.3f);
+        }
+        else if (enableVoiceResponse)
+        {
+            Debug.LogWarning("唤醒回应音频未配置,跳过语音回应");
+        }
 
         // 开始语音识别
         StartCoroutine(StartVoiceToText());
     }
+
+
 
     private IEnumerator StartVoiceToText()
     {
@@ -150,6 +219,7 @@ public class VoiceControlDemo : MonoBehaviour
         {
             Debug.LogError("没有找到麦克风设备");
             yield return new WaitForSeconds(1f);
+            isProcessingCommand = false; // 重置处理状态
             StartWakeWordListening();
             yield break;
         }
@@ -220,6 +290,7 @@ public class VoiceControlDemo : MonoBehaviour
                     recordingClip = null;
                 }
                 yield return new WaitForSeconds(1f);
+                isProcessingCommand = false; // 重置处理状态
                 StartWakeWordListening();
                 yield break;
             }
@@ -291,6 +362,7 @@ public class VoiceControlDemo : MonoBehaviour
 
         // 重新开始监听唤醒词
         yield return new WaitForSeconds(1f);
+        isProcessingCommand = false; // 重置处理状态
         StartWakeWordListening();
     }
 
@@ -393,6 +465,44 @@ public class VoiceControlDemo : MonoBehaviour
         public string model;
         public List<ChatMessage> messages;
         public bool stream = false;
+        public ResponseFormat response_format;
+    }
+
+    [Serializable]
+    private class ResponseFormat
+    {
+        public string type;
+        public JsonSchemaWrapper json_schema;
+    }
+
+    [Serializable]
+    private class JsonSchemaWrapper
+    {
+        public string name;
+        public SchemaDefinition schema;
+    }
+
+    [Serializable]
+    private class SchemaDefinition
+    {
+        public string type;
+        public CmdResponseProperties properties;
+        public List<string> required;
+        public bool additionalProperties;
+    }
+
+    [Serializable]
+    private class CmdResponseProperties
+    {
+        public PropertyItem action;
+        public PropertyItem cmd_command;
+    }
+
+    [Serializable]
+    private class PropertyItem
+    {
+        public string type;
+        public string description;
     }
 
     private IEnumerator SendToLLMAPI(string userCommand, System.Action<CommandResponse> callback)
@@ -406,7 +516,27 @@ public class VoiceControlDemo : MonoBehaviour
 
         string promptText = BuildPromptText();
 
-        // 创建JSON请求体，使用序列化避免手工转义错误
+        var responseFormat = new ResponseFormat
+        {
+            type = "json_schema",
+            json_schema = new JsonSchemaWrapper
+            {
+                name = "cmd_response",
+                schema = new SchemaDefinition
+                {
+                    type = "object",
+                    properties = new CmdResponseProperties
+                    {
+                        action = new PropertyItem { type = "string", description = "操作类型" },
+                        cmd_command = new PropertyItem { type = "string", description = "具体的CMD命令" }
+                    },
+                    required = new List<string> { "action", "cmd_command" },
+                    additionalProperties = false
+                }
+            }
+        };
+
+        // 创建JSON请求体
         ChatRequest chatRequest = new ChatRequest
         {
             model = "Qwen3:8B",
@@ -415,7 +545,8 @@ public class VoiceControlDemo : MonoBehaviour
                 new ChatMessage { role = "system", content = promptText },
                 new ChatMessage { role = "user", content = userCommand }
             },
-            stream = false
+            stream = false,
+            response_format = responseFormat
         };
 
         string jsonRequest = JsonUtility.ToJson(chatRequest);
