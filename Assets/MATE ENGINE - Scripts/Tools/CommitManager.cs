@@ -325,7 +325,19 @@ public class CommitManager : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("文件路径为空或文件不存在，无法上传到知识库");
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    Debug.LogWarning("文件路径为空，无法上传到知识库");
+                }
+                else if (!File.Exists(filePath))
+                {
+                    Debug.LogWarning($"文件不存在: {filePath}，无法上传到知识库");
+                }
+                else if (pptInfo.is_uploaded)
+                {
+                    Debug.Log("文件已经上传过，跳过上传步骤");
+                    StartCoroutine(ShowFailureMessage(onSuccess));
+                }
             }
         }
         else
