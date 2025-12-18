@@ -213,7 +213,21 @@ namespace LLMUnitySamples
             UpdateOfflineModeUI();
 
             ShowLoadedMessages();
-            _ = llmCharacter.Warmup(WarmUpCallback);
+            
+            // 如果使用远程模型，直接初始化输入框；否则等待本地模型预热
+            if (useRemoteModel && !isOfflineMode)
+            {
+                // 在线模式：使用远程模型，不需要预热
+                WarmUpCallback(); // 直接调用回调，初始化输入框
+                Debug.Log("[ChatBot] 在线模式：跳过本地模型预热");
+            }
+            else
+            {
+                // 离线模式或不使用远程模型：需要预热本地模型
+                Debug.Log("[ChatBot] 离线模式：启动本地模型预热");
+                _ = llmCharacter.Warmup(WarmUpCallback);
+            }
+            
             FindAvatarSmart();
 
             // 初始化讯飞语音服务
@@ -339,8 +353,26 @@ namespace LLMUnitySamples
             // 如果切换到离线模式，停止所有网络相关功能
             if (isOfflineMode)
             {
+                // 切换到离线模式
                 StopRealTimeVoiceChat();
                 StopCurrentTTS();
+                
+                // 如果本地模型还没预热，现在启动预热
+                if (!warmUpDone && llmCharacter != null)
+                {
+                    Debug.Log("[ChatBot] 切换到离线模式：启动本地模型预热");
+                    _ = llmCharacter.Warmup(WarmUpCallback);
+                }
+            }
+            else
+            {
+                // 切换到在线模式
+                // 如果还在等待本地模型预热，直接初始化输入框
+                if (!warmUpDone)
+                {
+                    Debug.Log("[ChatBot] 切换到在线模式：跳过本地模型预热");
+                    WarmUpCallback();
+                }
             }
         }
 
