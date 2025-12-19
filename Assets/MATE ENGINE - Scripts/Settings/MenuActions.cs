@@ -121,6 +121,14 @@ public class MenuActions : MonoBehaviour
         if (radialDraggingBlocks && currentAnimator != null && currentAnimator.GetBool("isDragging"))
             return;
 
+        // 检查设置界面是否打开，如果打开则关闭设置界面而不是打开环形菜单
+        if (IsSettingsPanelOpen())
+        {
+            CloseSettingsPanel();
+            PlayMenuCloseSound();
+            return;
+        }
+
         bool entryOpenNow = AnyEntryOpenLocal();
 
         if (IsRadialOpen())
@@ -157,6 +165,27 @@ public class MenuActions : MonoBehaviour
             print($"打开了{radialMenuObject.name}");
         }
             
+    }
+    
+    bool IsSettingsPanelOpen()
+    {
+        // 查找设置面板UI组件
+        var settingsPanelUI = FindFirstObjectByType<MATE_ENGINE___Scripts.Tools.SettingsPanelUI>();
+        if (settingsPanelUI != null)
+        {
+            return settingsPanelUI.IsPanelOpen();
+        }
+        return false;
+    }
+    
+    void CloseSettingsPanel()
+    {
+        // 查找设置面板UI组件并关闭
+        var settingsPanelUI = FindFirstObjectByType<MATE_ENGINE___Scripts.Tools.SettingsPanelUI>();
+        if (settingsPanelUI != null)
+        {
+            settingsPanelUI.ClosePanel();
+        }
     }
 
     void CacheBigScreen()

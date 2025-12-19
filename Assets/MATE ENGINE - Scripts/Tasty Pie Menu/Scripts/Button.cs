@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
+using MATE_ENGINE___Scripts.Tools;
 
 namespace Xamin
 {
@@ -54,7 +55,43 @@ namespace Xamin
 
         public void ExecuteAction()
         {
+            // 如果是设置按钮，切换设置界面显示/隐藏，不执行原来的事件
+            if (id == "settings")
+            {
+                ToggleSettingsPanel();
+                return; // 直接返回，不执行原来的事件
+            }
+            
+            // 其他按钮执行自定义事件
             action.Invoke();
+        }
+
+        private void ToggleSettingsPanel()
+        {
+            // 查找设置面板
+            SettingsPanelUI settingsPanel = FindFirstObjectByType<SettingsPanelUI>();
+            
+            if (settingsPanel != null)
+            {
+                // 切换显示/隐藏状态
+                settingsPanel.TogglePanel();
+                Debug.Log($"设置面板已{(settingsPanel.IsPanelOpen() ? "显示" : "隐藏")}");
+            }
+            else
+            {
+                // 如果找不到，尝试创建并显示
+                GameObject panelObj = new GameObject("SettingsPanelUI");
+                settingsPanel = panelObj.AddComponent<SettingsPanelUI>();
+                if (settingsPanel != null)
+                {
+                    settingsPanel.OpenPanel();
+                    Debug.Log("设置面板已创建并显示");
+                }
+                else
+                {
+                    Debug.LogWarning("无法创建设置面板");
+                }
+            }
         }
     }
 }
