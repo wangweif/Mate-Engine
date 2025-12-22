@@ -844,7 +844,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configButtonLayout.childAlignment = TextAnchor.MiddleLeft;
 
             // 生成演讲稿按钮
-            generateSpeechButton = CreateButton(configButtonContainer.transform, "生成演讲稿", new Vector2(100, 40));
+            generateSpeechButton = CreateButton(configButtonContainer.transform, "生成演讲稿", new Vector2(200, 40));
             generateSpeechButton.onClick.AddListener(OnGenerateSpeech);
 
             // 确认按钮
@@ -1689,7 +1689,7 @@ namespace MATE_ENGINE___Scripts.Tools
             fileNameText.enableWordWrapping = false;
             fileNameText.overflowMode = TextOverflowModes.Ellipsis;
             fileNameText.extraPadding = true;
-            fileNameText.margin = new Vector4(80, 0, 0, 0);
+            fileNameText.margin = new Vector4(50, 0, 0, 0);
             ApplyFontToTMP(fileNameText);
 
             LayoutElement fileNameLayout = fileNameObj.AddComponent<LayoutElement>();
@@ -1705,10 +1705,10 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 pageCountRect = pageCountObj.AddComponent<RectTransform>();
             }
-            pageCountRect.sizeDelta = new Vector2(300, 0);
+            pageCountRect.sizeDelta = new Vector2(150, 0);
             LayoutElement pageCountLayout = pageCountObj.AddComponent<LayoutElement>();
-            pageCountLayout.minWidth = 300;
-            pageCountLayout.preferredWidth = 300;
+            pageCountLayout.minWidth = 150;
+            pageCountLayout.preferredWidth = 150;
             pageCountLayout.flexibleWidth = 0;
             TMP_Text pageCountText = pageCountObj.AddComponent<TextMeshProUGUI>();
             pageCountText.text = $"页数: {pptInfo.pageCount}";
@@ -1725,10 +1725,10 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 statusRect = statusObj.AddComponent<RectTransform>();
             }
-            statusRect.sizeDelta = new Vector2(300, 0);
+            statusRect.sizeDelta = new Vector2(150, 0);
             LayoutElement statusLayout = statusObj.AddComponent<LayoutElement>();
-            statusLayout.minWidth = 300;
-            statusLayout.preferredWidth = 300;
+            statusLayout.minWidth = 150;
+            statusLayout.preferredWidth = 150;
             statusLayout.flexibleWidth = 0;
             TMP_Text statusText = statusObj.AddComponent<TextMeshProUGUI>();
             string statusStr = GetStatusString(pptInfo.configStatus);
