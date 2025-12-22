@@ -760,71 +760,110 @@ namespace MATE_ENGINE___Scripts.Tools
             // 演讲稿输入框标签
             GameObject configInputLabel = CreateLabel(configPanel.transform, "演讲稿：", 16);
 
-            // 演讲稿输入框（带滚动）
-            GameObject configInputScrollObj = new GameObject("ConfigInputScrollView");
-            configInputScrollObj.transform.SetParent(configPanel.transform, false);
-            RectTransform configInputScrollRect = configInputScrollObj.GetComponent<RectTransform>();
-            if (configInputScrollRect == null)
-            {
-                configInputScrollRect = configInputScrollObj.AddComponent<RectTransform>();
-            }
-            configInputScrollRect.sizeDelta = new Vector2(0, 220);
-
-            Image configInputScrollBg = configInputScrollObj.AddComponent<Image>();
-            configInputScrollBg.color = new Color(0.97f, 0.97f, 0.99f, 1f);
-
-            ScrollRect configScrollRect = configInputScrollObj.AddComponent<ScrollRect>();
-            configScrollRect.horizontal = false;
-            configScrollRect.vertical = true;
-            configScrollRect.movementType = ScrollRect.MovementType.Clamped;
-            configScrollRect.scrollSensitivity = 25f;
-
-            GameObject viewportObj = new GameObject("Viewport");
-            viewportObj.transform.SetParent(configInputScrollObj.transform, false);
-            RectTransform configViewportRect = viewportObj.GetComponent<RectTransform>();
-            if (configViewportRect == null)
-            {
-                configViewportRect = viewportObj.AddComponent<RectTransform>();
-            }
-            configViewportRect.anchorMin = Vector2.zero;
-            configViewportRect.anchorMax = Vector2.one;
-            configViewportRect.offsetMin = new Vector2(10, 8);
-            configViewportRect.offsetMax = new Vector2(-10, -8);
-
-            Image viewportImg = viewportObj.AddComponent<Image>();
-            viewportImg.color = new Color(1f, 1f, 1f, 0f);
-            viewportImg.raycastTarget = false;
-            RectMask2D configViewportMask = viewportObj.AddComponent<RectMask2D>();
-
-            configScrollRect.viewport = configViewportRect;
-
+            // 演讲稿输入框（使用TMP_InputField自带滚动）
             GameObject configInputObj = new GameObject("ConfigInputField");
-            configInputObj.transform.SetParent(viewportObj.transform, false);
+            configInputObj.transform.SetParent(configPanel.transform, false);
             RectTransform configInputRect = configInputObj.GetComponent<RectTransform>();
             if (configInputRect == null)
             {
                 configInputRect = configInputObj.AddComponent<RectTransform>();
             }
-            configInputRect.anchorMin = new Vector2(0, 1);
-            configInputRect.anchorMax = new Vector2(1, 1);
-            configInputRect.pivot = new Vector2(0.5f, 1);
-            configInputRect.anchoredPosition = Vector2.zero;
-            configInputRect.sizeDelta = new Vector2(0, 0);
+            configInputRect.sizeDelta = new Vector2(0, 220);
 
-            ContentSizeFitter inputFitter = configInputObj.AddComponent<ContentSizeFitter>();
-            inputFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-            inputFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            configScrollRect.content = configInputRect;
+            // 添加输入框背景
+            Image inputFieldBg = configInputObj.AddComponent<Image>();
+            inputFieldBg.color = new Color(0.97f, 0.97f, 0.99f, 1f);
+            inputFieldBg.raycastTarget = true;
 
             configInputField = configInputObj.AddComponent<TMP_InputField>();
-            TMP_Text configTextComp = CreateTextComponent(configInputObj.transform, "");
-            TMP_Text configPlaceholderComp = CreateTextComponent(configInputObj.transform, "请输入演讲稿或使用AI生成...");
+            
+            // 创建视口用于裁剪文本
+            GameObject configViewportObj = new GameObject("Viewport");
+            configViewportObj.transform.SetParent(configInputObj.transform, false);
+            RectTransform configViewportRect = configViewportObj.GetComponent<RectTransform>();
+            if (configViewportRect == null)
+            {
+                configViewportRect = configViewportObj.AddComponent<RectTransform>();
+            }
+            configViewportRect.anchorMin = Vector2.zero;
+            configViewportRect.anchorMax = Vector2.one;
+            configViewportRect.offsetMin = new Vector2(5, 5);
+            configViewportRect.offsetMax = new Vector2(-5, -5);
+            
+            // 添加RectMask2D来裁剪溢出的文本
+            RectMask2D configViewportMask = configViewportObj.AddComponent<RectMask2D>();
+            
+            // 创建文本区域
+            GameObject textAreaObj = new GameObject("Text Area");
+            textAreaObj.transform.SetParent(configViewportObj.transform, false);
+            RectTransform textAreaRect = textAreaObj.GetComponent<RectTransform>();
+            if (textAreaRect == null)
+            {
+                textAreaRect = textAreaObj.AddComponent<RectTransform>();
+            }
+            textAreaRect.anchorMin = Vector2.zero;
+            textAreaRect.anchorMax = Vector2.one;
+            textAreaRect.offsetMin = new Vector2(5, 5);
+            textAreaRect.offsetMax = new Vector2(-5, -5);
+            
+            // 创建文本组件
+            GameObject textObj = new GameObject("Text");
+            textObj.transform.SetParent(textAreaObj.transform, false);
+            RectTransform textRect = textObj.GetComponent<RectTransform>();
+            if (textRect == null)
+            {
+                textRect = textObj.AddComponent<RectTransform>();
+            }
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+            
+            TMP_Text configTextComp = textObj.AddComponent<TextMeshProUGUI>();
+            configTextComp.text = "";
+            configTextComp.fontSize = 20;
+            configTextComp.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+            configTextComp.alignment = TextAlignmentOptions.TopLeft;
+            configTextComp.enableWordWrapping = true;
+            configTextComp.overflowMode = TextOverflowModes.Overflow;
+            if (simsunFont != null)
+            {
+                configTextComp.font = simsunFont;
+            }
+            ApplyFontToTMP(configTextComp);
+            
+            // 创建占位符文本组件
+            GameObject placeholderObj = new GameObject("Placeholder");
+            placeholderObj.transform.SetParent(textAreaObj.transform, false);
+            RectTransform placeholderRect = placeholderObj.GetComponent<RectTransform>();
+            if (placeholderRect == null)
+            {
+                placeholderRect = placeholderObj.AddComponent<RectTransform>();
+            }
+            placeholderRect.anchorMin = Vector2.zero;
+            placeholderRect.anchorMax = Vector2.one;
+            placeholderRect.offsetMin = Vector2.zero;
+            placeholderRect.offsetMax = Vector2.zero;
+            
+            TMP_Text configPlaceholderComp = placeholderObj.AddComponent<TextMeshProUGUI>();
+            configPlaceholderComp.text = "请输入演讲稿或使用AI生成...";
+            configPlaceholderComp.fontSize = 20;
             configPlaceholderComp.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            configPlaceholderComp.alignment = TextAlignmentOptions.TopLeft;
+            configPlaceholderComp.enableWordWrapping = true;
+            if (simsunFont != null)
+            {
+                configPlaceholderComp.font = simsunFont;
+            }
+            ApplyFontToTMP(configPlaceholderComp);
+            
+            // 配置输入框
             configInputField.textComponent = configTextComp;
             configInputField.placeholder = configPlaceholderComp;
             configInputField.textViewport = configViewportRect;
+            configInputField.targetGraphic = inputFieldBg;
             configInputField.lineType = TMP_InputField.LineType.MultiLineNewline;
+            configInputField.scrollSensitivity = 40f;
 
             // 生成演讲稿和确认按钮容器
             GameObject configButtonContainer = new GameObject("ConfigButtonContainer");
