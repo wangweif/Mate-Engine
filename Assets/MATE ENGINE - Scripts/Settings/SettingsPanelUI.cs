@@ -780,8 +780,8 @@ namespace MATE_ENGINE___Scripts.Tools
 
             Image viewportImg = viewportObj.AddComponent<Image>();
             viewportImg.color = new Color(1f, 1f, 1f, 0f);
-            Mask configViewportMask = viewportObj.AddComponent<Mask>();
-            configViewportMask.showMaskGraphic = false;
+            viewportImg.raycastTarget = false;
+            RectMask2D configViewportMask = viewportObj.AddComponent<RectMask2D>();
 
             configScrollRect.viewport = configViewportRect;
 
