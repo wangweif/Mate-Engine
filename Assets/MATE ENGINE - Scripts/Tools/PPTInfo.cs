@@ -12,4 +12,8 @@ public class PPTInfo
     public string[] desc;
 
     public bool is_uploaded;
+    
+    // 新增字段
+    public int pageCount = 0; // PPT页数
+    public int configStatus = 0; // 配置状态: 0=未配置, 1=进行中, 2=已配置
 }
