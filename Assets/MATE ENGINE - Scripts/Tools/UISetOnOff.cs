@@ -3,12 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Xamin;
+using MateEngine.PPT;
 
 
 public class UISetOnOff : MonoBehaviour
 {
     public GameObject target;
-    public PPTController pptController;
+    public PPTService pptService;  // 改用新的 PPTService
     public SmartWindowsTTS windowsTTS;
     public static int count = 0;
     public DropdownManager option;
@@ -30,6 +31,12 @@ public class UISetOnOff : MonoBehaviour
     // 新增：跟踪当前加载的PPT路径
     private string currentPPTPath = null;
     
+    // 新增：标记是否为自动翻页(用于区分自动翻页和手动翻页)
+    private bool isAutoPageChange = false;
+    
+    // 新增：标记是否正在等待PPT打开(用于忽略打开过程中的关闭事件)
+    private bool isWaitingForPPTOpen = false;
+    
     public Sprite playImage;
     public Sprite displayImage;
 
@@ -43,6 +50,15 @@ public class UISetOnOff : MonoBehaviour
             // 监听下拉框值变化事件
             option.dropdown.onValueChanged.AddListener(OnDropdownValueChanged);
             Debug.Log("✅ 已注册下拉框变化监听器");
+        }
+
+        // 监听PPT页面变化事件
+        if (pptService != null)
+        {
+            pptService.OnSlideChanged += OnPPTSlideChanged;
+            pptService.OnPresentationClosed += OnPPTPresentationClosed;
+            Debug.Log("✅ 已注册PPT页面变化监听器");
+            Debug.Log("✅ 已注册PPT关闭监听器");
         }
     }
 
@@ -65,6 +81,131 @@ public class UISetOnOff : MonoBehaviour
     }
 
     /// <summary>
+    /// PPT页面变化时的回调(用户手动翻页)
+    /// </summary>
+    private void OnPPTSlideChanged(int newSlideNumber)
+    {
+        Debug.Log($"📄 检测到PPT页面变化: {newSlideNumber}");
+
+        // 检查页面索引是否有效(PPT页码从1开始,数组索引从0开始)
+        int newPageIndex = newSlideNumber - 1;
+        if (presentationDescriptions == null || newPageIndex < 0 || newPageIndex >= presentationDescriptions.Length)
+        {
+            Debug.LogWarning($"⚠️ 页面索引超出范围: {newSlideNumber}");
+            return;
+        }
+
+        // 如果页面没有变化,忽略
+        if (newPageIndex == currentPageIndex)
+        {
+            Debug.Log("📄 页面未变化,忽略");
+            return;
+        }
+
+        // 如果是自动翻页,不做任何处理
+        if (isAutoPageChange)
+        {
+            Debug.Log($"🤖 自动翻页: 第{currentPageIndex + 1}页 → 第{newSlideNumber}页 (忽略)");
+            currentPageIndex = newPageIndex; // 更新索引即可
+            return;
+        }
+
+        Debug.Log($"🔄 用户手动翻页: 第{currentPageIndex + 1}页 → 第{newSlideNumber}页");
+
+        // 场景1: 播放中翻页 → 暂停播放
+        if (isPlayingSequence)
+        {
+            Debug.Log("⏸️ 播放中检测到翻页,暂停播放");
+            
+            // 停止当前语音播放
+            if (windowsTTS != null && windowsTTS.IsSpeaking())
+            {
+                Debug.Log("⏹️ 停止当前语音播放");
+                windowsTTS.StopSpeaking();
+            }
+
+            // 停止当前播放协程
+            if (presentationCoroutine != null)
+            {
+                StopCoroutine(presentationCoroutine);
+                presentationCoroutine = null;
+            }
+
+            // 清除所有恢复时间记录(翻页后从头播放)
+            pageResumeTimes.Clear();
+
+            // 更新当前页面索引
+            currentPageIndex = newPageIndex;
+
+            // 设置为暂停状态
+            isPlayingSequence = false;
+            
+            // 更新按钮为播放图标
+            if (play != null && playImage != null)
+            {
+                play.image = playImage;
+            }
+
+            Debug.Log($"✅ 已暂停在第{newSlideNumber}页,等待用户点击播放按钮");
+        }
+        // 场景2: 暂停时翻页 → 智能恢复逻辑
+        else
+        {
+            Debug.Log("⏸️ 暂停状态下检测到翻页");
+            
+            // 更新当前页面索引
+            currentPageIndex = newPageIndex;
+            
+            Debug.Log($"✅ 已更新当前页为第{newSlideNumber}页,点击播放将从此页开始");
+        }
+    }
+
+    /// <summary>
+    /// PPT演示文稿关闭时的回调
+    /// </summary>
+    private void OnPPTPresentationClosed()
+    {
+        Debug.Log("📕 检测到PPT演示文稿关闭");
+
+        // 如果当前正在等待PPT打开,忽略此事件
+        // (PPT打开过程中会触发关闭事件,这是正常的)
+        if (isWaitingForPPTOpen)
+        {
+            Debug.Log("ℹ️ 正在等待PPT打开,忽略关闭事件");
+            return;
+        }
+
+        // 停止语音播放
+        if (windowsTTS != null && windowsTTS.IsSpeaking())
+        {
+            Debug.Log("⏹️ 停止语音播放");
+            windowsTTS.StopSpeaking();
+        }
+
+        // 停止播放协程
+        if (presentationCoroutine != null)
+        {
+            StopCoroutine(presentationCoroutine);
+            presentationCoroutine = null;
+        }
+
+        // 重置播放状态
+        isPlayingSequence = false;
+        currentPageIndex = 0;
+        count = 0;
+        pageResumeTimes.Clear();
+        isAutoPageChange = false;
+
+        // 更新按钮为播放图标
+        if (play != null && playImage != null)
+        {
+            play.image = playImage;
+        }
+
+        Debug.Log("✅ 已停止播放并重置状态");
+    }
+
+    /// <summary>
     /// 处理PPT路径变更
     /// </summary>
     /// <param name="newPath">新的PPT路径</param>
@@ -77,10 +218,10 @@ public class UISetOnOff : MonoBehaviour
         Debug.Log($"   新路径: {newPath}");
         
         // 关闭当前打开的PPT
-        if (pptController != null && pptController.IsPPTOpen())
+        if (pptService != null && pptService.IsConnected())
         {
             Debug.Log("🛑 关闭当前PPT...");
-            pptController.ClosePPT();
+            pptService.ClosePresentation();
         }
         
         // 重置所有播放状态（但可能不重置按钮和计数器）
@@ -162,58 +303,52 @@ public class UISetOnOff : MonoBehaviour
 
     public void ToggleBubbleFeature()
     {
-        count++;
-        Debug.Log($"Macaroon按钮被点击了! 点击次数: {count}");
+        Debug.Log($"Macaroon按钮被点击了! 当前状态: isPlayingSequence={isPlayingSequence}, count={count}");
 
-        if (count % 2 == 1)
+        // 如果当前正在播放,则暂停
+        if (isPlayingSequence)
         {
-            // 奇数次点击：开始播放或继续播放
-            if (count == 1)
+            Debug.Log("⏸️ 暂停播放演示");
+            play.image = playImage;
+            PausePresentation();
+            count++; // 增加计数,下次点击将恢复播放
+        }
+        // 如果当前暂停,则播放
+        else
+        {
+            // 第一次点击(count == 0)：开始播放
+            if (count == 0)
             {
-                // 第一次点击：开始播放
                 play.image = displayImage;
                 Debug.Log("🎬 第一次点击 - 开始播放演示");
                 if (LoadAndSetPPTInfoFromJson())
                 {
-                    if (pptController != null)
+                    if (pptService != null)
                     {
                         Debug.Log("开始打开 PPT...");
-                        pptController.OpenPPT();
+                        pptService.OpenPresentation(currentPPTPath);
                         currentPageIndex = 0; // 重置页面索引
                         presentationCoroutine = StartCoroutine(PlayPresentationSequence());
+                        count++; // 增加计数
                     }
                     else
                     {
-                        Debug.LogWarning("pptController 未绑定！无法播放 PPT！");
-                        count--; // 恢复计数
+                        Debug.LogWarning("pptService 未绑定！无法播放 PPT！");
                     }
                 }
                 else
                 {
                     Debug.LogError("❌ 加载PPT信息失败，无法播放");
-                    count--; // 恢复计数
                 }
             }
+            // 其他情况：继续播放
             else
             {
-                // 其他奇数次点击：继续播放
-                if (isPlayingSequence)
-                {
-                    Debug.LogWarning("⚠ 演示已经在播放中");
-                    count--; // 恢复计数
-                    return;
-                }
                 Debug.Log("▶️ 继续播放演示");
                 play.image = displayImage;
                 presentationCoroutine = StartCoroutine(ResumePresentationSequence());
+                count++; // 增加计数
             }
-        }
-        else
-        {
-            // 偶数次点击：暂停播放
-            Debug.Log("⏸️ 暂停播放演示");
-            play.image = playImage;
-            PausePresentation();
         }
     }
 
@@ -280,13 +415,16 @@ public class UISetOnOff : MonoBehaviour
             yield break;
         }
 
-        // 检查PPT是否还在运行
-        if (pptController != null && !pptController.IsPPTOpen())
+        // 检查PPT是否还在运行（新系统自动管理连接）
+        if (pptService != null && !pptService.IsConnected())
         {
-            Debug.LogWarning("⚠ PPT已关闭，重新打开");
-            pptController.OpenPPT();
-            yield return new WaitForSeconds(3f); // 等待PPT重新打开
+            Debug.LogWarning("⚠ PPT连接已断开，等待重连...");
+            yield return new WaitForSeconds(3f); // 等待重连
         }
+
+        // 清除所有恢复时间,总是从头播放
+        pageResumeTimes.Clear();
+        Debug.Log($"▶️ 从第{currentPageIndex + 1}页开始播放");
 
         // 从当前页面开始继续播放
         if (windowsTTS != null && windowsTTS.IsAvailable())
@@ -346,14 +484,19 @@ public class UISetOnOff : MonoBehaviour
                 // 切换到下一页（最后一页不切换）
                 if (i < totalPages - 1)
                 {
-                    if (pptController != null)
+                    if (pptService != null)
                     {
-                        pptController.NextSlide();
+                        // 设置自动翻页标志
+                        isAutoPageChange = true;
+                        pptService.NextSlide();
                         Debug.Log("➡ 切换到下一页");
+                        
+                        // 等待1秒让翻页完成
+                        yield return new WaitForSeconds(1f);
+                        
+                        // 重置自动翻页标志
+                        isAutoPageChange = false;
                     }
-
-                    // 等待1秒让翻页完成
-                    yield return new WaitForSeconds(1f);
                 }
                 else
                 {
@@ -378,9 +521,9 @@ public class UISetOnOff : MonoBehaviour
                     yield break;
                 }
 
-                if (pptController != null)
+                if (pptService != null)
                 {
-                    pptController.NextSlide();
+                    pptService.NextSlide();
                     Debug.Log($"➡ 切换到第 {i + 1} 页");
                 }
                 yield return new WaitForSeconds(2f); // 每页停留2秒
@@ -397,10 +540,15 @@ public class UISetOnOff : MonoBehaviour
     private IEnumerator PlayPresentationSequence()
     {
         isPlayingSequence = true;
+        isWaitingForPPTOpen = true; // 设置等待标志
         Debug.Log("🎬 开始播放演示序列");
 
         // 等待PPT打开（5秒）
         yield return new WaitForSeconds(5f);
+        
+        // 清除等待标志
+        isWaitingForPPTOpen = false;
+        Debug.Log("✅ PPT打开等待结束");
 
         // 确定要播放的描述数组
         string[] descriptionsToUse = presentationDescriptions;
@@ -414,6 +562,13 @@ public class UISetOnOff : MonoBehaviour
         }
 
         Debug.Log($"📄 将播放 {totalPages} 页描述文字");
+
+        // 检查播放状态(可能在等待期间被重置)
+        if (!isPlayingSequence)
+        {
+            Debug.LogWarning("⚠️ 等待PPT打开期间播放状态被重置,停止播放");
+            yield break;
+        }
 
         if (windowsTTS != null && windowsTTS.IsAvailable())
         {
@@ -458,13 +613,18 @@ public class UISetOnOff : MonoBehaviour
                 // 切换到下一页（最后一页不切换）
                 if (i < totalPages - 1)
                 {
-                    if (pptController != null)
+                    if (pptService != null)
                     {
-                        pptController.NextSlide();
+                        // 设置自动翻页标志
+                        isAutoPageChange = true;
+                        pptService.NextSlide();
                         Debug.Log("➡ 切换到下一页");
 
                         // 等待翻页完成
                         yield return new WaitForSeconds(1f);
+                        
+                        // 重置自动翻页标志
+                        isAutoPageChange = false;
                     }
                 }
                 else
@@ -490,9 +650,9 @@ public class UISetOnOff : MonoBehaviour
                     yield break;
                 }
 
-                if (pptController != null)
+                if (pptService != null)
                 {
-                    pptController.NextSlide();
+                    pptService.NextSlide();
                     Debug.Log($"➡ 切换到第 {i + 1} 页");
                 }
                 yield return new WaitForSeconds(3f); // 每页停留3秒
@@ -568,9 +728,9 @@ public class UISetOnOff : MonoBehaviour
             }
             
             // 检查PPT是否还在运行（实时检测）
-            if (pptController != null && !pptController.IsPPTOpen())
+            if (pptService != null && !pptService.IsConnected())
             {
-                Debug.Log("检测到PPT已关闭，停止语音播放");
+                Debug.Log("检测到PPT连接已断开，停止语音播放");
                 StopPresentation();
                 play.image = playImage;
                 yield break;
@@ -617,8 +777,8 @@ public class UISetOnOff : MonoBehaviour
         if (windowsTTS != null)
             windowsTTS.StopSpeaking();
 
-        if (pptController != null)
-            pptController.ExitSlideShow();
+        if (pptService != null)
+            pptService.ClosePresentation();
 
         Debug.Log("⏹️ 停止演示播放");
     }
@@ -738,8 +898,8 @@ public class UISetOnOff : MonoBehaviour
                     Debug.Log($"📌 首次加载PPT: {currentPPTPath}");
                 }
                 
-                // 设置PPT信息到控制器
-                pptController.SetPPTInfo(pptInfo.filename, pptInfo.file_path);
+                // 保存PPT路径（新系统不需要SetPPTInfo，直接使用路径）
+                currentPPTPath = pptInfo.file_path;
 
                 // 保存描述文字到字符串数组
                 presentationDescriptions = pptInfo.desc ?? new string[0];
@@ -848,5 +1008,25 @@ public class UISetOnOff : MonoBehaviour
             return windowsTTS.GetCurrentText();
         }
         return null;
+    }
+
+
+    /// <summary>
+    /// 清理事件订阅
+    /// </summary>
+    void OnDestroy()
+    {
+        // 取消下拉框事件订阅
+        if (option != null && option.dropdown != null)
+        {
+            option.dropdown.onValueChanged.RemoveListener(OnDropdownValueChanged);
+        }
+
+        // 取消PPT事件订阅
+        if (pptService != null)
+        {
+            pptService.OnSlideChanged -= OnPPTSlideChanged;
+            pptService.OnPresentationClosed -= OnPPTPresentationClosed;
+        }
     }
 }

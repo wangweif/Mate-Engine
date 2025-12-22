@@ -6020,7 +6020,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 0}
-  pptController: {fileID: 324728809}
+  pptService: {fileID: 1151445490}
   windowsTTS: {fileID: 324728810}
   option: {fileID: 1969648866}
   play: {fileID: 1660620751}
@@ -27931,7 +27931,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 1, g: 0.26999998, b: 0.96203995, a: 1}
-  m_Intensity: 3.7740857e-32
+  m_Intensity: 2.0264691e-32
   m_Range: 0.5
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -68151,7 +68151,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0, g: 0.44799995, b: 1, a: 1}
-  m_Intensity: 7.5481713e-32
+  m_Intensity: 4.0529382e-32
   m_Range: 1
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -80522,6 +80522,56 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1148698045}
   m_CullTransparentMesh: 1
+--- !u!1 &1151445489
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1151445491}
+  - component: {fileID: 1151445490}
+  m_Layer: 0
+  m_Name: PPTService
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1151445490
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1151445489}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1cf1abadc2597944cb9263882aa90788, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MateEngine.PPT.PPTService
+  hostAddress: 127.0.0.1
+  hostPort: 45678
+  hostExePath: PPTHost/PPT.Host.exe
+  isConnected: 0
+  currentSlide: 0
+  totalSlides: 0
+--- !u!4 &1151445491
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1151445489}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.15629, y: 0.13339, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1162074237
 GameObject:
   m_ObjectHideFlags: 0
@@ -83607,7 +83657,7 @@ Transform:
   m_GameObject: {fileID: 1315632291}
   serializedVersion: 2
   m_LocalRotation: {x: -0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: -0.038, y: -0.033, z: 2.02}
+  m_LocalPosition: {x: 0.178, y: -0.185, z: 2.02}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -89182,7 +89232,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0, g: 0.44799995, b: 1, a: 1}
-  m_Intensity: 5.6611285e-32
+  m_Intensity: 3.0397038e-32
   m_Range: 1
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -161582,8 +161632,8 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1400636322423431683}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 0.4166667}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 20, y: 20}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -163059,7 +163109,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!1 &2188393722348558508
 GameObject:
   m_ObjectHideFlags: 0
@@ -167643,10 +167693,10 @@ RectTransform:
   - {fileID: 8315313235991732438}
   m_Father: {fileID: 6157687972013927576}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 324.875, y: -370}
+  m_SizeDelta: {x: 649.75, y: 60}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!23 &3126498157530452665
 MeshRenderer:
@@ -203560,7 +203610,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 16.75, y: 0}
+  m_SizeDelta: {x: 16.75, y: 1200}
   m_Pivot: {x: 0, y: 1}
 --- !u!1 &6165390973470715074
 GameObject:
@@ -222729,9 +222779,9 @@ RectTransform:
   m_Father: {fileID: 5094494153752865884}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: -17, y: 0}
   m_Pivot: {x: 0, y: 1}
 --- !u!4 &6999863428184232689
 Transform:
@@ -224208,7 +224258,7 @@ MonoBehaviour:
     groupID: ambi_lights
     exclusiveTags:
     - lights
-    fadeCurrentValue: 1.8870428e-32
+    fadeCurrentValue: 1.01323455e-32
     fadeTarget: 0
     isFading: 1
     hasYSet: 0
@@ -224232,7 +224282,7 @@ MonoBehaviour:
     groupID: ambi_lights
     exclusiveTags:
     - lights
-    fadeCurrentValue: 1.8870428e-32
+    fadeCurrentValue: 1.01323455e-32
     fadeTarget: 0
     isFading: 1
     hasYSet: 0
@@ -224256,7 +224306,7 @@ MonoBehaviour:
     groupID: ambi_lights
     exclusiveTags:
     - lights
-    fadeCurrentValue: 1.8870428e-32
+    fadeCurrentValue: 1.01323455e-32
     fadeTarget: 0
     isFading: 1
     hasYSet: 0
@@ -250729,3 +250779,4 @@ SceneRoots:
   - {fileID: 1928981197}
   - {fileID: 318645893}
   - {fileID: 546078455}
+  - {fileID: 1151445491}
