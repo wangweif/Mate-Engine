@@ -1180,8 +1180,6 @@ namespace MATE_ENGINE___Scripts.Tools
                     {
                         pptPanel.SetActive(true);
                         Debug.Log("显示PPT面板");
-                        // 刷新PPT列表
-                        RefreshPPTList();
                     }
                     else
                     {
