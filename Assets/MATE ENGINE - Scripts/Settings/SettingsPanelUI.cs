@@ -400,6 +400,16 @@ namespace MATE_ENGINE___Scripts.Tools
             panelCanvasGroup.blocksRaycasts = true;
             panelCanvasGroup.interactable = true;
 
+            EventTrigger panelClickTrigger = mainPanel.GetComponent<EventTrigger>();
+            if (panelClickTrigger == null)
+            {
+                panelClickTrigger = mainPanel.AddComponent<EventTrigger>();
+            }
+            EventTrigger.Entry panelClickEntry = new EventTrigger.Entry();
+            panelClickEntry.eventID = EventTriggerType.PointerClick;
+            panelClickEntry.callback.AddListener((data) => OnMainPanelClicked((PointerEventData)data));
+            panelClickTrigger.triggers.Add(panelClickEntry);
+
             // 先激活面板，确保子组件能正确创建和初始化
             mainPanel.SetActive(true);
 
@@ -701,6 +711,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 配置按钮
             configButton = CreateButton(buttonContainer.transform, "配置", new Vector2(100, 40));
             configButton.onClick.AddListener(OnConfigClicked);
+            configButton.interactable = false; // 默认不可点击，需先选中PPT
 
             // 播放按钮
             playButton = CreateButton(buttonContainer.transform, "播放", new Vector2(100, 40));
@@ -1605,6 +1616,8 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             pptListItems.Clear();
             selectedPPTItem = null;
+            if (configButton != null) configButton.interactable = false;
+            UpdateButtonStates();
 
             // 再等待一帧，确保销毁完成
             yield return null;
@@ -1781,17 +1794,55 @@ namespace MATE_ENGINE___Scripts.Tools
                 }
             }
 
-            // 更新按钮状态
-            UpdateButtonStates();
+            if (configButton != null) configButton.interactable = (selectedPPTItem != null);
 
-            // 如果配置面板已打开，更新输入框内容
-            if (configPanel != null && configPanel.activeSelf && item.pptInfo.desc != null && item.pptInfo.desc.Length > 0)
+            // 更新播放按钮状态
+            UpdateButtonStates();
+        }
+
+        void ClearPPTSelection()
+        {
+            if (selectedPPTItem != null && selectedPPTItem.itemButton != null)
             {
-                if (configInputField != null)
+                Image prevImg = selectedPPTItem.itemButton.GetComponent<Image>();
+                if (prevImg != null)
                 {
-                    configInputField.text = string.Join("\n", item.pptInfo.desc);
+                    prevImg.color = new Color(0.98f, 0.98f, 1f, 1f);
                 }
             }
+
+            selectedPPTItem = null;
+            UpdateButtonStates();
+        }
+
+        void OnMainPanelClicked(PointerEventData eventData)
+        {
+            if (selectedPPTItem == null) return;
+            if (configOverlay != null && configOverlay.activeSelf) return;
+
+            if (eventData == null) return;
+            if (IsPointerOverPPTListItem(eventData)) return;
+
+            ClearPPTSelection();
+        }
+
+        bool IsPointerOverPPTListItem(PointerEventData eventData)
+        {
+            if (pptListContent == null) return false;
+            if (EventSystem.current == null) return false;
+
+            var results = new System.Collections.Generic.List<RaycastResult>();
+            EventSystem.current.RaycastAll(eventData, results);
+
+            for (int i = 0; i < results.Count; i++)
+            {
+                Transform t = results[i].gameObject != null ? results[i].gameObject.transform : null;
+                if (t == null) continue;
+                if (t == pptListContent.transform) return true;
+                if (t.IsChildOf(pptListContent.transform)) return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -1800,6 +1851,8 @@ namespace MATE_ENGINE___Scripts.Tools
         void UpdateButtonStates()
         {
             if (playButton == null) return;
+
+            if (configButton != null) configButton.interactable = (selectedPPTItem != null);
 
             // 如果选中的PPT未配置或配置中，播放按钮不可点击
             if (selectedPPTItem == null || selectedPPTItem.pptInfo.configStatus != 2)
