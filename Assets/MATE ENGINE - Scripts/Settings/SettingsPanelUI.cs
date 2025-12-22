@@ -383,8 +383,8 @@ namespace MATE_ENGINE___Scripts.Tools
             mainPanel.transform.SetParent(parentCanvas.transform, false);
 
             RectTransform panelRect = mainPanel.AddComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0.1f, 0.1f);
-            panelRect.anchorMax = new Vector2(0.9f, 0.9f);
+            panelRect.anchorMin = new Vector2(0.3f, 0.1f);
+            panelRect.anchorMax = new Vector2(0.7f, 0.9f);
             panelRect.pivot = new Vector2(0.5f, 0.5f);
             panelRect.offsetMin = Vector2.zero;
             panelRect.offsetMax = Vector2.zero;
@@ -467,7 +467,7 @@ namespace MATE_ENGINE___Scripts.Tools
 
             TMP_Text title = titleText.AddComponent<TextMeshProUGUI>();
             title.text = "设置";
-            title.fontSize = 28; // 调大一号 (24 -> 28)
+            title.fontSize = 36; // 调大字体 (28 -> 36)
             // 标题文字使用深色，提高在浅色背景上的可读性
             title.color = new Color(0.12f, 0.12f, 0.12f, 1f);
             title.alignment = TextAlignmentOptions.Center;
@@ -501,7 +501,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 创建模型标签按钮
             modelTabButton = CreateTabButton(tabBar.transform, "模型", 1);
             // 创建设置标签按钮
-            settingsTabButton = CreateTabButton(tabBar.transform, "设置", 2);
+            settingsTabButton = CreateTabButton(tabBar.transform, "系统设置", 2);
         }
 
         Button CreateTabButton(Transform parent, string text, int tabIndex)
@@ -535,7 +535,7 @@ namespace MATE_ENGINE___Scripts.Tools
 
             TMP_Text btnText = textObj.AddComponent<TextMeshProUGUI>();
             btnText.text = text;
-            btnText.fontSize = 20; // 调大一号 (18 -> 20)
+            btnText.fontSize = 26; // 调大字体 (20 -> 26)
             // 标签按钮文字颜色：白色，与其它按钮一致
             btnText.color = Color.white;
             btnText.alignment = TextAlignmentOptions.Center;
@@ -891,7 +891,7 @@ namespace MATE_ENGINE___Scripts.Tools
             modelTextRect.sizeDelta = new Vector2(0, 30);
             currentModelText = modelTextObj.AddComponent<TextMeshProUGUI>();
             currentModelText.text = "加载中...";
-            currentModelText.fontSize = 16; // 调大一号 (14 -> 16)
+            currentModelText.fontSize = 20; // 调大字体 (16 -> 20)
             currentModelText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
             currentModelText.alignment = TextAlignmentOptions.Left;
             ApplyFontToTMP(currentModelText);
@@ -983,7 +983,7 @@ namespace MATE_ENGINE___Scripts.Tools
             changelogTextRect.sizeDelta = new Vector2(0, 0);
             changelogText = changelogTextObj.AddComponent<TextMeshProUGUI>();
             changelogText.text = "加载中...";
-            changelogText.fontSize = 16; // 调大一号 (14 -> 16)
+            changelogText.fontSize = 20; // 调大字体 (16 -> 20)
             changelogText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
             changelogText.alignment = TextAlignmentOptions.TopLeft;
             ApplyFontToTMP(changelogText);
@@ -1034,7 +1034,7 @@ namespace MATE_ENGINE___Scripts.Tools
 
             TMP_Text text = closeText.AddComponent<TextMeshProUGUI>();
             text.text = "×";
-            text.fontSize = 36; // 调大一号 (30 -> 36)
+            text.fontSize = 44; // 调大字体 (36 -> 44)
             text.color = Color.white;
             text.alignment = TextAlignmentOptions.Center;
             ApplyFontToTMP(text);
@@ -1049,7 +1049,7 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 rect = label.AddComponent<RectTransform>();
             }
-            fontSize += 2; // 调大一号
+            fontSize += 6; // 调大字体
             rect.sizeDelta = new Vector2(0, fontSize + 10);
             TMP_Text labelText = label.AddComponent<TextMeshProUGUI>();
             labelText.text = text;
@@ -1098,7 +1098,7 @@ namespace MATE_ENGINE___Scripts.Tools
 
             TMP_Text textComp = btnText.AddComponent<TextMeshProUGUI>();
             textComp.text = text;
-            textComp.fontSize = 18; // 调大一号 (16 -> 18)
+            textComp.fontSize = 22; // 调大字体 (18 -> 22)
             textComp.color = Color.white;
             textComp.alignment = TextAlignmentOptions.Center;
             ApplyFontToTMP(textComp);
@@ -1122,7 +1122,7 @@ namespace MATE_ENGINE___Scripts.Tools
 
             TMP_Text textComp = textObj.AddComponent<TextMeshProUGUI>();
             textComp.text = text;
-            textComp.fontSize = 16; // 调大一号 (14 -> 16)
+            textComp.fontSize = 20; // 调大字体 (16 -> 20)
             // 输入内容文字：深色
             textComp.color = new Color(0.12f, 0.12f, 0.12f, 1f);
             textComp.alignment = TextAlignmentOptions.TopLeft;
@@ -1683,7 +1683,7 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             TMP_Text fileNameText = fileNameObj.AddComponent<TextMeshProUGUI>();
             fileNameText.text = pptInfo.filename;
-            fileNameText.fontSize = 16;
+            fileNameText.fontSize = 20;
             fileNameText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
             fileNameText.alignment = TextAlignmentOptions.Left;
             fileNameText.enableWordWrapping = false;
@@ -1712,7 +1712,7 @@ namespace MATE_ENGINE___Scripts.Tools
             pageCountLayout.flexibleWidth = 0;
             TMP_Text pageCountText = pageCountObj.AddComponent<TextMeshProUGUI>();
             pageCountText.text = $"页数: {pptInfo.pageCount}";
-            pageCountText.fontSize = 14;
+            pageCountText.fontSize = 18;
             pageCountText.color = new Color(0.5f, 0.5f, 0.5f, 1f);
             pageCountText.alignment = TextAlignmentOptions.Center;
             ApplyFontToTMP(pageCountText);
@@ -1733,7 +1733,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text statusText = statusObj.AddComponent<TextMeshProUGUI>();
             string statusStr = GetStatusString(pptInfo.configStatus);
             statusText.text = statusStr;
-            statusText.fontSize = 14;
+            statusText.fontSize = 18;
             statusText.color = GetStatusColor(pptInfo.configStatus);
             statusText.alignment = TextAlignmentOptions.Center;
             ApplyFontToTMP(statusText);
