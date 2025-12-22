@@ -4,6 +4,9 @@ using UnityEngine.EventSystems;
 using TMPro;
 using System.IO;
 using System.Collections;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System;
 
 namespace MATE_ENGINE___Scripts.Tools
 {
@@ -35,8 +38,18 @@ namespace MATE_ENGINE___Scripts.Tools
         public TMP_Dropdown pptDropdownTMP;
         public Button generateSpeechButton;
         public TMP_InputField speechInputField;
-        public TMP_Text pptStatusText;
         public GameObject pptLoadingIndicator;
+        
+        // 新的PPT面板组件
+        public Button addPPTButton;
+        public ScrollRect pptListScrollRect;
+        public GameObject pptListContent;
+        public Button configButton;
+        public Button playButton;
+        public GameObject configPanel;
+        public TMP_InputField configInputField;
+        public Button confirmConfigButton;
+        private GameObject configOverlay;
 
         [Header("Model Panel Components")]
         public Button changeModelButton;
@@ -56,6 +69,28 @@ namespace MATE_ENGINE___Scripts.Tools
         private VRMLoader vrmLoader;
         private int currentTabIndex = 0; // 0=PPT, 1=Model, 2=Settings
         private TMP_FontAsset simsunFont; // SIMSUN 字体资源
+        
+        // PPT列表管理
+        private List<PPTListItem> pptListItems = new List<PPTListItem>();
+        private PPTListItem selectedPPTItem = null;
+        
+        // PPT列表项数据结构
+        private class PPTListItem
+        {
+            public GameObject itemObj;
+            public PPTInfo pptInfo;
+            public Button itemButton;
+            public TMP_Text fileNameText;
+            public TMP_Text pageCountText;
+            public TMP_Text statusText;
+        }
+        
+        // Windows API 导入（用于文件对话框）
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetActiveWindow();
+        
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
 
         void Start()
         {
@@ -323,9 +358,7 @@ namespace MATE_ENGINE___Scripts.Tools
             if (closeButton != null)
                 closeButton.onClick.AddListener(ClosePanel);
 
-            // 设置PPT面板按钮
-            if (generateSpeechButton != null)
-                generateSpeechButton.onClick.AddListener(OnGenerateSpeech);
+            // 注意: generateSpeechButton的点击事件已在CreatePPTPanelContent中设置
 
             // 设置模型面板按钮
             if (changeModelButton != null)
@@ -554,186 +587,258 @@ namespace MATE_ENGINE___Scripts.Tools
             layout.childForceExpandWidth = true;
             layout.childControlHeight = false;
 
-            // PPT选择下拉框
-            GameObject pptSelectLabel = CreateLabel(pptPanel.transform, "PPT选择：", 16);
+            // 创建标题和添加按钮的容器
+            GameObject headerContainer = new GameObject("HeaderContainer");
+            headerContainer.transform.SetParent(pptPanel.transform, false);
+            RectTransform headerRect = headerContainer.GetComponent<RectTransform>();
+            if (headerRect == null)
+            {
+                headerRect = headerContainer.AddComponent<RectTransform>();
+            }
+            headerRect.sizeDelta = new Vector2(0, 40);
             
-            // 创建PPT下拉框
-            GameObject dropdownObj = new GameObject("PPTDropdown");
-            dropdownObj.transform.SetParent(pptPanel.transform, false);
-            RectTransform dropdownRect = dropdownObj.GetComponent<RectTransform>();
-            if (dropdownRect == null)
-            {
-                dropdownRect = dropdownObj.AddComponent<RectTransform>();
-            }
-            dropdownRect.sizeDelta = new Vector2(0, 40);
+            HorizontalLayoutGroup headerLayout = headerContainer.AddComponent<HorizontalLayoutGroup>();
+            headerLayout.childForceExpandWidth = true;
+            headerLayout.childForceExpandHeight = true;
+            headerLayout.spacing = 10;
+            headerLayout.padding = new RectOffset(0, 0, 0, 0);
 
-            Image dropdownBg = dropdownObj.AddComponent<Image>();
-            // 下拉框背景：浅灰
-            dropdownBg.color = new Color(0.96f, 0.96f, 0.98f, 1f);
+            // PPT列表标题
+            GameObject pptListLabel = CreateLabel(headerContainer.transform, "PPT列表：", 16);
+            RectTransform labelRect = pptListLabel.GetComponent<RectTransform>();
+            labelRect.sizeDelta = new Vector2(0, 40);
+            labelRect.anchorMin = new Vector2(0, 0);
+            labelRect.anchorMax = new Vector2(0, 1);
+            labelRect.pivot = new Vector2(0, 0.5f);
 
-            pptDropdownTMP = dropdownObj.AddComponent<TMP_Dropdown>();
-            
-            // 创建标签
-            GameObject labelObj = new GameObject("Label");
-            labelObj.transform.SetParent(dropdownObj.transform, false);
-            RectTransform labelRect = labelObj.GetComponent<RectTransform>();
-            if (labelRect == null)
-            {
-                labelRect = labelObj.AddComponent<RectTransform>();
-            }
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = new Vector2(10, 6);
-            labelRect.offsetMax = new Vector2(-25, -7);
-            TMP_Text labelText = labelObj.AddComponent<TextMeshProUGUI>();
-            labelText.text = "选择PPT";
-            labelText.fontSize = 16; // 调大一号 (14 -> 16)
-            labelText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
-            ApplyFontToTMP(labelText);
-            pptDropdownTMP.captionText = labelText;
+            // 添加PPT按钮
+            addPPTButton = CreateButton(headerContainer.transform, "添加PPT", new Vector2(120, 40));
+            RectTransform btnRect = addPPTButton.GetComponent<RectTransform>();
+            btnRect.anchorMin = new Vector2(1, 0);
+            btnRect.anchorMax = new Vector2(1, 1);
+            btnRect.pivot = new Vector2(1, 0.5f);
+            btnRect.anchoredPosition = Vector2.zero;
+            addPPTButton.onClick.AddListener(OnAddPPTClicked);
 
-            // 创建模板
-            GameObject templateObj = new GameObject("Template");
-            templateObj.transform.SetParent(dropdownObj.transform, false);
-            RectTransform templateRect = templateObj.GetComponent<RectTransform>();
-            if (templateRect == null)
+            // 创建PPT列表滚动视图
+            GameObject scrollObj = new GameObject("PPTListScrollView");
+            scrollObj.transform.SetParent(pptPanel.transform, false);
+            RectTransform scrollRect = scrollObj.GetComponent<RectTransform>();
+            if (scrollRect == null)
             {
-                templateRect = templateObj.AddComponent<RectTransform>();
+                scrollRect = scrollObj.AddComponent<RectTransform>();
             }
-            templateRect.anchorMin = new Vector2(0, 0);
-            templateRect.anchorMax = new Vector2(1, 0);
-            templateRect.pivot = new Vector2(0.5f, 1);
-            templateRect.anchoredPosition = new Vector2(0, 2);
-            templateRect.sizeDelta = new Vector2(0, 150);
-            templateObj.SetActive(false);
-            Image templateBg = templateObj.AddComponent<Image>();
-            // 下拉框展开区域背景
-            templateBg.color = new Color(1f, 1f, 1f, 1f);
-            ScrollRect templateScroll = templateObj.AddComponent<ScrollRect>();
-            templateScroll.horizontal = false;
-            templateScroll.movementType = ScrollRect.MovementType.Clamped;
-            templateScroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
+            scrollRect.sizeDelta = new Vector2(0, 200);
+
+            pptListScrollRect = scrollObj.AddComponent<ScrollRect>();
+            pptListScrollRect.horizontal = false;
+            pptListScrollRect.vertical = true;
+
+            Image scrollBg = scrollObj.AddComponent<Image>();
+            scrollBg.color = new Color(0.96f, 0.96f, 0.98f, 1f);
 
             // 创建视口
-            GameObject viewportObj = new GameObject("Viewport");
-            viewportObj.transform.SetParent(templateObj.transform, false);
-            RectTransform viewportRect = viewportObj.GetComponent<RectTransform>();
+            GameObject viewport = new GameObject("Viewport");
+            viewport.transform.SetParent(scrollObj.transform, false);
+            RectTransform viewportRect = viewport.GetComponent<RectTransform>();
             if (viewportRect == null)
             {
-                viewportRect = viewportObj.AddComponent<RectTransform>();
+                viewportRect = viewport.AddComponent<RectTransform>();
             }
             viewportRect.anchorMin = Vector2.zero;
             viewportRect.anchorMax = Vector2.one;
             viewportRect.offsetMin = Vector2.zero;
             viewportRect.offsetMax = Vector2.zero;
-            Image viewportMask = viewportObj.AddComponent<Image>();
+
+            Image viewportMask = viewport.AddComponent<Image>();
             viewportMask.color = new Color(1f, 1f, 1f, 1f);
-            Mask mask = viewportObj.AddComponent<Mask>();
+            Mask mask = viewport.AddComponent<Mask>();
             mask.showMaskGraphic = false;
-            templateScroll.viewport = viewportRect;
+
+            pptListScrollRect.viewport = viewportRect;
 
             // 创建内容
-            GameObject contentObj = new GameObject("Content");
-            contentObj.transform.SetParent(viewportObj.transform, false);
-            RectTransform contentRect = contentObj.GetComponent<RectTransform>();
+            pptListContent = new GameObject("Content");
+            pptListContent.transform.SetParent(viewport.transform, false);
+            RectTransform contentRect = pptListContent.GetComponent<RectTransform>();
             if (contentRect == null)
             {
-                contentRect = contentObj.AddComponent<RectTransform>();
+                contentRect = pptListContent.AddComponent<RectTransform>();
             }
             contentRect.anchorMin = new Vector2(0, 1);
             contentRect.anchorMax = new Vector2(1, 1);
             contentRect.pivot = new Vector2(0.5f, 1);
             contentRect.anchoredPosition = Vector2.zero;
-            VerticalLayoutGroup contentLayout = contentObj.AddComponent<VerticalLayoutGroup>();
-            ContentSizeFitter contentFitter = contentObj.AddComponent<ContentSizeFitter>();
+
+            VerticalLayoutGroup contentLayout = pptListContent.AddComponent<VerticalLayoutGroup>();
+            contentLayout.childForceExpandWidth = true;
+            contentLayout.childControlHeight = false;
+            contentLayout.spacing = 5;
+            contentLayout.padding = new RectOffset(5, 5, 5, 5);
+
+            ContentSizeFitter contentFitter = pptListContent.AddComponent<ContentSizeFitter>();
             contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            templateScroll.content = contentRect;
 
-            // 创建项目模板
-            GameObject itemObj = new GameObject("Item");
-            itemObj.transform.SetParent(contentObj.transform, false);
-            RectTransform itemRect = itemObj.GetComponent<RectTransform>();
-            if (itemRect == null)
+            pptListScrollRect.content = contentRect;
+
+            // 创建配置和播放按钮容器
+            GameObject buttonContainer = new GameObject("ButtonContainer");
+            buttonContainer.transform.SetParent(pptPanel.transform, false);
+            RectTransform buttonContainerRect = buttonContainer.GetComponent<RectTransform>();
+            if (buttonContainerRect == null)
             {
-                itemRect = itemObj.AddComponent<RectTransform>();
+                buttonContainerRect = buttonContainer.AddComponent<RectTransform>();
             }
-            itemRect.sizeDelta = new Vector2(0, 30);
-            Toggle itemToggle = itemObj.AddComponent<Toggle>();
-            Image itemBg = itemObj.AddComponent<Image>();
-            itemBg.color = new Color(0.96f, 0.96f, 0.98f, 1f);
-            itemToggle.targetGraphic = itemBg;
+            buttonContainerRect.sizeDelta = new Vector2(0, 50);
 
-            GameObject itemLabelObj = new GameObject("Item Label");
-            itemLabelObj.transform.SetParent(itemObj.transform, false);
-            RectTransform itemLabelRect = itemLabelObj.GetComponent<RectTransform>();
-            if (itemLabelRect == null)
+            HorizontalLayoutGroup buttonLayout = buttonContainer.AddComponent<HorizontalLayoutGroup>();
+            buttonLayout.childForceExpandWidth = false;
+            buttonLayout.childForceExpandHeight = true;
+            buttonLayout.spacing = 10;
+            buttonLayout.padding = new RectOffset(0, 0, 0, 0);
+            buttonLayout.childAlignment = TextAnchor.MiddleLeft;
+
+            // 配置按钮
+            configButton = CreateButton(buttonContainer.transform, "配置", new Vector2(100, 40));
+            configButton.onClick.AddListener(OnConfigClicked);
+
+            // 播放按钮
+            playButton = CreateButton(buttonContainer.transform, "播放", new Vector2(100, 40));
+            playButton.onClick.AddListener(OnPlayClicked);
+            playButton.interactable = false; // 默认不可点击
+
+            configOverlay = new GameObject("ConfigOverlay");
+            configOverlay.transform.SetParent(mainPanel.transform, false);
+            RectTransform configOverlayRect = configOverlay.GetComponent<RectTransform>();
+            if (configOverlayRect == null)
             {
-                itemLabelRect = itemLabelObj.AddComponent<RectTransform>();
+                configOverlayRect = configOverlay.AddComponent<RectTransform>();
             }
-            itemLabelRect.anchorMin = Vector2.zero;
-            itemLabelRect.anchorMax = Vector2.one;
-            itemLabelRect.offsetMin = new Vector2(10, 0);
-            itemLabelRect.offsetMax = Vector2.zero;
-            TMP_Text itemLabel = itemLabelObj.AddComponent<TextMeshProUGUI>();
-            itemLabel.text = "选项";
-            itemLabel.fontSize = 16; // 调大一号 (14 -> 16)
-            itemLabel.color = new Color(0.12f, 0.12f, 0.12f, 1f);
-            ApplyFontToTMP(itemLabel);
-            itemToggle.graphic = itemLabel;
+            configOverlayRect.anchorMin = Vector2.zero;
+            configOverlayRect.anchorMax = Vector2.one;
+            configOverlayRect.offsetMin = Vector2.zero;
+            configOverlayRect.offsetMax = Vector2.zero;
 
-            pptDropdownTMP.template = templateRect;
-            pptDropdownTMP.itemText = itemLabel;
+            Image overlayBg = configOverlay.AddComponent<Image>();
+            overlayBg.color = new Color(0f, 0f, 0f, 0.45f);
 
-            // 创建DropdownManager组件
-            pptDropdown = dropdownObj.AddComponent<DropdownManager>();
-            pptDropdown.dropdown = pptDropdownTMP;
-
-            // 初始化下拉框选项
-            StartCoroutine(InitializePPTDropdown());
-            
-            // 演讲稿生成按钮
-            generateSpeechButton = CreateButton(pptPanel.transform, "生成演讲稿", new Vector2(200, 40));
-
-            // 演讲稿输入框（使用 TextMeshPro 版本）
-            GameObject inputLabel = CreateLabel(pptPanel.transform, "演讲稿：", 16);
-            GameObject inputObj = new GameObject("SpeechInputField");
-            inputObj.transform.SetParent(pptPanel.transform, false);
-
-            RectTransform inputRect = inputObj.GetComponent<RectTransform>();
-            if (inputRect == null)
+            configPanel = new GameObject("ConfigPanel");
+            configPanel.transform.SetParent(configOverlay.transform, false);
+            RectTransform configPanelRect = configPanel.GetComponent<RectTransform>();
+            if (configPanelRect == null)
             {
-                inputRect = inputObj.AddComponent<RectTransform>();
+                configPanelRect = configPanel.AddComponent<RectTransform>();
             }
-            inputRect.sizeDelta = new Vector2(0, 200);
+            configPanelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            configPanelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            configPanelRect.pivot = new Vector2(0.5f, 0.5f);
+            configPanelRect.anchoredPosition = Vector2.zero;
+            configPanelRect.sizeDelta = new Vector2(720, 420);
 
-            Image inputBg = inputObj.AddComponent<Image>();
-            // 输入框背景：浅灰，略带边界感
-            inputBg.color = new Color(0.97f, 0.97f, 0.99f, 1f);
+            Image configPanelBg = configPanel.AddComponent<Image>();
+            configPanelBg.color = new Color(0.98f, 0.98f, 0.99f, 1f);
 
-            // 使用 TMP_InputField + TextMeshProUGUI
-            speechInputField = inputObj.AddComponent<TMP_InputField>();
-            TMP_Text speechTextComp = CreateTextComponent(inputObj.transform, "");
-            TMP_Text speechPlaceholderComp = CreateTextComponent(inputObj.transform, "演讲稿将显示在这里...");
-            speechPlaceholderComp.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
-            speechInputField.textComponent = speechTextComp;
-            speechInputField.placeholder = speechPlaceholderComp;
+            VerticalLayoutGroup configLayout = configPanel.AddComponent<VerticalLayoutGroup>();
+            configLayout.spacing = 10;
+            configLayout.padding = new RectOffset(20, 20, 20, 20);
+            configLayout.childForceExpandWidth = true;
+            configLayout.childControlHeight = false;
 
-            // 状态文本
-            GameObject statusObj = new GameObject("StatusText");
-            statusObj.transform.SetParent(pptPanel.transform, false);
-            RectTransform statusRect = statusObj.GetComponent<RectTransform>();
-            if (statusRect == null)
+            // 演讲稿输入框标签
+            GameObject configInputLabel = CreateLabel(configPanel.transform, "演讲稿：", 16);
+
+            // 演讲稿输入框（带滚动）
+            GameObject configInputScrollObj = new GameObject("ConfigInputScrollView");
+            configInputScrollObj.transform.SetParent(configPanel.transform, false);
+            RectTransform configInputScrollRect = configInputScrollObj.GetComponent<RectTransform>();
+            if (configInputScrollRect == null)
             {
-                statusRect = statusObj.AddComponent<RectTransform>();
+                configInputScrollRect = configInputScrollObj.AddComponent<RectTransform>();
             }
-            statusRect.sizeDelta = new Vector2(0, 30);
-            pptStatusText = statusObj.AddComponent<TextMeshProUGUI>();
-            pptStatusText.text = "就绪";
-            pptStatusText.fontSize = 16; // 调大一号 (14 -> 16)
-            // 状态文本使用稍深的绿色以适配浅色背景
-            pptStatusText.color = new Color(0.0f, 0.55f, 0.27f, 1f);
-            pptStatusText.alignment = TextAlignmentOptions.Left;
-            ApplyFontToTMP(pptStatusText);
+            configInputScrollRect.sizeDelta = new Vector2(0, 220);
+
+            Image configInputScrollBg = configInputScrollObj.AddComponent<Image>();
+            configInputScrollBg.color = new Color(0.97f, 0.97f, 0.99f, 1f);
+
+            ScrollRect configScrollRect = configInputScrollObj.AddComponent<ScrollRect>();
+            configScrollRect.horizontal = false;
+            configScrollRect.vertical = true;
+            configScrollRect.movementType = ScrollRect.MovementType.Clamped;
+            configScrollRect.scrollSensitivity = 25f;
+
+            GameObject viewportObj = new GameObject("Viewport");
+            viewportObj.transform.SetParent(configInputScrollObj.transform, false);
+            RectTransform configViewportRect = viewportObj.GetComponent<RectTransform>();
+            if (configViewportRect == null)
+            {
+                configViewportRect = viewportObj.AddComponent<RectTransform>();
+            }
+            configViewportRect.anchorMin = Vector2.zero;
+            configViewportRect.anchorMax = Vector2.one;
+            configViewportRect.offsetMin = new Vector2(10, 8);
+            configViewportRect.offsetMax = new Vector2(-10, -8);
+
+            Image viewportImg = viewportObj.AddComponent<Image>();
+            viewportImg.color = new Color(1f, 1f, 1f, 0f);
+            Mask configViewportMask = viewportObj.AddComponent<Mask>();
+            configViewportMask.showMaskGraphic = false;
+
+            configScrollRect.viewport = configViewportRect;
+
+            GameObject configInputObj = new GameObject("ConfigInputField");
+            configInputObj.transform.SetParent(viewportObj.transform, false);
+            RectTransform configInputRect = configInputObj.GetComponent<RectTransform>();
+            if (configInputRect == null)
+            {
+                configInputRect = configInputObj.AddComponent<RectTransform>();
+            }
+            configInputRect.anchorMin = new Vector2(0, 1);
+            configInputRect.anchorMax = new Vector2(1, 1);
+            configInputRect.pivot = new Vector2(0.5f, 1);
+            configInputRect.anchoredPosition = Vector2.zero;
+            configInputRect.sizeDelta = new Vector2(0, 0);
+
+            ContentSizeFitter inputFitter = configInputObj.AddComponent<ContentSizeFitter>();
+            inputFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            inputFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            configScrollRect.content = configInputRect;
+
+            configInputField = configInputObj.AddComponent<TMP_InputField>();
+            TMP_Text configTextComp = CreateTextComponent(configInputObj.transform, "");
+            TMP_Text configPlaceholderComp = CreateTextComponent(configInputObj.transform, "请输入演讲稿或使用AI生成...");
+            configPlaceholderComp.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            configInputField.textComponent = configTextComp;
+            configInputField.placeholder = configPlaceholderComp;
+            configInputField.textViewport = configViewportRect;
+            configInputField.lineType = TMP_InputField.LineType.MultiLineNewline;
+
+            // 生成演讲稿和确认按钮容器
+            GameObject configButtonContainer = new GameObject("ConfigButtonContainer");
+            configButtonContainer.transform.SetParent(configPanel.transform, false);
+            RectTransform configButtonContainerRect = configButtonContainer.GetComponent<RectTransform>();
+            if (configButtonContainerRect == null)
+            {
+                configButtonContainerRect = configButtonContainer.AddComponent<RectTransform>();
+            }
+            configButtonContainerRect.sizeDelta = new Vector2(0, 40);
+
+            HorizontalLayoutGroup configButtonLayout = configButtonContainer.AddComponent<HorizontalLayoutGroup>();
+            configButtonLayout.childForceExpandWidth = false;
+            configButtonLayout.childForceExpandHeight = true;
+            configButtonLayout.spacing = 10;
+            configButtonLayout.padding = new RectOffset(0, 0, 0, 0);
+            configButtonLayout.childAlignment = TextAnchor.MiddleLeft;
+
+            // 生成演讲稿按钮
+            generateSpeechButton = CreateButton(configButtonContainer.transform, "生成演讲稿", new Vector2(150, 40));
+            generateSpeechButton.onClick.AddListener(OnGenerateSpeech);
+
+            // 确认按钮
+            confirmConfigButton = CreateButton(configButtonContainer.transform, "确认", new Vector2(100, 40));
+            confirmConfigButton.onClick.AddListener(OnConfirmConfig);
+
+            configOverlay.SetActive(false);
 
             // 加载指示器
             pptLoadingIndicator = new GameObject("LoadingIndicator");
@@ -745,9 +850,11 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             loadingRect.sizeDelta = new Vector2(30, 30);
             Image loadingImg = pptLoadingIndicator.AddComponent<Image>();
-            // 加载指示器颜色：蓝色强调
             loadingImg.color = new Color(0.23f, 0.45f, 0.85f, 0.6f);
             pptLoadingIndicator.SetActive(false);
+
+            // 加载PPT列表
+            RefreshPPTList();
         }
 
         void CreateModelPanelContent()
@@ -952,6 +1059,12 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             btnRect.sizeDelta = size;
 
+            LayoutElement btnLayoutElement = btnObj.AddComponent<LayoutElement>();
+            btnLayoutElement.minWidth = size.x;
+            btnLayoutElement.minHeight = size.y;
+            btnLayoutElement.preferredWidth = size.x;
+            btnLayoutElement.preferredHeight = size.y;
+
             Image btnBg = btnObj.AddComponent<Image>();
             // 通用按钮背景：蓝色主色
             btnBg.color = new Color(0.23f, 0.45f, 0.85f, 1f);
@@ -1054,6 +1167,8 @@ namespace MATE_ENGINE___Scripts.Tools
                     {
                         pptPanel.SetActive(true);
                         Debug.Log("显示PPT面板");
+                        // 刷新PPT列表
+                        RefreshPPTList();
                     }
                     else
                     {
@@ -1121,107 +1236,7 @@ namespace MATE_ENGINE___Scripts.Tools
             }
         }
 
-        void OnGenerateSpeech()
-        {
-            if (autoDesc == null)
-            {
-                Debug.LogWarning("AutoDesc组件未找到，无法生成演讲稿");
-                if (pptStatusText != null)
-                    pptStatusText.text = "错误：AutoDesc组件未找到";
-                return;
-            }
-
-            // 检查是否选择了PPT
-            if (pptDropdown == null || pptDropdown.dropdown == null || 
-                pptDropdown.dropdown.options == null || pptDropdown.dropdown.options.Count == 0)
-            {
-                if (pptStatusText != null)
-                    pptStatusText.text = "错误：请先选择PPT";
-                return;
-            }
-
-            if (pptStatusText != null)
-                pptStatusText.text = "正在生成演讲稿...";
-            if (pptLoadingIndicator != null)
-                pptLoadingIndicator.SetActive(true);
-
-            // 同步PPT选择到AutoDesc
-            if (autoDesc != null && pptDropdown != null)
-            {
-                // 使用反射设置AutoDesc的dropdown
-                var dropdownField = autoDesc.GetType().GetField("dropdown", 
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (dropdownField != null)
-                {
-                    var autoDescDropdown = dropdownField.GetValue(autoDesc) as DropdownManager;
-                    if (autoDescDropdown != null && pptDropdown.dropdown != null)
-                    {
-                        // 同步当前选择的PPT
-                        string currentPPT = pptDropdown.GetCurrentOptionText();
-                        if (!string.IsNullOrEmpty(currentPPT))
-                        {
-                            autoDescDropdown.SetCurrentOptionText(currentPPT);
-                        }
-                    }
-                }
-            }
-
-            // 调用AutoDesc的生成方法
-            autoDesc.StartGetDescProcess();
-
-            // 等待生成完成（通过协程检查）
-            StartCoroutine(WaitForSpeechGeneration());
-        }
-
-        IEnumerator InitializePPTDropdown()
-        {
-            yield return null; // 等待一帧确保组件已初始化
-            
-            if (pptDropdown != null)
-            {
-                // DropdownManager会在Start中自动初始化
-                // 这里可以添加额外的初始化逻辑
-            }
-        }
-
-        IEnumerator WaitForSpeechGeneration()
-        {
-            // 等待一段时间让AutoDesc处理
-            yield return new WaitForSeconds(0.5f);
-
-            // 尝试获取生成的演讲稿
-            if (autoDesc != null && speechInputField != null)
-            {
-                // 使用反射获取AutoDesc的inputField
-                var inputField = autoDesc.GetType().GetField("inputField", 
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (inputField != null)
-                {
-                    var autoDescInput = inputField.GetValue(autoDesc) as InputField;
-                    if (autoDescInput != null)
-                    {
-                        // 定期检查并同步演讲稿内容
-                        float timeout = 30f; // 30秒超时
-                        float elapsed = 0f;
-                        while (elapsed < timeout)
-                        {
-                            if (!string.IsNullOrEmpty(autoDescInput.text))
-                            {
-                                speechInputField.text = autoDescInput.text;
-                                break;
-                            }
-                            yield return new WaitForSeconds(0.5f);
-                            elapsed += 0.5f;
-                        }
-                    }
-                }
-            }
-
-            if (pptStatusText != null)
-                pptStatusText.text = "演讲稿生成完成";
-            if (pptLoadingIndicator != null)
-                pptLoadingIndicator.SetActive(false);
-        }
+        // 旧的OnGenerateSpeech和WaitForSpeechGeneration方法已移除，新版本在文件末尾
 
         void OnChangeModel()
         {
@@ -1557,6 +1572,512 @@ namespace MATE_ENGINE___Scripts.Tools
         public bool IsPanelOpen()
         {
             return mainPanel != null && mainPanel.activeSelf;
+        }
+
+        // ========== PPT列表相关方法 ==========
+
+        /// <summary>
+        /// 刷新PPT列表
+        /// </summary>
+        void RefreshPPTList()
+        {
+            if (pptListContent == null) return;
+
+            // 使用协程来延迟UI操作，避免在渲染过程中修改UI
+            StartCoroutine(RefreshPPTListCoroutine());
+        }
+
+        /// <summary>
+        /// 刷新PPT列表协程
+        /// </summary>
+        IEnumerator RefreshPPTListCoroutine()
+        {
+            // 等待一帧，确保不在渲染过程中
+            yield return null;
+
+            // 清除现有列表项
+            foreach (var item in pptListItems)
+            {
+                if (item.itemObj != null)
+                {
+                    Destroy(item.itemObj);
+                }
+            }
+            pptListItems.Clear();
+            selectedPPTItem = null;
+
+            // 再等待一帧，确保销毁完成
+            yield return null;
+
+            // 加载所有PPT信息
+            List<string> jsonFiles = PPTDataManager.GetAllPPTInfoJsonFiles();
+            foreach (string jsonFile in jsonFiles)
+            {
+                PPTInfo pptInfo = PPTDataManager.LoadPPTInfoFromJson(Path.GetFileName(jsonFile));
+                if (pptInfo != null)
+                {
+                    CreatePPTListItem(pptInfo);
+                }
+            }
+
+            // 等待一帧，确保创建完成
+            yield return null;
+
+            // 更新按钮状态
+            UpdateButtonStates();
+        }
+
+        /// <summary>
+        /// 创建PPT列表项
+        /// </summary>
+        void CreatePPTListItem(PPTInfo pptInfo)
+        {
+            if (pptListContent == null) return;
+
+            GameObject itemObj = new GameObject($"PPTItem_{pptInfo.filename}");
+            itemObj.transform.SetParent(pptListContent.transform, false);
+            RectTransform itemRect = itemObj.GetComponent<RectTransform>();
+            if (itemRect == null)
+            {
+                itemRect = itemObj.AddComponent<RectTransform>();
+            }
+            itemRect.sizeDelta = new Vector2(0, 40);
+
+            Image itemBg = itemObj.AddComponent<Image>();
+            itemBg.color = new Color(0.98f, 0.98f, 1f, 1f);
+
+            Button itemButton = itemObj.AddComponent<Button>();
+            ColorBlock colors = itemButton.colors;
+            colors.normalColor = new Color(0.98f, 0.98f, 1f, 1f);
+            colors.selectedColor = new Color(0.85f, 0.90f, 1f, 1f);
+            colors.highlightedColor = new Color(0.90f, 0.93f, 1f, 1f);
+            itemButton.colors = colors;
+
+            HorizontalLayoutGroup itemLayout = itemObj.AddComponent<HorizontalLayoutGroup>();
+            itemLayout.childForceExpandWidth = true;
+            itemLayout.childForceExpandHeight = true;
+            itemLayout.spacing = 10;
+            itemLayout.padding = new RectOffset(10, 10, 5, 5);
+
+            // 文件名
+            GameObject fileNameObj = new GameObject("FileName");
+            fileNameObj.transform.SetParent(itemObj.transform, false);
+
+            RectTransform fileNameRect = fileNameObj.GetComponent<RectTransform>();
+            if (fileNameRect == null)
+            {
+                fileNameRect = fileNameObj.AddComponent<RectTransform>();
+            }
+            TMP_Text fileNameText = fileNameObj.AddComponent<TextMeshProUGUI>();
+            fileNameText.text = pptInfo.filename;
+            fileNameText.fontSize = 16;
+            fileNameText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+            fileNameText.alignment = TextAlignmentOptions.Left;
+            ApplyFontToTMP(fileNameText);
+
+            // 页数
+            GameObject pageCountObj = new GameObject("PageCount");
+            pageCountObj.transform.SetParent(itemObj.transform, false);
+            RectTransform pageCountRect = pageCountObj.GetComponent<RectTransform>();
+            if (pageCountRect == null)
+            {
+                pageCountRect = pageCountObj.AddComponent<RectTransform>();
+            }
+            pageCountRect.sizeDelta = new Vector2(80, 0);
+            TMP_Text pageCountText = pageCountObj.AddComponent<TextMeshProUGUI>();
+            pageCountText.text = $"页数: {pptInfo.pageCount}";
+            pageCountText.fontSize = 14;
+            pageCountText.color = new Color(0.5f, 0.5f, 0.5f, 1f);
+            pageCountText.alignment = TextAlignmentOptions.Center;
+            ApplyFontToTMP(pageCountText);
+
+            // 配置状态
+            GameObject statusObj = new GameObject("Status");
+            statusObj.transform.SetParent(itemObj.transform, false);
+            RectTransform statusRect = statusObj.GetComponent<RectTransform>();
+            if (statusRect == null)
+            {
+                statusRect = statusObj.AddComponent<RectTransform>();
+            }
+            statusRect.sizeDelta = new Vector2(100, 0);
+            TMP_Text statusText = statusObj.AddComponent<TextMeshProUGUI>();
+            string statusStr = GetStatusString(pptInfo.configStatus);
+            statusText.text = statusStr;
+            statusText.fontSize = 14;
+            statusText.color = GetStatusColor(pptInfo.configStatus);
+            statusText.alignment = TextAlignmentOptions.Center;
+            ApplyFontToTMP(statusText);
+
+            // 创建列表项数据
+            PPTListItem listItem = new PPTListItem
+            {
+                itemObj = itemObj,
+                pptInfo = pptInfo,
+                itemButton = itemButton,
+                fileNameText = fileNameText,
+                pageCountText = pageCountText,
+                statusText = statusText
+            };
+
+            // 添加点击事件
+            itemButton.onClick.AddListener(() => OnPPTItemSelected(listItem));
+
+            pptListItems.Add(listItem);
+        }
+
+        /// <summary>
+        /// 获取状态字符串
+        /// </summary>
+        string GetStatusString(int status)
+        {
+            switch (status)
+            {
+                case 0: return "未配置";
+                case 1: return "进行中";
+                case 2: return "已配置";
+                default: return "未知";
+            }
+        }
+
+        /// <summary>
+        /// 获取状态颜色
+        /// </summary>
+        Color GetStatusColor(int status)
+        {
+            switch (status)
+            {
+                case 0: return new Color(0.7f, 0.7f, 0.7f, 1f); // 灰色
+                case 1: return new Color(1f, 0.65f, 0f, 1f); // 橙色
+                case 2: return new Color(0f, 0.7f, 0f, 1f); // 绿色
+                default: return Color.black;
+            }
+        }
+
+        /// <summary>
+        /// PPT项被选中
+        /// </summary>
+        void OnPPTItemSelected(PPTListItem item)
+        {
+            // 取消之前选中项的高亮
+            if (selectedPPTItem != null && selectedPPTItem.itemButton != null)
+            {
+                Image prevImg = selectedPPTItem.itemButton.GetComponent<Image>();
+                if (prevImg != null)
+                {
+                    prevImg.color = new Color(0.98f, 0.98f, 1f, 1f);
+                }
+            }
+
+            // 设置当前选中项
+            selectedPPTItem = item;
+
+            // 高亮当前选中项
+            if (item.itemButton != null)
+            {
+                Image img = item.itemButton.GetComponent<Image>();
+                if (img != null)
+                {
+                    img.color = new Color(0.85f, 0.90f, 1f, 1f);
+                }
+            }
+
+            // 更新按钮状态
+            UpdateButtonStates();
+
+            // 如果配置面板已打开，更新输入框内容
+            if (configPanel != null && configPanel.activeSelf && item.pptInfo.desc != null && item.pptInfo.desc.Length > 0)
+            {
+                if (configInputField != null)
+                {
+                    configInputField.text = string.Join("\n", item.pptInfo.desc);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 更新按钮状态
+        /// </summary>
+        void UpdateButtonStates()
+        {
+            if (playButton == null) return;
+
+            // 如果选中的PPT未配置或配置中，播放按钮不可点击
+            if (selectedPPTItem == null || selectedPPTItem.pptInfo.configStatus != 2)
+            {
+                playButton.interactable = false;
+            }
+            else
+            {
+                playButton.interactable = true;
+            }
+        }
+
+        /// <summary>
+        /// 添加PPT按钮点击
+        /// </summary>
+        void OnAddPPTClicked()
+        {
+            StartCoroutine(OpenFileDialogCoroutine());
+        }
+
+        /// <summary>
+        /// 打开文件对话框协程
+        /// </summary>
+        IEnumerator OpenFileDialogCoroutine()
+        {
+            // 确保Unity窗口在前台
+            IntPtr hWnd = GetActiveWindow();
+            if (hWnd != IntPtr.Zero)
+            {
+                SetForegroundWindow(hWnd);
+            }
+
+            // 等待渲染完成
+            yield return new WaitForEndOfFrame();
+            yield return null; // 额外等待一帧，确保渲染完全完成
+
+            OpenFileName ofn = new OpenFileName();
+            ofn.structSize = Marshal.SizeOf(ofn);
+            ofn.dlgOwner = hWnd;
+            ofn.filter = "PowerPoint Files\0*.ppt;*.pptx\0All Files\0*.*\0\0";
+            ofn.file = new string(new char[256]);
+            ofn.maxFile = ofn.file.Length;
+            ofn.fileTitle = new string(new char[64]);
+            ofn.maxFileTitle = ofn.fileTitle.Length;
+            ofn.title = "选择PPT文件";
+            ofn.initialDir = Application.streamingAssetsPath.Replace('/', '\\');
+            ofn.flags = 0x00080000 | 0x00001000 | 0x00000800 | 0x00000008 | 0x00040000;
+
+            if (LocalDialog.GetOpenFileName(ofn))
+            {
+                string selectedFilePath = ofn.file;
+                string newFileName = Path.GetFileName(selectedFilePath);
+                string newFilePath = selectedFilePath;
+
+                // 创建新的PPTInfo
+                PPTInfo newInfo = new PPTInfo();
+                newInfo.filename = newFileName;
+                newInfo.file_path = newFilePath;
+                newInfo.desc = new string[] { "" };
+                newInfo.is_uploaded = false;
+                newInfo.pageCount = 0; // 暂时设为0，后续可以通过COM接口获取
+                newInfo.configStatus = 0; // 未配置
+
+                // 保存到JSON
+                PPTDataManager.SavePPTInfoToJson(newInfo, Path.ChangeExtension(newFileName, ".json"));
+
+                // 等待一帧后再刷新列表，避免在渲染过程中修改UI
+                yield return null;
+                RefreshPPTList();
+            }
+
+            // 文件选择完成后再次确保Unity窗口在前台
+            if (hWnd != IntPtr.Zero)
+            {
+                SetForegroundWindow(hWnd);
+            }
+        }
+
+        /// <summary>
+        /// 配置按钮点击
+        /// </summary>
+        void OnConfigClicked()
+        {
+            if (selectedPPTItem == null)
+            {
+                return;
+            }
+
+            // 显示配置面板
+            if (configOverlay != null)
+            {
+                configOverlay.SetActive(true);
+
+                // 加载当前PPT的演讲稿
+                if (configInputField != null && selectedPPTItem.pptInfo.desc != null && selectedPPTItem.pptInfo.desc.Length > 0)
+                {
+                    configInputField.text = string.Join("\n", selectedPPTItem.pptInfo.desc);
+                }
+                else if (configInputField != null)
+                {
+                    configInputField.text = "";
+                }
+            }
+        }
+
+        /// <summary>
+        /// 播放按钮点击
+        /// </summary>
+        void OnPlayClicked()
+        {
+            if (selectedPPTItem == null || selectedPPTItem.pptInfo.configStatus != 2)
+            {
+                return;
+            }
+
+            // TODO: 实现播放功能
+        }
+
+        /// <summary>
+        /// 确认配置按钮点击
+        /// </summary>
+        void OnConfirmConfig()
+        {
+            if (selectedPPTItem == null)
+            {
+                return;
+            }
+
+            // 使用协程来延迟UI更新，避免在渲染过程中修改UI
+            StartCoroutine(OnConfirmConfigCoroutine());
+        }
+
+        /// <summary>
+        /// 确认配置协程
+        /// </summary>
+        IEnumerator OnConfirmConfigCoroutine()
+        {
+            // 等待一帧，确保不在渲染过程中
+            yield return null;
+
+            // 保存演讲稿
+            if (configInputField != null)
+            {
+                string[] descLines = configInputField.text.Split('\n');
+                selectedPPTItem.pptInfo.desc = descLines;
+                selectedPPTItem.pptInfo.configStatus = 2; // 已配置
+
+                // 保存到JSON
+                string jsonName = Path.ChangeExtension(selectedPPTItem.pptInfo.filename, ".json");
+                PPTDataManager.SavePPTInfoToJson(selectedPPTItem.pptInfo, jsonName);
+
+                // 再等待一帧后更新UI
+                yield return null;
+
+                // 更新状态显示
+                if (selectedPPTItem.statusText != null)
+                {
+                    selectedPPTItem.statusText.text = GetStatusString(selectedPPTItem.pptInfo.configStatus);
+                    selectedPPTItem.statusText.color = GetStatusColor(selectedPPTItem.pptInfo.configStatus);
+                }
+
+                // 更新按钮状态
+                UpdateButtonStates();
+
+                // 隐藏配置面板
+                if (configOverlay != null)
+                {
+                    configOverlay.SetActive(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 修改生成演讲稿方法，使其使用选中的PPT
+        /// </summary>
+        void OnGenerateSpeech()
+        {
+            if (selectedPPTItem == null)
+            {
+                return;
+            }
+
+            if (autoDesc == null)
+            {
+                Debug.LogWarning("AutoDesc组件未找到，无法生成演讲稿");
+                return;
+            }
+
+            // 设置配置状态为进行中
+            selectedPPTItem.pptInfo.configStatus = 1;
+            if (selectedPPTItem.statusText != null)
+            {
+                selectedPPTItem.statusText.text = GetStatusString(selectedPPTItem.pptInfo.configStatus);
+                selectedPPTItem.statusText.color = GetStatusColor(selectedPPTItem.pptInfo.configStatus);
+            }
+            UpdateButtonStates();
+
+            if (pptLoadingIndicator != null)
+                pptLoadingIndicator.SetActive(true);
+
+            // 同步PPT选择到AutoDesc（如果AutoDesc使用dropdown）
+            if (autoDesc != null)
+            {
+                // 使用反射设置AutoDesc的dropdown（如果存在）
+                var dropdownField = autoDesc.GetType().GetField("dropdown", 
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (dropdownField != null)
+                {
+                    var autoDescDropdown = dropdownField.GetValue(autoDesc) as DropdownManager;
+                    if (autoDescDropdown != null && autoDescDropdown.dropdown != null)
+                    {
+                        // 同步当前选择的PPT
+                        autoDescDropdown.SetCurrentOptionText(selectedPPTItem.pptInfo.filename);
+                    }
+                }
+            }
+
+            // 调用AutoDesc的生成方法
+            autoDesc.StartGetDescProcess();
+
+            // 等待生成完成
+            StartCoroutine(WaitForSpeechGeneration());
+        }
+
+        /// <summary>
+        /// 等待演讲稿生成完成
+        /// </summary>
+        IEnumerator WaitForSpeechGeneration()
+        {
+            yield return new WaitForSeconds(0.5f);
+
+            // 尝试获取生成的演讲稿
+            if (autoDesc != null && configInputField != null)
+            {
+                // 使用反射获取AutoDesc的inputField
+                var inputField = autoDesc.GetType().GetField("inputField", 
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (inputField != null)
+                {
+                    var autoDescInput = inputField.GetValue(autoDesc) as InputField;
+                    if (autoDescInput != null)
+                    {
+                        // 定期检查并同步演讲稿内容
+                        float timeout = 30f;
+                        float elapsed = 0f;
+                        while (elapsed < timeout)
+                        {
+                            if (!string.IsNullOrEmpty(autoDescInput.text))
+                            {
+                                // 等待一帧后再更新UI，避免在渲染过程中修改
+                                yield return null;
+                                configInputField.text = autoDescInput.text;
+                                break;
+                            }
+                            yield return new WaitForSeconds(0.5f);
+                            elapsed += 0.5f;
+                        }
+                    }
+                }
+            }
+
+            // 等待一帧，确保不在渲染过程中更新UI
+            yield return null;
+
+            // 更新配置状态为已配置
+            if (selectedPPTItem != null)
+            {
+                selectedPPTItem.pptInfo.configStatus = 2;
+                if (selectedPPTItem.statusText != null)
+                {
+                    selectedPPTItem.statusText.text = GetStatusString(selectedPPTItem.pptInfo.configStatus);
+                    selectedPPTItem.statusText.color = GetStatusColor(selectedPPTItem.pptInfo.configStatus);
+                }
+                UpdateButtonStates();
+            }
+
+            if (pptLoadingIndicator != null)
+                pptLoadingIndicator.SetActive(false);
         }
     }
 }
