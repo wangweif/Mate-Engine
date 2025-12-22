@@ -63,6 +63,34 @@ public class PPTController : MonoBehaviour
         ValidatePPTFile();
     }
 
+    public void SetPPTFile(string fullPath)
+    {
+        if (string.IsNullOrEmpty(fullPath))
+        {
+            LogWarning("⚠ SetPPTFile 接收到空路径");
+            currentPptPath = null;
+            return;
+        }
+
+        try
+        {
+            fullPath = Path.GetFullPath(fullPath);
+        }
+        catch
+        {
+            // ignore
+        }
+
+        pptFileName = Path.GetFileName(fullPath);
+        defaultPptFolder = Path.GetDirectoryName(fullPath);
+        currentPptPath = fullPath;
+
+        if (enableDebugLogs)
+        {
+            Log($"🎯 设置PPT文件: {currentPptPath}");
+        }
+    }
+
     /// <summary>
     /// 验证并查找PPT文件
     /// </summary>
