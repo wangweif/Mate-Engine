@@ -844,7 +844,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configButtonLayout.childAlignment = TextAnchor.MiddleLeft;
 
             // 生成演讲稿按钮
-            generateSpeechButton = CreateButton(configButtonContainer.transform, "生成演讲稿", new Vector2(150, 40));
+            generateSpeechButton = CreateButton(configButtonContainer.transform, "生成演讲稿", new Vector2(100, 40));
             generateSpeechButton.onClick.AddListener(OnGenerateSpeech);
 
             // 确认按钮
@@ -1667,7 +1667,7 @@ namespace MATE_ENGINE___Scripts.Tools
             itemButton.colors = colors;
 
             HorizontalLayoutGroup itemLayout = itemObj.AddComponent<HorizontalLayoutGroup>();
-            itemLayout.childForceExpandWidth = true;
+            itemLayout.childForceExpandWidth = false;
             itemLayout.childForceExpandHeight = true;
             itemLayout.spacing = 10;
             itemLayout.padding = new RectOffset(10, 10, 5, 5);
@@ -1686,7 +1686,16 @@ namespace MATE_ENGINE___Scripts.Tools
             fileNameText.fontSize = 16;
             fileNameText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
             fileNameText.alignment = TextAlignmentOptions.Left;
+            fileNameText.enableWordWrapping = false;
+            fileNameText.overflowMode = TextOverflowModes.Ellipsis;
+            fileNameText.extraPadding = true;
+            fileNameText.margin = new Vector4(80, 0, 0, 0);
             ApplyFontToTMP(fileNameText);
+
+            LayoutElement fileNameLayout = fileNameObj.AddComponent<LayoutElement>();
+            fileNameLayout.minWidth = 0;
+            fileNameLayout.preferredWidth = -1;
+            fileNameLayout.flexibleWidth = 1;
 
             // 页数
             GameObject pageCountObj = new GameObject("PageCount");
@@ -1696,7 +1705,11 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 pageCountRect = pageCountObj.AddComponent<RectTransform>();
             }
-            pageCountRect.sizeDelta = new Vector2(80, 0);
+            pageCountRect.sizeDelta = new Vector2(300, 0);
+            LayoutElement pageCountLayout = pageCountObj.AddComponent<LayoutElement>();
+            pageCountLayout.minWidth = 300;
+            pageCountLayout.preferredWidth = 300;
+            pageCountLayout.flexibleWidth = 0;
             TMP_Text pageCountText = pageCountObj.AddComponent<TextMeshProUGUI>();
             pageCountText.text = $"页数: {pptInfo.pageCount}";
             pageCountText.fontSize = 14;
@@ -1712,7 +1725,11 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 statusRect = statusObj.AddComponent<RectTransform>();
             }
-            statusRect.sizeDelta = new Vector2(100, 0);
+            statusRect.sizeDelta = new Vector2(300, 0);
+            LayoutElement statusLayout = statusObj.AddComponent<LayoutElement>();
+            statusLayout.minWidth = 300;
+            statusLayout.preferredWidth = 300;
+            statusLayout.flexibleWidth = 0;
             TMP_Text statusText = statusObj.AddComponent<TextMeshProUGUI>();
             string statusStr = GetStatusString(pptInfo.configStatus);
             statusText.text = statusStr;
