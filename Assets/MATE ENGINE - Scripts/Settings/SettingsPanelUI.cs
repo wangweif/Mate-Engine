@@ -73,6 +73,8 @@ namespace MATE_ENGINE___Scripts.Tools
         // PPT列表管理
         private List<PPTListItem> pptListItems = new List<PPTListItem>();
         private PPTListItem selectedPPTItem = null;
+
+        [SerializeField] private PPTController pptController;
         
         // PPT列表项数据结构
         private class PPTListItem
@@ -1968,7 +1970,23 @@ namespace MATE_ENGINE___Scripts.Tools
                 return;
             }
 
-            // TODO: 实现播放功能
+            if (pptController == null)
+            {
+                pptController = FindObjectOfType<PPTController>();
+            }
+
+            if (pptController == null)
+            {
+                Debug.LogWarning("PPTController 未找到，无法播放PPT");
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(selectedPPTItem.pptInfo.file_path))
+            {
+                pptController.SetPPTFile(selectedPPTItem.pptInfo.file_path);
+            }
+
+            pptController.OpenPPT();
         }
 
         /// <summary>
