@@ -301,7 +301,7 @@ public class UISetOnOff : MonoBehaviour
         }
     }
 
-    public void ToggleBubbleFeature()
+    public void ToggleBubbleFeature(string pptName = "")
     {
         Debug.Log($"Macaroon按钮被点击了! 当前状态: isPlayingSequence={isPlayingSequence}, count={count}");
 
@@ -321,7 +321,7 @@ public class UISetOnOff : MonoBehaviour
             {
                 play.image = displayImage;
                 Debug.Log("🎬 第一次点击 - 开始播放演示");
-                if (LoadAndSetPPTInfoFromJson())
+                if (LoadAndSetPPTInfoFromJson(pptName))
                 {
                     if (pptService != null)
                     {
@@ -865,13 +865,21 @@ public class UISetOnOff : MonoBehaviour
     /// <summary>
     /// 从JSON文件加载PPT信息并设置到PPTController
     /// </summary>
-    private bool LoadAndSetPPTInfoFromJson()
+    private bool LoadAndSetPPTInfoFromJson(string pptName)
     {
         try
         {
-            // 查找JSON文件路径
-            jsonConfigPath = Path.ChangeExtension(option.GetCurrentOptionText(), ".json");
-            string jsonFilePath = FindJsonFilePath();
+            string jsonFilePath = "";
+            if (string.IsNullOrEmpty(pptName))
+            {
+                jsonConfigPath = Path.ChangeExtension(option.GetCurrentOptionText(), ".json");
+                jsonFilePath = FindJsonFilePath();
+            }
+            else
+            {
+                jsonConfigPath = Path.ChangeExtension(pptName, ".json");
+                jsonFilePath = FindJsonFilePath();
+            }
 
             if (string.IsNullOrEmpty(jsonFilePath) || !File.Exists(jsonFilePath))
             {

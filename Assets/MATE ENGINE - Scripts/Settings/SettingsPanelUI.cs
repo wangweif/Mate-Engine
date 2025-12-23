@@ -2028,23 +2028,35 @@ namespace MATE_ENGINE___Scripts.Tools
                 return;
             }
 
-            if (pptController == null)
+            // 查找UISetOnOff组件并调用ToggleBubbleFeature方法
+            UISetOnOff uiSetOnOff = FindObjectOfType<UISetOnOff>();
+            if (uiSetOnOff != null)
             {
-                pptController = FindObjectOfType<PPTController>();
+                Debug.Log("调用UISetOnOff.ToggleBubbleFeature开始播放PPT");
+                uiSetOnOff.ToggleBubbleFeature(selectedPPTItem.pptInfo.filename);
             }
-
-            if (pptController == null)
+            else
             {
-                Debug.LogWarning("PPTController 未找到，无法播放PPT");
-                return;
-            }
+                Debug.LogWarning("UISetOnOff组件未找到，无法播放PPT");
+                // 回退到原来的播放方式
+                if (pptController == null)
+                {
+                    pptController = FindObjectOfType<PPTController>();
+                }
 
-            if (!string.IsNullOrEmpty(selectedPPTItem.pptInfo.file_path))
-            {
-                pptController.SetPPTFile(selectedPPTItem.pptInfo.file_path);
-            }
+                if (pptController == null)
+                {
+                    Debug.LogWarning("PPTController 未找到，无法播放PPT");
+                    return;
+                }
 
-            pptController.OpenPPT();
+                if (!string.IsNullOrEmpty(selectedPPTItem.pptInfo.file_path))
+                {
+                    pptController.SetPPTFile(selectedPPTItem.pptInfo.file_path);
+                }
+
+                pptController.OpenPPT();
+            }
         }
 
         /// <summary>
