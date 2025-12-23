@@ -6,6 +6,7 @@ using VRM;
 using UniGLTF;
 using UniVRM10;
 using System;
+using System.Collections;
 using System.Reflection;
 using System.Linq;
 
@@ -22,9 +23,14 @@ public class VRMLoader : MonoBehaviour
 
     private GameObject currentModel;
     private RuntimeGltfInstance currentGltf;
+    [SerializeField] private string modelName = "";
 
     void Start()
     {
+        if (modelName == "")
+        {
+            modelName = "test1.vrm";
+        }
         string defaultModelPath;
 
         // 在编辑器中，Application.dataPath是项目/Assets目录
@@ -33,29 +39,22 @@ public class VRMLoader : MonoBehaviour
         {
             // 编辑器模式
             string projectRoot = Application.dataPath.Replace("/Assets", "");
-            defaultModelPath = Path.Combine(projectRoot, "xiaozhi.vrm");
+            defaultModelPath = Path.Combine(projectRoot, modelName);
         }
         else
         {
             // 打包模式：Application.dataPath是xxx_Data目录，需要回到上一级目录（exe所在目录）
             string exeDirectory = Directory.GetParent(Application.dataPath).FullName;
-            defaultModelPath = Path.Combine(exeDirectory, "xiaozhi.vrm");
+            defaultModelPath = Path.Combine(exeDirectory, modelName);
         }
-
-        Debug.Log($"[VRMLoader] Looking for xiaozhi.vrm at: {defaultModelPath}");
-        Debug.Log($"[VRMLoader] Application.dataPath: {Application.dataPath}");
-        Debug.Log($"[VRMLoader] Executable directory: {Directory.GetParent(Application.dataPath)?.FullName}");
-        Debug.Log($"[VRMLoader] File exists: {File.Exists(defaultModelPath)}");
 
         if (File.Exists(defaultModelPath))
         {
-            Debug.Log($"[VRMLoader] Found xiaozhi.vrm, loading...");
             LoadDefaultModelOnly(defaultModelPath);
             return;
         }
 
         // 如果默认模型不存在，使用内置默认模型
-        Debug.LogWarning($"[VRMLoader] xiaozhi.vrm not found, using default model instead");
         ActivateDefaultModel();
     }
     // 已移除随机头像加载功能
@@ -165,11 +164,12 @@ public class VRMLoader : MonoBehaviour
         AssignAnimatorController(currentModel);
         InjectComponentsFromPrefab(componentTemplatePrefab, currentModel);
 
+        // 禁用鼠标追踪动画
+        DisableMouseTrackingAnimation(currentModel);
+
         var changer = FindFirstObjectByType<MEValueChanger>();
         if (changer != null)
             changer.SendMessage("TryAttachCustomVRM", SendMessageOptions.DontRequireReceiver);
-
-        Debug.Log("[VRMLoader] Default model loaded successfully");
 
         if (MEModLoader.Instance != null)
             MEModLoader.Instance.AssignHandlersForCurrentAvatar(loadedModel);
@@ -192,6 +192,9 @@ public class VRMLoader : MonoBehaviour
         EnableSkinnedMeshRenderers(currentModel);
         AssignAnimatorController(currentModel);
         InjectComponentsFromPrefab(componentTemplatePrefab, currentModel);
+
+        // 禁用鼠标追踪动画
+        DisableMouseTrackingAnimation(currentModel);
 
         var changer = FindFirstObjectByType<MEValueChanger>();
         if (changer != null)
@@ -310,6 +313,116 @@ public class VRMLoader : MonoBehaviour
         var animator = model.GetComponentInChildren<Animator>();
         if (animator != null && animatorController != null)
             animator.runtimeAnimatorController = animatorController;
+    }
+
+    /// <summary>
+    /// 禁用鼠标追踪动画、手部交互、待机动画、舞蹈功能和IK系统
+    /// </summary>
+    private void DisableMouseTrackingAnimation(GameObject model)
+    {
+        if (model == null) return;
+
+        var animator = model.GetComponentInChildren<Animator>();
+        if (animator != null)
+        {
+            // 设置Animator参数为Idle状态
+            SetAnimatorToIdlePose(animator);
+
+            // 启用Animator
+            animator.enabled = true;
+
+            // 立即强制播放Idle状态，并从动画开始位置播放（避免入场动画）
+            animator.Play("Idle", 0, 0f);
+
+            // 设置动画速度为0，冻结Idle动画
+            animator.speed = 0f;
+
+            // 使用协程持续保持在Idle状态
+            StartCoroutine(KeepInIdleState(animator));
+        }
+
+        // 禁用所有交互和动画控制相关的组件
+        var allComponents = model.GetComponentsInChildren<MonoBehaviour>(true);
+        int disabledCount = 0;
+
+        foreach (var comp in allComponents)
+        {
+            if (comp == null) continue;
+
+            string typeName = comp.GetType().Name;
+
+            // 禁用鼠标追踪、手部交互、动画控制、舞蹈和IK相关的组件
+            if (typeName.Contains("MouseTracking") ||
+                typeName.Contains("Mouse") ||
+                typeName.Contains("HandHolder") ||
+                typeName.Contains("Hand") ||
+                typeName.Contains("AnimatorController") ||
+                typeName.Contains("Dance") ||
+                typeName.Contains("IK"))
+            {
+                comp.enabled = false;
+                disabledCount++;
+            }
+        }
+
+        if (disabledCount > 0)
+        {
+            Debug.Log($"[VRMLoader] Total interaction and control components disabled: {disabledCount}");
+        }
+        else
+        {
+        }
+    }
+
+    /// <summary>
+    /// 持续保持在Idle状态
+    /// </summary>
+    private IEnumerator KeepInIdleState(Animator animator)
+    {
+        // 持续几帧确保在Idle状态
+        for (int i = 0; i < 10; i++)
+        {
+            if (animator != null)
+            {
+                // 每帧都强制保持在Idle状态
+                SetAnimatorToIdlePose(animator);
+
+                // 检查当前状态，如果不是Idle就强制切换
+                AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
+                if (!stateInfo.IsName("Idle"))
+                {
+                    animator.Play("Idle", 0, 0f);
+                }
+            }
+            yield return null;
+        }
+
+    }
+
+    /// <summary>
+    /// 设置Animator参数让角色保持站立姿势
+    /// </summary>
+    private void SetAnimatorToIdlePose(Animator animator)
+    {
+        if (animator == null) return;
+
+        // 设置所有动画状态为false，让角色进入Idle状态
+        animator.SetBool("isDancing", false);
+        animator.SetBool("isDragging", false);
+        animator.SetBool("isBigScreen", false);
+        animator.SetBool("isBigScreenAlarm", false);
+        animator.SetBool("isBigScreenSaver", false);
+        animator.SetBool("isWindowSit", false);
+        animator.SetBool("isSitting", false);
+
+        // 设置IdleIndex为0，确保使用第一个站立姿势
+        animator.SetFloat("IdleIndex", 0f);
+        animator.SetFloat("DanceIndex", 0f);
+
+        // 设置性别（可选）
+        animator.SetFloat("isMale", 1f);
+        animator.SetFloat("isFemale", 0f);
+
     }
 
     private void InjectComponentsFromPrefab(GameObject prefabTemplate, GameObject targetModel)
