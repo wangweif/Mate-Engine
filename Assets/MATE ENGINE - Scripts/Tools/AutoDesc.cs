@@ -75,24 +75,29 @@ namespace MATE_ENGINE___Scripts.Tools
             if (!File.Exists(filePath))
             {
                 Debug.LogError($"文件不存在: {filePath}");
+                OnSpeechGenerated?.Invoke(new string[] { "" });
                 yield break;
-            }            
-            string url = $"{baseUrl}/ppt";
-            
-            // 读取文件数据
+            }           
+            string url = $"{baseUrl}/ppt"; 
             byte[] fileData = File.ReadAllBytes(filePath);
             string fileName = Path.GetFileName(filePath);
-            
-            // 创建表单数据
             List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
-            
-            // 添加文件数据
-            formData.Add(new MultipartFormFileSection("file", fileData, fileName, "application/vnd.openxmlformats-officedocument.presentationml.presentation"));
+            try
+            {   
+                // 添加文件数据
+                formData.Add(new MultipartFormFileSection("file", fileData, fileName, "application/vnd.openxmlformats-officedocument.presentationml.presentation"));
+            }
+            catch
+            {
+                Debug.LogError($"文件读取失败: {filePath}");
+                OnSpeechGenerated?.Invoke(new string[] { "" });
+                yield break;
+            }
             
             currentRequest = UnityWebRequest.Post(url, formData);
             
             // 设置超时时间（秒）
-            currentRequest.timeout = 300;
+            currentRequest.timeout = 1000;
             
             // 发送请求
             yield return currentRequest.SendWebRequest();
@@ -100,6 +105,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 检查GameObject是否仍然存在（可能在请求过程中被销毁）
             if (this == null || currentRequest == null)
             {
+                OnSpeechGenerated?.Invoke(new string[] { "" });
                 yield break;
             }
 
