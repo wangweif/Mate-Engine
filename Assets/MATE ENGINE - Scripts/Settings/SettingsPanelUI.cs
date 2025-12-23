@@ -1806,6 +1806,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 case 0: return "未配置";
                 case 1: return "进行中";
                 case 2: return "已配置";
+                case 3: return "失败";
                 default: return "未知";
             }
         }
@@ -1820,6 +1821,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 case 0: return new Color(0.7f, 0.7f, 0.7f, 1f); // 灰色
                 case 1: return new Color(1f, 0.65f, 0f, 1f); // 橙色
                 case 2: return new Color(0f, 0.7f, 0f, 1f); // 绿色
+                case 3: return new Color(1f, 0f, 0f, 1f); // 红色
                 default: return Color.black;
             }
         }
@@ -2156,28 +2158,26 @@ namespace MATE_ENGINE___Scripts.Tools
                 configInputField.text = string.Join("\n", generatedContent);
             }
 
-            // 更新配置状态为已配置并保存到JSON
+            // 更新配置状态并保存到JSON
             if (selectedPPTItem != null)
             {
-                // 如果生成了内容，更新PPTInfo中的desc字段
-                if (generatedContent != null && generatedContent.Length > 0)
+                // 检查生成是否成功
+                if (generatedContent != null && generatedContent.Length > 0 && !string.IsNullOrEmpty(generatedContent[0]))
                 {
+                    // 生成成功，更新PPTInfo中的desc字段
                     selectedPPTItem.pptInfo.desc = generatedContent;
-                    selectedPPTItem.pptInfo.configStatus = 2;
-                    
-                    // 保存到对应的JSON文件(移除filename中的扩展名)
-                    string jsonFileName = Path.ChangeExtension(selectedPPTItem.pptInfo.filename, ".json");
-                    bool saveSuccess = PPTDataManager.SavePPTInfoToJson(selectedPPTItem.pptInfo, jsonFileName);
-                    
-                    if (saveSuccess)
-                    {
-                        Debug.Log($"演讲稿已保存到JSON文件: {jsonFileName}");
-                    }
-                    else
-                    {
-                        Debug.LogError($"保存演讲稿到JSON文件失败: {jsonFileName}");
-                    }
+                    selectedPPTItem.pptInfo.configStatus = 2; // 已配置
                 }
+                else
+                {
+                    // 生成失败，设置状态为失败
+                    selectedPPTItem.pptInfo.configStatus = 3; // 失败
+                    Debug.LogError("PPT演讲稿生成失败");
+                }
+
+                // 保存到对应的JSON文件
+                string jsonFileName = Path.ChangeExtension(selectedPPTItem.pptInfo.filename, ".json");
+                bool saveSuccess = PPTDataManager.SavePPTInfoToJson(selectedPPTItem.pptInfo, jsonFileName);
                 
                 if (selectedPPTItem.statusText != null)
                 {
