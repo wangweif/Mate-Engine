@@ -2001,19 +2001,47 @@ namespace MATE_ENGINE___Scripts.Tools
                 return;
             }
 
+            // 使用协程来处理UI操作，避免卡死
+            StartCoroutine(OnConfigClickedCoroutine());
+        }
+
+        /// <summary>
+        /// 配置按钮点击协程
+        /// </summary>
+        IEnumerator OnConfigClickedCoroutine()
+        {
+            if (selectedPPTItem == null)
+            {
+                yield break;
+            }
+
+            // 等待一帧，确保不在渲染过程中
+            yield return null;
+
             // 显示配置面板
             if (configOverlay != null)
             {
                 configOverlay.SetActive(true);
+                
+                // 再等待一帧，确保面板激活完成
+                yield return null;
 
                 // 加载当前PPT的演讲稿
-                if (configInputField != null && selectedPPTItem.pptInfo.desc != null && selectedPPTItem.pptInfo.desc.Length > 0)
+                if (configInputField != null)
                 {
-                    configInputField.text = string.Join("\n", selectedPPTItem.pptInfo.desc);
-                }
-                else if (configInputField != null)
-                {
-                    configInputField.text = "";
+                    if (selectedPPTItem.pptInfo.desc != null && selectedPPTItem.pptInfo.desc.Length > 0)
+                    {
+                        configInputField.text = string.Join("\n", selectedPPTItem.pptInfo.desc);
+                    }
+                    else
+                    {
+                        configInputField.text = "";
+                    }
+                    
+                    // 等待一帧，确保文本设置完成
+                    yield return null;
+                    
+                    Debug.Log("配置面板已打开，演讲稿已加载");
                 }
             }
         }
