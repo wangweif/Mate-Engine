@@ -540,6 +540,42 @@ public class VRMLoader : MonoBehaviour
     {
         return currentModel;
     }
+
+    /// <summary>
+    /// 切换到指定的VRM模型
+    /// </summary>
+    /// <param name="newModelName">新的VRM文件名（例如：test2.vrm）</param>
+    public void SwitchModel(string newModelName)
+    {
+        if (string.IsNullOrEmpty(newModelName))
+        {
+            Debug.LogError("[VRMLoader] Model name cannot be empty");
+            return;
+        }
+
+        modelName = newModelName;
+
+        string modelPath;
+        if (Application.dataPath.Contains("/Assets"))
+        {
+            string projectRoot = Application.dataPath.Replace("/Assets", "");
+            modelPath = Path.Combine(projectRoot, modelName);
+        }
+        else
+        {
+            string exeDirectory = Directory.GetParent(Application.dataPath).FullName;
+            modelPath = Path.Combine(exeDirectory, modelName);
+        }
+
+        if (File.Exists(modelPath))
+        {
+            LoadDefaultModelOnly(modelPath);
+        }
+        else
+        {
+            Debug.LogError($"[VRMLoader] Model file not found: {modelPath}");
+        }
+    }
 }
 public sealed class GltfInstanceDisposer : MonoBehaviour
 {
