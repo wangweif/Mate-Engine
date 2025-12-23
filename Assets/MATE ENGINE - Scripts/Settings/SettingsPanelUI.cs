@@ -153,8 +153,10 @@ namespace MATE_ENGINE___Scripts.Tools
 
             // 查找相关组件
             if (autoDesc == null)
-                autoDesc = FindFirstObjectByType<AutoDesc>();
-
+            {
+                GameObject _ = new GameObject("AutoDesc");
+                autoDesc = _.AddComponent<AutoDesc>();
+            }
             if (vrmLoader == null)
                 vrmLoader = FindFirstObjectByType<VRMLoader>();
 
@@ -2125,73 +2127,58 @@ namespace MATE_ENGINE___Scripts.Tools
             if (pptLoadingIndicator != null)
                 pptLoadingIndicator.SetActive(true);
 
-            // 同步PPT选择到AutoDesc（如果AutoDesc使用dropdown）
+            // 直接传递filename到AutoDesc
             if (autoDesc != null)
             {
-                // 使用反射设置AutoDesc的dropdown（如果存在）
-                var dropdownField = autoDesc.GetType().GetField("dropdown", 
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (dropdownField != null)
-                {
-                    var autoDescDropdown = dropdownField.GetValue(autoDesc) as DropdownManager;
-                    if (autoDescDropdown != null && autoDescDropdown.dropdown != null)
-                    {
-                        // 同步当前选择的PPT
-                        autoDescDropdown.SetCurrentOptionText(selectedPPTItem.pptInfo.filename);
-                    }
-                }
+                // 设置回调事件来接收生成的演讲稿
+                autoDesc.OnSpeechGenerated = OnSpeechContentGenerated;
+                
+                // 调用AutoDesc的生成方法，直接传递filename
+                autoDesc.StartGetDescProcess(selectedPPTItem.pptInfo.filename);
             }
 
-            // 调用AutoDesc的生成方法
-            autoDesc.StartGetDescProcess();
-
-            // 等待生成完成
-            StartCoroutine(WaitForSpeechGeneration());
+            // 隐藏配置面板
+            if (configOverlay != null)
+            {
+                configOverlay.SetActive(false);
+            }
         }
 
         /// <summary>
-        /// 等待演讲稿生成完成
+        /// 演讲稿生成完成的回调方法
         /// </summary>
-        IEnumerator WaitForSpeechGeneration()
+        /// <param name="generatedContent">生成的演讲稿内容</param>
+        private void OnSpeechContentGenerated(string[] generatedContent)
         {
-            yield return new WaitForSeconds(0.5f);
-
-            // 尝试获取生成的演讲稿
-            if (autoDesc != null && configInputField != null)
+            // 更新UI输入框
+            if (configInputField != null)
             {
-                // 使用反射获取AutoDesc的inputField
-                var inputField = autoDesc.GetType().GetField("inputField", 
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (inputField != null)
-                {
-                    var autoDescInput = inputField.GetValue(autoDesc) as InputField;
-                    if (autoDescInput != null)
-                    {
-                        // 定期检查并同步演讲稿内容
-                        float timeout = 30f;
-                        float elapsed = 0f;
-                        while (elapsed < timeout)
-                        {
-                            if (!string.IsNullOrEmpty(autoDescInput.text))
-                            {
-                                // 等待一帧后再更新UI，避免在渲染过程中修改
-                                yield return null;
-                                configInputField.text = autoDescInput.text;
-                                break;
-                            }
-                            yield return new WaitForSeconds(0.5f);
-                            elapsed += 0.5f;
-                        }
-                    }
-                }
+                configInputField.text = string.Join("\n", generatedContent);
             }
 
-            // 等待一帧，确保不在渲染过程中更新UI
-            yield return null;
-
-            // 更新配置状态为已配置
+            // 更新配置状态为已配置并保存到JSON
             if (selectedPPTItem != null)
             {
+                // 如果生成了内容，更新PPTInfo中的desc字段
+                if (generatedContent != null && generatedContent.Length > 0)
+                {
+                    selectedPPTItem.pptInfo.desc = generatedContent;
+                    
+                    // 保存到对应的JSON文件(移除filename中的扩展名)
+                    string jsonFileName = Path.ChangeExtension(selectedPPTItem.pptInfo.filename, ".json");
+                    bool saveSuccess = PPTDataManager.SavePPTInfoToJson(selectedPPTItem.pptInfo, jsonFileName);
+                    
+                    if (saveSuccess)
+                    {
+                        Debug.Log($"演讲稿已保存到JSON文件: {jsonFileName}");
+                    }
+                    else
+                    {
+                        Debug.LogError($"保存演讲稿到JSON文件失败: {jsonFileName}");
+                    }
+                }
+                
+                // 设置状态为已配置
                 selectedPPTItem.pptInfo.configStatus = 2;
                 if (selectedPPTItem.statusText != null)
                 {
