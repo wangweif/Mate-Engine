@@ -2163,6 +2163,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 if (generatedContent != null && generatedContent.Length > 0)
                 {
                     selectedPPTItem.pptInfo.desc = generatedContent;
+                    selectedPPTItem.pptInfo.configStatus = 2;
                     
                     // 保存到对应的JSON文件(移除filename中的扩展名)
                     string jsonFileName = Path.ChangeExtension(selectedPPTItem.pptInfo.filename, ".json");
@@ -2178,8 +2179,6 @@ namespace MATE_ENGINE___Scripts.Tools
                     }
                 }
                 
-                // 设置状态为已配置
-                selectedPPTItem.pptInfo.configStatus = 2;
                 if (selectedPPTItem.statusText != null)
                 {
                     selectedPPTItem.statusText.text = GetStatusString(selectedPPTItem.pptInfo.configStatus);
