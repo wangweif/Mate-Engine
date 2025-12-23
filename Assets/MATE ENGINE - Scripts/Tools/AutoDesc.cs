@@ -14,76 +14,21 @@ namespace MATE_ENGINE___Scripts.Tools
 {
     public class AutoDesc : MonoBehaviour
     {
-        [SerializeField] 
-        private InputField inputField;
-        [SerializeField]
-        private DropdownManager dropdown;
-
-        [SerializeField] private Button submit;
-        [SerializeField] private Button autoDesc;
-        [SerializeField] private Button selectFile;
-
         private string filePath;
         private string baseUrl = "http://192.168.8.88:7899";
 
-        public GameObject loading;
-        public TMP_Text LoadingText;
-        
         // 跟踪请求状态
         private bool isRequestInProgress = false;
         private UnityWebRequest currentRequest = null;
+        
+        // 演讲稿生成完成的回调事件
+        public System.Action<string[]> OnSpeechGenerated;
         
         // 定义返回数据的结构
         [System.Serializable]
         public class ApiResponse
         {
             public string content;
-        }
-
-        // 当组件启用时重置UI状态
-        private void OnEnable()
-        {
-            ResetUIState();
-        }
-
-        // 当组件禁用或销毁时取消正在进行的请求
-        private void OnDisable()
-        {
-            CancelCurrentRequest();
-        }
-
-        private void OnDestroy()
-        {
-            CancelCurrentRequest();
-        }
-
-        // 重置UI状态，确保所有组件可交互
-        private void ResetUIState()
-        {
-            if (!isRequestInProgress)
-            {
-                EnableAllControls();
-            }
-        }
-
-        // 启用所有控件
-        private void EnableAllControls()
-        {
-            if (submit != null) submit.interactable = true;
-            if (inputField != null) inputField.interactable = true;
-            if (autoDesc != null) autoDesc.interactable = true;
-            if (dropdown != null) dropdown.SetInteractable(true);
-            if (selectFile != null) selectFile.interactable = true;
-        }
-
-        // 禁用所有控件
-        private void DisableAllControls()
-        {
-            if (autoDesc != null) autoDesc.interactable = false;
-            if (submit != null) submit.interactable = false;
-            if (inputField != null) inputField.interactable = false;
-            if (dropdown != null) dropdown.SetInteractable(false);
-            if (selectFile != null) selectFile.interactable = false;
         }
 
         // 取消当前请求
@@ -99,8 +44,7 @@ namespace MATE_ENGINE___Scripts.Tools
             isRequestInProgress = false;
         }
 
-        // 调用这个方法开始整个流程
-        public void StartGetDescProcess()
+        public void StartGetDescProcess(string filename)
         {
             // 如果已有请求在进行中，不允许重复请求
             if (isRequestInProgress)
@@ -108,15 +52,13 @@ namespace MATE_ENGINE___Scripts.Tools
                 Debug.LogWarning("已有演讲稿生成请求在进行中，请等待完成");
                 return;
             }
-
-            DisableAllControls();
             isRequestInProgress = true;
-            StartCoroutine(GetDescFromHTTP());
+            StartCoroutine(GetDescFromHTTP(filename));
         }
         
-        IEnumerator GetDescFromHTTP()
+        IEnumerator GetDescFromHTTP(string filename)
         {
-            string fileName = dropdown.GetCurrentOptionText();
+            string fileName = filename;
             fileName = Path.ChangeExtension(fileName, ".json");
             PPTInfo pptInfo = PPTDataManager.LoadPPTInfoFromJson(fileName);
             filePath = pptInfo.file_path;
@@ -125,7 +67,6 @@ namespace MATE_ENGINE___Scripts.Tools
             
             // 请求完成，重置状态并启用控件
             isRequestInProgress = false;
-            EnableAllControls();
         }
         
         IEnumerator UploadPPTFile(string filePath)
@@ -135,10 +76,7 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 Debug.LogError($"文件不存在: {filePath}");
                 yield break;
-            }
-            LoadingText.SetText("正在生成演讲稿...");
-            StartCoroutine(ShowFailureMessage(loading));
-            
+            }            
             string url = $"{baseUrl}/ppt";
             
             // 读取文件数据
@@ -172,24 +110,15 @@ namespace MATE_ENGINE___Scripts.Tools
 
                 string[] descArray = toStringArray(descText);
 
-                string desc = string.Join(Environment.NewLine, descArray);
-                if (inputField != null)
-                {
-                    inputField.text = desc;
-                }
-                if (LoadingText != null)
-                {
-                    LoadingText.SetText("演讲稿生成完成！");
-                }
-                StartCoroutine(ShowFailureMessage(loading));
+                // string desc = string.Join(Environment.NewLine, descArray);
+                
+                // 触发回调事件
+                OnSpeechGenerated?.Invoke(descArray);
             }
             else
             {
-                if (LoadingText != null)
-                {
-                    LoadingText.SetText("生成演讲稿失败！");
-                }
-                StartCoroutine(ShowFailureMessage(loading));
+                Debug.LogError($"演讲稿生成失败: {currentRequest.error}");
+                OnSpeechGenerated?.Invoke(new string[] { "" });
             }
 
             // 清理请求对象
@@ -198,16 +127,6 @@ namespace MATE_ENGINE___Scripts.Tools
                 currentRequest.Dispose();
                 currentRequest = null;
             }
-        }
-        
-        private IEnumerator ShowFailureMessage(GameObject obj)
-        {
-            obj.SetActive(true);
-            print($"{obj.name}展示");
-            // 等待1秒
-            yield return new WaitForSeconds(3f);
-    
-            obj.SetActive(false);
         }
 
         public string[] toStringArray(string input)
@@ -249,10 +168,7 @@ namespace MATE_ENGINE___Scripts.Tools
         /// </summary>
         private string[] SplitByMultipleNewLines(string input)
         {
-            
-            string[] result = null;
-            result = input.Split(new string[] { "\\n", "\n", "\\r", "\r", "\\r\\n", "\r\n" },
-                StringSplitOptions.RemoveEmptyEntries);
+            string[] result = Regex.Split(input, @"[\r\n]+");
             result = result.Select(line => line.Trim())
                 .Where(line => !string.IsNullOrWhiteSpace(line))
                 .ToArray();
