@@ -55,6 +55,10 @@ ExportedObj/
 *.opendb
 *.VC.db
 
+# 允许 PPT.Host 项目文件
+!PPT.Host/*.csproj
+!PPT.Host/*.sln
+
 # Unity3D generated meta files
 *.pidb.meta
 *.pdb.meta
