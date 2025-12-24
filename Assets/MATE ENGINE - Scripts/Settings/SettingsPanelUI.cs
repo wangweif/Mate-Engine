@@ -51,10 +51,8 @@ namespace MATE_ENGINE___Scripts.Tools
         public Button confirmConfigButton;
         private GameObject configOverlay;
 
-        [Header("Model Panel Components")]
-        public Button changeModelButton;
-        public TMP_Text currentModelText;
-        public Button resetModelButton;
+        [Header("Model Panel Reference")]
+        public ModelPanelUI modelPanelUI;
 
         [Header("Settings Panel Components")]
         public ScrollRect changelogScrollRect;
@@ -66,9 +64,7 @@ namespace MATE_ENGINE___Scripts.Tools
         public int canvasSortingOrder = 1000;
 
         private AutoDesc autoDesc;
-        private VRMLoader vrmLoader;
         private int currentTabIndex = 0; // 0=PPT, 1=Model, 2=Settings
-        private TMP_FontAsset simsunFont; // SIMSUN 字体资源
         
         // PPT列表管理
         private List<PPTListItem> pptListItems = new List<PPTListItem>();
@@ -116,8 +112,8 @@ namespace MATE_ENGINE___Scripts.Tools
             // 确保 EventSystem 存在（UI 点击需要）
             EnsureEventSystem();
             
-            // 加载 SIMSUN 字体
-            LoadSIMSUNFont();
+            // 确保FontManager已初始化
+            FontManager.Instance.GetSIMSUNFont();
             
             // 创建父Canvas
             if (parentCanvas == null)
@@ -157,8 +153,16 @@ namespace MATE_ENGINE___Scripts.Tools
                 GameObject _ = new GameObject("AutoDesc");
                 autoDesc = _.AddComponent<AutoDesc>();
             }
-            if (vrmLoader == null)
-                vrmLoader = FindFirstObjectByType<VRMLoader>();
+            
+            // 初始化ModelPanelUI组件
+            if (modelPanelUI == null)
+            {
+                modelPanelUI = gameObject.GetComponent<ModelPanelUI>();
+                if (modelPanelUI == null)
+                {
+                    modelPanelUI = gameObject.AddComponent<ModelPanelUI>();
+                }
+            }
 
             // 如果主面板不存在，创建它
             if (mainPanel == null)
@@ -214,70 +218,6 @@ namespace MATE_ENGINE___Scripts.Tools
             }
         }
         
-        void LoadSIMSUNFont()
-        {
-            // 尝试从 Resources 加载
-            simsunFont = Resources.Load<TMP_FontAsset>("SIMSUN SDF");
-            
-            // 如果 Resources 中没有，尝试从 Assets 路径加载
-            if (simsunFont == null)
-            {
-                string fontPath = "Assets/MATE ENGINE - Fonts/Asia Fonts/SIMSUN SDF.asset";
-                #if UNITY_EDITOR
-                simsunFont = UnityEditor.AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(fontPath);
-                #endif
-            }
-            
-            // 如果还是找不到，尝试通过名称查找
-            if (simsunFont == null)
-            {
-                TMP_FontAsset[] allFonts = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
-                foreach (var font in allFonts)
-                {
-                    if (font.name.Contains("SIMSUN") || font.name.Contains("SimSun"))
-                    {
-                        simsunFont = font;
-                        break;
-                    }
-                }
-            }
-            
-            if (simsunFont != null)
-            {
-                Debug.Log($"已加载字体: {simsunFont.name}");
-            }
-            else
-            {
-                Debug.LogWarning("未找到 SIMSUN 字体，将使用默认字体");
-            }
-        }
-        
-        void ApplyFontToTMP(TMP_Text tmpText)
-        {
-            if (tmpText != null && simsunFont != null)
-            {
-                tmpText.font = simsunFont;
-            }
-        }
-        
-        void ApplyFontToAllTMP()
-        {
-            if (simsunFont == null) return;
-            
-            // 查找面板内所有 TextMeshPro 组件并应用字体
-            if (mainPanel != null)
-            {
-                TMP_Text[] allTMPs = mainPanel.GetComponentsInChildren<TMP_Text>(true);
-                foreach (var tmp in allTMPs)
-                {
-                    if (tmp != null)
-                    {
-                        tmp.font = simsunFont;
-                    }
-                }
-                Debug.Log($"已应用字体到 {allTMPs.Length} 个 TextMeshPro 组件");
-            }
-        }
         
         void EnsureUIInteractable()
         {
@@ -364,18 +304,9 @@ namespace MATE_ENGINE___Scripts.Tools
 
             // 注意: generateSpeechButton的点击事件已在CreatePPTPanelContent中设置
 
-            // 设置模型面板按钮
-            if (changeModelButton != null)
-                changeModelButton.onClick.AddListener(OnChangeModel);
-
-            if (resetModelButton != null)
-                resetModelButton.onClick.AddListener(OnResetModel);
-
             // 设置退出按钮
             if (exitButton != null)
                 exitButton.onClick.AddListener(OnExit);
-
-            UpdateModelInfo();
         }
 
         void CreateMainPanel()
@@ -473,7 +404,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 标题文字使用深色，提高在浅色背景上的可读性
             title.color = new Color(0.12f, 0.12f, 0.12f, 1f);
             title.alignment = TextAlignmentOptions.Center;
-            ApplyFontToTMP(title);
+            FontManager.ApplyFont(title);
         }
 
         void CreateTabBar()
@@ -541,7 +472,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 标签按钮文字颜色：白色，与其它按钮一致
             btnText.color = Color.white;
             btnText.alignment = TextAlignmentOptions.Center;
-            ApplyFontToTMP(btnText);
+            FontManager.ApplyFont(btnText);
 
             return btn;
         }
@@ -828,11 +759,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configTextComp.alignment = TextAlignmentOptions.TopLeft;
             configTextComp.enableWordWrapping = true;
             configTextComp.overflowMode = TextOverflowModes.Overflow;
-            if (simsunFont != null)
-            {
-                configTextComp.font = simsunFont;
-            }
-            ApplyFontToTMP(configTextComp);
+            FontManager.ApplyFont(configTextComp);
             
             // 创建占位符文本组件
             GameObject placeholderObj = new GameObject("Placeholder");
@@ -853,11 +780,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configPlaceholderComp.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
             configPlaceholderComp.alignment = TextAlignmentOptions.TopLeft;
             configPlaceholderComp.enableWordWrapping = true;
-            if (simsunFont != null)
-            {
-                configPlaceholderComp.font = simsunFont;
-            }
-            ApplyFontToTMP(configPlaceholderComp);
+            FontManager.ApplyFont(configPlaceholderComp);
             
             // 配置输入框
             configInputField.textComponent = configTextComp;
@@ -913,35 +836,16 @@ namespace MATE_ENGINE___Scripts.Tools
 
         void CreateModelPanelContent()
         {
-            VerticalLayoutGroup layout = modelPanel.AddComponent<VerticalLayoutGroup>();
-            layout.spacing = 15;
-            layout.padding = new RectOffset(20, 20, 20, 20);
-            layout.childForceExpandWidth = true;
-            layout.childControlHeight = false;
-
-            // 当前模型信息
-            GameObject modelInfoLabel = CreateLabel(modelPanel.transform, "当前模型：", 16);
-            
-            GameObject modelTextObj = new GameObject("CurrentModelText");
-            modelTextObj.transform.SetParent(modelPanel.transform, false);
-            RectTransform modelTextRect = modelTextObj.GetComponent<RectTransform>();
-            if (modelTextRect == null)
+            // 委托给ModelPanelUI组件处理模型面板内容创建
+            if (modelPanelUI != null)
             {
-                modelTextRect = modelTextObj.AddComponent<RectTransform>();
+                modelPanelUI.SetModelPanel(modelPanel);
+                modelPanelUI.CreateModelPanelContent();
             }
-            modelTextRect.sizeDelta = new Vector2(0, 30);
-            currentModelText = modelTextObj.AddComponent<TextMeshProUGUI>();
-            currentModelText.text = "加载中...";
-            currentModelText.fontSize = 20; // 调大字体 (16 -> 20)
-            currentModelText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
-            currentModelText.alignment = TextAlignmentOptions.Left;
-            ApplyFontToTMP(currentModelText);
-
-            // 更改模型按钮
-            changeModelButton = CreateButton(modelPanel.transform, "更改模型", new Vector2(200, 40));
-
-            // 重置模型按钮
-            resetModelButton = CreateButton(modelPanel.transform, "重置为默认模型", new Vector2(200, 40));
+            else
+            {
+                Debug.LogError("ModelPanelUI组件未找到，无法创建模型面板内容");
+            }
         }
 
         void CreateSettingsPanelContent()
@@ -1027,7 +931,7 @@ namespace MATE_ENGINE___Scripts.Tools
             changelogText.fontSize = 20; // 调大字体 (16 -> 20)
             changelogText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
             changelogText.alignment = TextAlignmentOptions.TopLeft;
-            ApplyFontToTMP(changelogText);
+            FontManager.ApplyFont(changelogText);
 
             ContentSizeFitter fitter = changelogTextObj.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -1078,7 +982,7 @@ namespace MATE_ENGINE___Scripts.Tools
             text.fontSize = 44; // 调大字体 (36 -> 44)
             text.color = Color.white;
             text.alignment = TextAlignmentOptions.Center;
-            ApplyFontToTMP(text);
+            FontManager.ApplyFont(text);
         }
 
         GameObject CreateLabel(Transform parent, string text, float fontSize)
@@ -1098,7 +1002,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 标签文字：深色
             labelText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
             labelText.alignment = TextAlignmentOptions.Left;
-            ApplyFontToTMP(labelText);
+            FontManager.ApplyFont(labelText);
             return label;
         }
 
@@ -1142,7 +1046,7 @@ namespace MATE_ENGINE___Scripts.Tools
             textComp.fontSize = 22; // 调大字体 (18 -> 22)
             textComp.color = Color.white;
             textComp.alignment = TextAlignmentOptions.Center;
-            ApplyFontToTMP(textComp);
+            FontManager.ApplyFont(textComp);
 
             return btn;
         }
@@ -1167,7 +1071,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 输入内容文字：深色
             textComp.color = new Color(0.12f, 0.12f, 0.12f, 1f);
             textComp.alignment = TextAlignmentOptions.TopLeft;
-            ApplyFontToTMP(textComp);
+            FontManager.ApplyFont(textComp);
 
             return textComp;
         }
@@ -1248,7 +1152,9 @@ namespace MATE_ENGINE___Scripts.Tools
                         Image img = modelTabButton.GetComponent<Image>();
                         if (img != null) img.color = new Color(0.20f, 0.38f, 0.70f, 1f);
                     }
-                    UpdateModelInfo();
+                    // 委托给ModelPanelUI更新模型信息
+                    if (modelPanelUI != null)
+                        modelPanelUI.UpdateModelInfo();
                     break;
                 case 2: // Settings
                     if (settingsPanel != null)
@@ -1289,61 +1195,7 @@ namespace MATE_ENGINE___Scripts.Tools
         }
 
         // 旧的OnGenerateSpeech和WaitForSpeechGeneration方法已移除，新版本在文件末尾
-
-        void OnChangeModel()
-        {
-            if (vrmLoader == null)
-            {
-                Debug.LogWarning("VRMLoader组件未找到");
-                return;
-            }
-
-            // 注意：根据VRMLoader的实现，LoadVRM方法已被禁用
-            // 这里可以显示一个提示
-            Debug.Log("模型更改功能：当前版本仅支持默认模型");
-            if (currentModelText != null)
-                currentModelText.text = "提示：当前版本仅支持默认模型";
-        }
-
-        void OnResetModel()
-        {
-            if (vrmLoader == null)
-            {
-                Debug.LogWarning("VRMLoader组件未找到");
-                return;
-            }
-
-            vrmLoader.ResetModel();
-            UpdateModelInfo();
-        }
-
-        void UpdateModelInfo()
-        {
-            if (currentModelText == null) return;
-
-            if (vrmLoader == null)
-            {
-                currentModelText.text = "VRMLoader未找到";
-                return;
-            }
-
-            // 尝试获取当前模型名称
-            Transform modelRoot = GameObject.Find("Model")?.transform;
-            if (modelRoot != null)
-            {
-                for (int i = 0; i < modelRoot.childCount; i++)
-                {
-                    var child = modelRoot.GetChild(i).gameObject;
-                    if (child.activeInHierarchy)
-                    {
-                        currentModelText.text = $"当前模型：{child.name}";
-                        return;
-                    }
-                }
-            }
-
-            currentModelText.text = "当前模型：默认模型";
-        }
+        // 模型相关方法已移至ModelPanelUI.cs
 
         void LoadChangelog()
         {
@@ -1408,7 +1260,7 @@ namespace MATE_ENGINE___Scripts.Tools
                     LoadChangelog();
                     
                     // 应用字体到所有 TextMeshPro 组件
-                    ApplyFontToAllTMP();
+                    FontManager.ApplyFontToAll(mainPanel);
                     
                     Debug.Log($"设置面板子组件创建完成，子对象数量: {mainPanel.transform.childCount}");
                     
@@ -1430,7 +1282,7 @@ namespace MATE_ENGINE___Scripts.Tools
                     SetupUI();
                     
                     // 应用字体到所有 TextMeshPro 组件
-                    ApplyFontToAllTMP();
+                    FontManager.ApplyFontToAll(mainPanel);
                 }
 
                 // 确保Canvas存在且正确设置（使用与数字人相同的Canvas）
@@ -1731,7 +1583,7 @@ namespace MATE_ENGINE___Scripts.Tools
             fileNameText.overflowMode = TextOverflowModes.Ellipsis;
             fileNameText.extraPadding = true;
             fileNameText.margin = new Vector4(50, 0, 0, 0);
-            ApplyFontToTMP(fileNameText);
+            FontManager.ApplyFont(fileNameText);
 
             LayoutElement fileNameLayout = fileNameObj.AddComponent<LayoutElement>();
             fileNameLayout.minWidth = 0;
@@ -1756,7 +1608,7 @@ namespace MATE_ENGINE___Scripts.Tools
             pageCountText.fontSize = 18;
             pageCountText.color = new Color(0.5f, 0.5f, 0.5f, 1f);
             pageCountText.alignment = TextAlignmentOptions.Center;
-            ApplyFontToTMP(pageCountText);
+            FontManager.ApplyFont(pageCountText);
 
             // 配置状态
             GameObject statusObj = new GameObject("Status");
@@ -1777,7 +1629,7 @@ namespace MATE_ENGINE___Scripts.Tools
             statusText.fontSize = 18;
             statusText.color = GetStatusColor(pptInfo.configStatus);
             statusText.alignment = TextAlignmentOptions.Center;
-            ApplyFontToTMP(statusText);
+            FontManager.ApplyFont(statusText);
 
             // 创建列表项数据
             PPTListItem listItem = new PPTListItem
