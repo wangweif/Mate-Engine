@@ -1947,6 +1947,8 @@ namespace MATE_ENGINE___Scripts.Tools
 
                 pptController.OpenPPT();
             }
+            // 关闭UI界面
+            mainPanel.SetActive(false);
         }
 
         /// <summary>
