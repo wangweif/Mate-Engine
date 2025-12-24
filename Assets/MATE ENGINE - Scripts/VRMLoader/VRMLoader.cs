@@ -25,35 +25,63 @@ public class VRMLoader : MonoBehaviour
     private RuntimeGltfInstance currentGltf;
     [SerializeField] private string modelName = "";
 
+    private const string SelectedModelPrefsKey = "MATE_ENGINE_SELECTED_VRM";
+
+    private string GetRootPath()
+    {
+        var parent = Directory.GetParent(Application.dataPath);
+        return parent != null ? parent.FullName : Application.dataPath;
+    }
+
+    private string GetModelsRootPath()
+    {
+        return Path.Combine(GetRootPath(), "Models");
+    }
+
+    private string ResolveModelPath(string modelPathOrFileName)
+    {
+        if (string.IsNullOrEmpty(modelPathOrFileName)) return null;
+
+        if (File.Exists(modelPathOrFileName))
+        {
+            return modelPathOrFileName;
+        }
+
+        var modelsRoot = GetModelsRootPath();
+        if (!Directory.Exists(modelsRoot)) return null;
+
+        var fileName = Path.GetFileName(modelPathOrFileName);
+        foreach (var file in Directory.EnumerateFiles(modelsRoot, "*.vrm", SearchOption.AllDirectories))
+        {
+            if (string.Equals(Path.GetFileName(file), fileName, StringComparison.OrdinalIgnoreCase))
+            {
+                return file;
+            }
+        }
+
+        return null;
+    }
+
     void Start()
     {
-        if (modelName == "")
+        var savedModel = PlayerPrefs.GetString(SelectedModelPrefsKey, "");
+        if (!string.IsNullOrEmpty(savedModel))
         {
-            modelName = "test1.vrm";
-        }
-        string defaultModelPath;
-
-        // 在编辑器中，Application.dataPath是项目/Assets目录
-        // 在打包后，Application.dataPath是游戏数据目录，需要回到上级目录
-        if (Application.dataPath.Contains("/Assets"))
-        {
-            // 编辑器模式
-            string projectRoot = Application.dataPath.Replace("/Assets", "");
-            defaultModelPath = Path.Combine(projectRoot, modelName);
-        }
-        else
-        {
-            // 打包模式：Application.dataPath是xxx_Data目录，需要回到上一级目录（exe所在目录）
-            string exeDirectory = Directory.GetParent(Application.dataPath).FullName;
-            defaultModelPath = Path.Combine(exeDirectory, modelName);
+            modelName = savedModel;
         }
 
-        if (File.Exists(defaultModelPath))
+        if (string.IsNullOrEmpty(modelName))
         {
-            LoadDefaultModelOnly(defaultModelPath);
+            modelName = "xiaozhi.vrm";
+        }
+
+        var resolvedPath = ResolveModelPath(modelName);
+        if (!string.IsNullOrEmpty(resolvedPath))
+        {
+            modelName = Path.GetFileName(resolvedPath);
+            LoadDefaultModelOnly(resolvedPath);
             return;
         }
-
         // 如果默认模型不存在，使用内置默认模型
         ActivateDefaultModel();
     }
@@ -553,28 +581,18 @@ public class VRMLoader : MonoBehaviour
             return;
         }
 
-        modelName = newModelName;
-
-        string modelPath;
-        if (Application.dataPath.Contains("/Assets"))
+        var resolvedPath = ResolveModelPath(newModelName);
+        if (string.IsNullOrEmpty(resolvedPath) || !File.Exists(resolvedPath))
         {
-            string projectRoot = Application.dataPath.Replace("/Assets", "");
-            modelPath = Path.Combine(projectRoot, modelName);
-        }
-        else
-        {
-            string exeDirectory = Directory.GetParent(Application.dataPath).FullName;
-            modelPath = Path.Combine(exeDirectory, modelName);
+            Debug.LogError($"[VRMLoader] Model file not found: {newModelName}");
+            return;
         }
 
-        if (File.Exists(modelPath))
-        {
-            LoadDefaultModelOnly(modelPath);
-        }
-        else
-        {
-            Debug.LogError($"[VRMLoader] Model file not found: {modelPath}");
-        }
+        modelName = Path.GetFileName(resolvedPath);
+        PlayerPrefs.SetString(SelectedModelPrefsKey, modelName);
+        PlayerPrefs.Save();
+
+        LoadDefaultModelOnly(resolvedPath);
     }
 }
 public sealed class GltfInstanceDisposer : MonoBehaviour

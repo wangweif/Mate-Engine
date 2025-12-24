@@ -19,6 +19,8 @@ namespace MATE_ENGINE___Scripts.Tools
         private List<ModelListItem> modelItems = new List<ModelListItem>();
         private string currentSelectedModel = "";
 
+        private const string SelectedModelPrefsKey = "MATE_ENGINE_SELECTED_VRM";
+
         void Start()
         {
             InitializeComponents();
@@ -278,7 +280,9 @@ namespace MATE_ENGINE___Scripts.Tools
             }
 
             // 更新当前选中的模型
-            currentSelectedModel = modelFileName;
+            currentSelectedModel = Path.GetFileName(modelFileName);
+            PlayerPrefs.SetString(SelectedModelPrefsKey, currentSelectedModel);
+            PlayerPrefs.Save();
             
             // 更新所有列表项的选中状态
             UpdateAllItemSelections();
@@ -294,8 +298,7 @@ namespace MATE_ENGINE___Scripts.Tools
         /// </summary>
         void GetCurrentSelectedModel()
         {
-            // 默认选中第一个模型（test1.vrm）
-            currentSelectedModel = "test1.vrm";
+            currentSelectedModel = PlayerPrefs.GetString(SelectedModelPrefsKey, "");
         }
 
         /// <summary>
@@ -314,7 +317,7 @@ namespace MATE_ENGINE___Scripts.Tools
         /// </summary>
         void UpdateItemSelection(ModelListItem item)
         {
-            bool isSelected = item.fileName == currentSelectedModel;
+            bool isSelected = Path.GetFileName(item.fileName) == currentSelectedModel;
             
             // 更新选中标记显示
             item.checkmarkText.gameObject.SetActive(isSelected);
