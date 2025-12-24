@@ -70,7 +70,7 @@ namespace MATE_ENGINE___Scripts.Tools
         /// </summary>
         void CreateModelList()
         {
-            List<string> modelFiles = GetVRMFilesFromRoot();
+            List<string> modelFiles = GetVRMFilesFromModels();
             
             foreach (string modelFile in modelFiles)
             {
@@ -81,10 +81,10 @@ namespace MATE_ENGINE___Scripts.Tools
         /// <summary>
         /// 获取根目录下的VRM文件
         /// </summary>
-        List<string> GetVRMFilesFromRoot()
+        List<string> GetVRMFilesFromModels()
         {
             List<string> vrmFiles = new List<string>();
-            
+
             string rootPath;
             if (Application.dataPath.Contains("/Assets"))
             {
@@ -95,16 +95,62 @@ namespace MATE_ENGINE___Scripts.Tools
                 rootPath = Directory.GetParent(Application.dataPath).FullName;
             }
 
-            if (Directory.Exists(rootPath))
+            string modelsPath = Path.Combine(rootPath, "Models");
+
+            if (Directory.Exists(modelsPath))
             {
-                string[] files = Directory.GetFiles(rootPath, "*.vrm");
+                // 递归查找所有子目录中的 .vrm
+                string[] files = Directory.GetFiles(modelsPath, "*.vrm", SearchOption.AllDirectories);
                 foreach (string file in files)
                 {
-                    vrmFiles.Add(Path.GetFileName(file));
+                    vrmFiles.Add(file); // 如果你只想要文件名，用 Path.GetFileName(file)
                 }
             }
 
             return vrmFiles;
+        }
+
+        /// <summary>
+        /// 获取模型图片路径
+        /// </summary>
+        string GetModelImagePath(string modelFilePath)
+        {
+            string directory = Path.GetDirectoryName(modelFilePath);
+            string modelNameWithoutExt = Path.GetFileNameWithoutExtension(modelFilePath);
+            
+            // 支持的图片格式
+            string[] imageExtensions = { ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
+            
+            foreach (string ext in imageExtensions)
+            {
+                string imagePath = Path.Combine(directory, modelNameWithoutExt + ext);
+                if (File.Exists(imagePath))
+                {
+                    return imagePath;
+                }
+            }
+            
+            return null;
+        }
+
+        /// <summary>
+        /// 加载图片为Texture2D
+        /// </summary>
+        Texture2D LoadImageTexture(string imagePath)
+        {
+            if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath))
+                return null;
+
+            byte[] imageData = File.ReadAllBytes(imagePath);
+            Texture2D texture = new Texture2D(2, 2);
+            
+            if (texture.LoadImage(imageData))
+            {
+                return texture;
+            }
+            
+            Destroy(texture);
+            return null;
         }
 
         /// <summary>
@@ -116,7 +162,7 @@ namespace MATE_ENGINE___Scripts.Tools
             itemObj.transform.SetParent(modelPanel.transform, false);
             
             RectTransform itemRect = itemObj.AddComponent<RectTransform>();
-            itemRect.sizeDelta = new Vector2(0, 50);
+            itemRect.sizeDelta = new Vector2(0, 80);
 
             // 添加背景图片组件用于高亮
             Image backgroundImage = itemObj.AddComponent<Image>();
@@ -129,7 +175,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 创建水平布局
             HorizontalLayoutGroup horizontalLayout = itemObj.AddComponent<HorizontalLayoutGroup>();
             horizontalLayout.padding = new RectOffset(15, 15, 10, 10);
-            horizontalLayout.spacing = 10;
+            horizontalLayout.spacing = 15;
             horizontalLayout.childControlWidth = false;
             horizontalLayout.childControlHeight = false;
             horizontalLayout.childForceExpandWidth = false;
@@ -152,6 +198,37 @@ namespace MATE_ENGINE___Scripts.Tools
             LayoutElement checkmarkLayout = checkmarkObj.AddComponent<LayoutElement>();
             checkmarkLayout.minWidth = 30;
             checkmarkLayout.preferredWidth = 30;
+
+            // 创建模型图片
+            GameObject imageObj = new GameObject("ModelImage");
+            imageObj.transform.SetParent(itemObj.transform, false);
+            RectTransform imageRect = imageObj.AddComponent<RectTransform>();
+            imageRect.sizeDelta = new Vector2(60, 60);
+            
+            Image modelImageComponent = imageObj.AddComponent<Image>();
+            modelImageComponent.color = Color.white;
+            
+            // 尝试加载模型图片
+            string imagePath = GetModelImagePath(modelFileName);
+            Texture2D imageTexture = LoadImageTexture(imagePath);
+            
+            if (imageTexture != null)
+            {
+                Sprite imageSprite = Sprite.Create(imageTexture, new Rect(0, 0, imageTexture.width, imageTexture.height), new Vector2(0.5f, 0.5f));
+                modelImageComponent.sprite = imageSprite;
+                modelImageComponent.preserveAspect = true;
+            }
+            else
+            {
+                // 如果没有找到图片，显示默认颜色或隐藏
+                modelImageComponent.color = new Color(0.8f, 0.8f, 0.8f, 0.3f);
+            }
+            
+            LayoutElement imageLayout = imageObj.AddComponent<LayoutElement>();
+            imageLayout.minWidth = 60;
+            imageLayout.preferredWidth = 60;
+            imageLayout.minHeight = 60;
+            imageLayout.preferredHeight = 60;
 
             // 创建模型名称文本
             GameObject nameObj = new GameObject("ModelName");
@@ -176,7 +253,8 @@ namespace MATE_ENGINE___Scripts.Tools
                 backgroundImage = backgroundImage,
                 checkmarkText = checkmarkText,
                 nameText = nameText,
-                button = itemButton
+                button = itemButton,
+                modelImage = modelImageComponent
             };
 
             modelItems.Add(item);
@@ -299,5 +377,6 @@ namespace MATE_ENGINE___Scripts.Tools
         public TMP_Text checkmarkText;
         public TMP_Text nameText;
         public Button button;
+        public Image modelImage;
     }
 }
