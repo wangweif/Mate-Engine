@@ -81,23 +81,21 @@ namespace MATE_ENGINE___Scripts.Tools
         }
 
         /// <summary>
-        /// 获取根目录下的VRM文件
+        /// 获取Models目录下的VRM文件
         /// </summary>
         List<string> GetVRMFilesFromModels()
         {
             List<string> vrmFiles = new List<string>();
 
-            string rootPath;
+            string modelsPath;
             if (Application.dataPath.Contains("/Assets"))
             {
-                rootPath = Application.dataPath.Replace("/Assets", "");
+                modelsPath = Path.Combine(Application.dataPath, "StreamingAssets/Models");
             }
             else
             {
-                rootPath = Directory.GetParent(Application.dataPath).FullName;
+                modelsPath = Path.Combine(Application.streamingAssetsPath,"Models");
             }
-
-            string modelsPath = Path.Combine(rootPath, "Models");
 
             if (Directory.Exists(modelsPath))
             {

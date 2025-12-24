@@ -24,43 +24,7 @@ public class VRMLoader : MonoBehaviour
     private GameObject currentModel;
     private RuntimeGltfInstance currentGltf;
     [SerializeField] private string modelName = "";
-
-    private const string SelectedModelPrefsKey = "MATE_ENGINE_SELECTED_VRM";
-
-    private string GetRootPath()
-    {
-        var parent = Directory.GetParent(Application.dataPath);
-        return parent != null ? parent.FullName : Application.dataPath;
-    }
-
-    private string GetModelsRootPath()
-    {
-        return Path.Combine(GetRootPath(), "Models");
-    }
-
-    private string ResolveModelPath(string modelPathOrFileName)
-    {
-        if (string.IsNullOrEmpty(modelPathOrFileName)) return null;
-
-        if (File.Exists(modelPathOrFileName))
-        {
-            return modelPathOrFileName;
-        }
-
-        var modelsRoot = GetModelsRootPath();
-        if (!Directory.Exists(modelsRoot)) return null;
-
-        var fileName = Path.GetFileName(modelPathOrFileName);
-        foreach (var file in Directory.EnumerateFiles(modelsRoot, "*.vrm", SearchOption.AllDirectories))
-        {
-            if (string.Equals(Path.GetFileName(file), fileName, StringComparison.OrdinalIgnoreCase))
-            {
-                return file;
-            }
-        }
-
-        return null;
-    }
+    private const string SelectedModelPrefsKey = "MATE_ENGINE_SELECTED_VRM";    
 
     void Start()
     {
@@ -69,19 +33,34 @@ public class VRMLoader : MonoBehaviour
         {
             modelName = savedModel;
         }
-
-        if (string.IsNullOrEmpty(modelName))
+        else
         {
             modelName = "xiaozhi.vrm";
         }
-
-        var resolvedPath = ResolveModelPath(modelName);
-        if (!string.IsNullOrEmpty(resolvedPath))
+        string modelsPath;
+        if (Application.dataPath.Contains("/Assets"))
         {
-            modelName = Path.GetFileName(resolvedPath);
-            LoadDefaultModelOnly(resolvedPath);
-            return;
+            modelsPath = Path.Combine(Application.dataPath, "StreamingAssets/Models");
         }
+        else
+        {
+            modelsPath = Path.Combine(Application.streamingAssetsPath,"Models");
+        }
+
+        if (Directory.Exists(modelsPath))
+        {
+            // 递归查找所有子目录中的 .vrm
+            string[] files = Directory.GetFiles(modelsPath, "*.vrm", SearchOption.AllDirectories);
+            foreach (string file in files)
+            {
+                if(Path.GetFileName(file) == modelName)
+                {
+                    LoadDefaultModelOnly(file);
+                    return;
+                }
+            }
+        }
+
         // 如果默认模型不存在，使用内置默认模型
         ActivateDefaultModel();
     }
@@ -572,29 +551,28 @@ public class VRMLoader : MonoBehaviour
     /// <summary>
     /// 切换到指定的VRM模型
     /// </summary>
-    /// <param name="newModelName">新的VRM文件名（例如：test2.vrm）</param>
-    public void SwitchModel(string newModelName)
+    public void SwitchModel(string modelPath)
     {
-        if (string.IsNullOrEmpty(newModelName))
+        if (string.IsNullOrEmpty(modelPath))
         {
             Debug.LogError("[VRMLoader] Model name cannot be empty");
             return;
         }
 
-        var resolvedPath = ResolveModelPath(newModelName);
-        if (string.IsNullOrEmpty(resolvedPath) || !File.Exists(resolvedPath))
-        {
-            Debug.LogError($"[VRMLoader] Model file not found: {newModelName}");
-            return;
-        }
-
-        modelName = Path.GetFileName(resolvedPath);
-        PlayerPrefs.SetString(SelectedModelPrefsKey, modelName);
+        PlayerPrefs.SetString(SelectedModelPrefsKey, Path.GetFileName(modelPath));
         PlayerPrefs.Save();
 
-        LoadDefaultModelOnly(resolvedPath);
+        if (File.Exists(modelPath))
+        {
+            LoadDefaultModelOnly(modelPath);
+        }
+        else
+        {
+            Debug.LogError($"[VRMLoader] Model file not found: {modelPath}");
+        }
     }
 }
+
 public sealed class GltfInstanceDisposer : MonoBehaviour
 {
     private UniGLTF.RuntimeGltfInstance inst;
