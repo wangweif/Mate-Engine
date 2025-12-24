@@ -1152,9 +1152,6 @@ namespace MATE_ENGINE___Scripts.Tools
                         Image img = modelTabButton.GetComponent<Image>();
                         if (img != null) img.color = new Color(0.20f, 0.38f, 0.70f, 1f);
                     }
-                    // 委托给ModelPanelUI更新模型信息
-                    if (modelPanelUI != null)
-                        modelPanelUI.UpdateModelInfo();
                     break;
                 case 2: // Settings
                     if (settingsPanel != null)
