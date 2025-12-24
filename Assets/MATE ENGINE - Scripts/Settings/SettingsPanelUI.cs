@@ -7,6 +7,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System;
+using System.IO.Compression;
+using System.Linq;
 
 namespace MATE_ENGINE___Scripts.Tools
 {
@@ -1754,6 +1756,17 @@ namespace MATE_ENGINE___Scripts.Tools
             return false;
         }
 
+        //获取ppt页数
+        public int GetPptxPageCount(string pptxPath)
+        {
+            using (ZipArchive zip = ZipFile.OpenRead(pptxPath))
+            {
+                return zip.Entries.Count(e =>
+                    e.FullName.StartsWith("ppt/slides/slide") &&
+                    e.FullName.EndsWith(".xml"));
+            }
+        }
+
         /// <summary>
         /// 更新按钮状态
         /// </summary>
@@ -1822,8 +1835,8 @@ namespace MATE_ENGINE___Scripts.Tools
                 newInfo.file_path = newFilePath;
                 newInfo.desc = new string[] { "" };
                 newInfo.is_uploaded = false;
-                newInfo.pageCount = 0; // 暂时设为0，后续可以通过COM接口获取
                 newInfo.configStatus = 0; // 未配置
+                newInfo.pageCount = GetPptxPageCount(newFilePath);
 
                 // 保存到JSON
                 PPTDataManager.SavePPTInfoToJson(newInfo, Path.ChangeExtension(newFileName, ".json"));
