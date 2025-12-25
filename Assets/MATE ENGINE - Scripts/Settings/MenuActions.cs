@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using System.Collections.Generic;
 using System.Reflection;
 
@@ -36,6 +37,8 @@ public class MenuActions : MonoBehaviour
 
     [Header("Perf")]
     public float avatarScanInterval = 0.25f;
+
+    [SerializeField] private GameObject chatPanel;
 
     private static readonly List<MenuActions> Instances = new();
 
@@ -120,6 +123,11 @@ public class MenuActions : MonoBehaviour
 
         if (radialDraggingBlocks && currentAnimator != null && currentAnimator.GetBool("isDragging"))
             return;
+        if (IsChatPanelOpen())
+        {
+            CloseChatPanel();
+            return;
+        }
 
         // 检查设置界面是否打开，如果打开则关闭设置界面而不是打开环形菜单
         if (IsSettingsPanelOpen())
@@ -165,6 +173,31 @@ public class MenuActions : MonoBehaviour
             print($"打开了{radialMenuObject.name}");
         }
             
+    }
+
+    bool IsChatPanelOpen()
+    {
+        if (chatPanel != null)
+        {
+            return chatPanel.activeInHierarchy;
+        }
+        Debug.LogError("Chat Panel Not Found");
+        return false;
+    }
+
+    public void CloseChatPanel()
+    {
+        try
+        {
+            if (chatPanel == null) 
+                return;
+            chatPanel.SetActive(false);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+            Debug.LogError("Close Chat Panel Error!");
+        }
     }
     
     bool IsSettingsPanelOpen()
