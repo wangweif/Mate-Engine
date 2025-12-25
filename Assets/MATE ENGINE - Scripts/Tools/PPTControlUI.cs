@@ -417,8 +417,16 @@ public class PPTControlUI : MonoBehaviour
         isMuted = !isMuted;
         UpdateMuteButton(isMuted);
         
-        // TODO: 实现实际的静音功能(需要PPT.Host.exe支持)
-        Debug.Log($"[PPTControlUI] 切换静音: {isMuted}");
+        // 实现实际的静音功能
+        if (uiSetOnOff != null && uiSetOnOff.windowsTTS != null)
+        {
+            // 通过AudioCacheManager的AudioSource控制音量
+            uiSetOnOff.windowsTTS.SetVolume(isMuted ? 0f : 1f);
+        }
+        else
+        {
+            Debug.LogWarning("[PPTControlUI] 无法控制音量,UISetOnOff或WindowsTTS未找到");
+        }
     }
     
     /// <summary>
@@ -496,6 +504,20 @@ public class PPTControlUI : MonoBehaviour
             ToggleAvatarVisibility(true);
             UpdateAvatarToggleButton(true); // 同步更新按钮图标
             Debug.Log("[PPTControlUI] PPT退出,已恢复模型显示并更新图标");
+        }
+        
+        // PPT退出时恢复音量到默认状态(非静音)
+        if (isMuted)
+        {
+            isMuted = false;
+            UpdateMuteButton(false);
+            
+            // 恢复音量
+            if (uiSetOnOff != null && uiSetOnOff.windowsTTS != null)
+            {
+                uiSetOnOff.windowsTTS.SetVolume(1f);
+                Debug.Log("[PPTControlUI] PPT退出,已恢复音量到默认状态");
+            }
         }
     }
 

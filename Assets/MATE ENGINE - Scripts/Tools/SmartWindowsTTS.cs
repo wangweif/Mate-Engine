@@ -515,8 +515,7 @@ public class SmartWindowsTTS : MonoBehaviour
     {
         if (audioCache != null)
         {
-            // 这里需要为AudioCacheManager添加音量控制
-            // audioCache.SetVolume(volume);
+            audioCache.SetVolume(Mathf.Clamp01(volume));
         }
     }
 

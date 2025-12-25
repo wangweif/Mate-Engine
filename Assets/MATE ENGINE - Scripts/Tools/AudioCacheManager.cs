@@ -415,6 +415,19 @@ try {{
     }
 
     /// <summary>
+    /// 设置音量
+    /// </summary>
+    public void SetVolume(float volume)
+    {
+        AudioSource activeAudioSource = GetAudioSource();
+        if (activeAudioSource != null)
+        {
+            activeAudioSource.volume = Mathf.Clamp01(volume);
+        }
+    }
+
+
+    /// <summary>
     /// 清理缓存
     /// </summary>
     public void ClearCache()
