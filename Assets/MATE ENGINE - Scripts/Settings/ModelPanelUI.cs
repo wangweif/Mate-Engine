@@ -20,6 +20,7 @@ namespace MATE_ENGINE___Scripts.Tools
         private string currentSelectedModel = "";
 
         private const string SelectedModelPrefsKey = "MATE_ENGINE_SELECTED_VRM";
+        private const string TtsVoicePrefsKey = "MATE_ENGINE_TTS_VOICE";
 
         void Start()
         {
@@ -289,8 +290,35 @@ namespace MATE_ENGINE___Scripts.Tools
             
             // 切换模型
             vrmLoader.SwitchModel(modelFileName);
-            
+
+            // 根据模型名称设置对应的TTS语音
+            string voice = GetVoiceForModel(currentSelectedModel);
+            PlayerPrefs.SetString(TtsVoicePrefsKey, voice);
+            PlayerPrefs.Save();
+                
             Debug.Log($"[ModelPanelUI] 选中模型: {modelFileName}");
+        }
+
+        /// <summary>
+        /// 根据模型名称获取对应的语音
+        /// </summary>
+        string GetVoiceForModel(string modelName)
+        {
+            // 移除文件扩展名，如果有的话
+            string baseName = Path.GetFileNameWithoutExtension(modelName);
+
+            switch (baseName.ToLower())
+            {
+                case "male01":
+                    return "aisjiuxu";
+                case "female01":
+                    return "x4_xiaoyan";
+                case "xiaozhi":
+                    return "x4_yezi";
+                default:
+                    Debug.LogWarning($"[ModelPanelUI] 未知模型 {baseName}，使用默认语音");
+                    return "x4_yezi"; // 默认语音
+            }
         }
 
         /// <summary>
@@ -298,7 +326,7 @@ namespace MATE_ENGINE___Scripts.Tools
         /// </summary>
         void GetCurrentSelectedModel()
         {
-            currentSelectedModel = PlayerPrefs.GetString(SelectedModelPrefsKey, "");
+            currentSelectedModel = PlayerPrefs.GetString(SelectedModelPrefsKey, "xiaozhi");
         }
 
         /// <summary>

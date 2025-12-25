@@ -151,6 +151,7 @@ namespace LLMUnitySamples
         private List<float> currentSpeechBuffer = new List<float>();
         private XunFeiSpeechService xunFeiSpeechService;
         private CancellationTokenSource ttsCts;
+        private const string TtsVoicePrefsKey = "MATE_ENGINE_TTS_VOICE";
 
         // 离线模式相关
         [Header("离线模式")]
@@ -2114,7 +2115,10 @@ namespace LLMUnitySamples
                 yield break;
             }
 
-            Task<byte[]> ttsTask = xunFeiSpeechService.RequestTtsAsync(text, ttsCts.Token);
+            // 获取当前voice
+            string voice = PlayerPrefs.GetString(TtsVoicePrefsKey, "x4_yezi");
+
+            Task<byte[]> ttsTask = xunFeiSpeechService.RequestTtsAsync(text, ttsCts.Token, voice);
             while (!ttsTask.IsCompleted)
             {
                 if (ttsCts.IsCancellationRequested || !isTTSPlaying)

@@ -25,6 +25,7 @@ public class AudioCacheManager : MonoBehaviour
     
     // 讯飞语音服务
     private XunFeiSpeechService xunFeiSpeechService;
+    private const string TtsVoicePrefsKey = "MATE_ENGINE_TTS_VOICE";
 
     void Awake()
     {
@@ -195,7 +196,8 @@ try {{
         
         try
         {
-            ttsTask = xunFeiSpeechService.RequestTtsAsync(text, cts.Token);
+            string ttsVoice = PlayerPrefs.GetString(TtsVoicePrefsKey, "x4_yezi");
+            ttsTask = xunFeiSpeechService.RequestTtsAsync(text, cts.Token, ttsVoice);
         }
         catch (System.Exception e)
         {
