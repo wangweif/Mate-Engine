@@ -113,9 +113,7 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 Debug.Log("演讲稿生成成功！");
                 string descText = currentRequest.downloadHandler.text;
-
                 string[] descArray = toStringArray(descText);
-
                 // string desc = string.Join(Environment.NewLine, descArray);
                 
                 // 触发回调事件
@@ -174,10 +172,30 @@ namespace MATE_ENGINE___Scripts.Tools
         /// </summary>
         private string[] SplitByMultipleNewLines(string input)
         {
-            string[] result = Regex.Split(input, @"[\r\n]+");
+            if (string.IsNullOrEmpty(input))
+            {
+                Debug.LogWarning("输入字符串为空");
+                return new string[] { };
+            }
+
+            // 先将转义的换行符(\n)替换为真实的换行符
+            string processedInput = input.Replace("\\n", "\n").Replace("\\r", "\r");
+            
+            // 使用正则表达式按一个或多个连续的换行符分割
+            string[] result = Regex.Split(processedInput, @"[\r\n]+");
+            
+            // 去除空白并过滤空行
             result = result.Select(line => line.Trim())
                 .Where(line => !string.IsNullOrWhiteSpace(line))
                 .ToArray();
+            
+            // 正确的调试输出
+            Debug.Log($"分割结果: 共 {result.Length} 个元素");
+            for (int i = 0; i < result.Length; i++)
+            {
+                Debug.Log($"[{i}]: {result[i]}");
+            }
+            
             return result;
         }
     }
