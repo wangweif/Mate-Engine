@@ -58,11 +58,10 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 layout = modelPanel.AddComponent<VerticalLayoutGroup>();
             }
-            layout.spacing = 10;
-            layout.padding = new RectOffset(20, 20, 20, 20);
-            layout.childForceExpandWidth = true;
-            layout.childControlHeight = false;
-
+            layout.spacing = 2;
+            layout.padding = new RectOffset(8, 8, 8, 8);
+            layout.childForceExpandHeight = false;
+            layout.childControlHeight = true;
             // 创建模型列表
             CreateModelList();
         }
