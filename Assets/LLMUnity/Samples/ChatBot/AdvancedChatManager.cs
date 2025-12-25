@@ -97,6 +97,7 @@ public class AdvancedChatManager : MonoBehaviour
     private const int maxRecordingLength = 60; // 最大录制60秒
     private string microphoneDevice;
     private bool isRecording = false;
+    private const string TtsVoicePrefsKey = "MATE_ENGINE_TTS_VOICE";
 
     [System.Serializable]
     public class MessageData
@@ -850,7 +851,9 @@ public class AdvancedChatManager : MonoBehaviour
             yield break;
         }
 
-        Task<byte[]> ttsTask = xunFeiSpeechService.RequestTtsAsync(text, ttsCts.Token);
+        // 获取当前voice
+        string voice = PlayerPrefs.GetString(TtsVoicePrefsKey, "x4_yezi");
+        Task<byte[]> ttsTask = xunFeiSpeechService.RequestTtsAsync(text, ttsCts.Token, voice);
         while (!ttsTask.IsCompleted)
         {
             if (ttsCts.IsCancellationRequested || !isTTSPlaying)
