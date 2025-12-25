@@ -1,0 +1,466 @@
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+using System;
+using MateEngine.PPT;
+using MATE_ENGINE___Scripts.Tools;
+
+/// <summary>
+/// PPT控制UI组件
+/// 提供浮动控制栏用于控制PPT播放、翻页、静音等功能
+/// 基于PPTService架构
+/// </summary>
+public class PPTControlUI : MonoBehaviour
+{
+    [Header("引用")]
+    public Canvas parentCanvas;
+    public PPTService pptService;
+    public UISetOnOff uiSetOnOff;
+
+    [Header("UI元素")]
+    private GameObject controlBar;
+    private Button playPauseButton;
+    private Button previousButton;
+    private Button nextButton;
+    private Button muteButton;
+    private TMP_Text pageDisplay;
+    
+    // 按钮图标Image
+    private Image playPauseIcon;
+    private Image previousIcon;
+    private Image nextIcon;
+    private Image muteIcon;
+    
+    // 图标Sprite资源
+    private Sprite playSprite;
+    private Sprite pauseSprite;
+    private Sprite previousSprite;
+    private Sprite nextSprite;
+    private Sprite volumeSprite;
+    private Sprite muteSprite;
+    private Sprite userSprite;
+
+    private bool isVisible = false;
+    private bool isMuted = false;
+
+    void Start()
+    {
+        // 查找Canvas
+        if (parentCanvas == null)
+        {
+            parentCanvas = FindObjectOfType<Canvas>();
+        }
+
+        // 查找PPTService
+        if (pptService == null)
+        {
+            pptService = PPTService.Instance;
+            if (pptService == null)
+            {
+                pptService = FindObjectOfType<PPTService>();
+            }
+        }
+
+        // 查找UISetOnOff
+        if (uiSetOnOff == null)
+        {
+            uiSetOnOff = FindObjectOfType<UISetOnOff>();
+        }
+        
+        // 主动注册到UISetOnOff
+        if (uiSetOnOff != null)
+        {
+            uiSetOnOff.pptControlUI = this;
+            Debug.Log("[PPTControlUI] 已主动注册到UISetOnOff");
+        }
+        else
+        {
+            Debug.LogWarning("[PPTControlUI] UISetOnOff未找到,无法注册");
+        }
+
+        // 加载图标资源
+        LoadIconSprites();
+        
+        // 创建UI
+        CreateControlBar();
+
+        // 订阅PPTService事件
+        if (pptService != null)
+        {
+            pptService.OnSlideChanged += OnSlideChanged;
+            pptService.OnPresentationClosed += OnPresentationClosed;
+            Debug.Log("[PPTControlUI] 已订阅PPTService事件");
+        }
+        else
+        {
+            Debug.LogWarning("[PPTControlUI] PPTService未找到");
+        }
+
+        // 默认隐藏
+        HideControlBar();
+    }
+
+    void OnDestroy()
+    {
+        // 取消订阅事件
+        if (pptService != null)
+        {
+            pptService.OnSlideChanged -= OnSlideChanged;
+            pptService.OnPresentationClosed -= OnPresentationClosed;
+        }
+    }
+
+    /// <summary>
+    /// 加载图标Sprite资源
+    /// </summary>
+    void LoadIconSprites()
+    {
+        // 使用Resources.Load加载资源(支持运行时)
+        playSprite = Resources.Load<Sprite>("PPTIcons/播放");
+        pauseSprite = Resources.Load<Sprite>("PPTIcons/暂停");
+        previousSprite = Resources.Load<Sprite>("PPTIcons/上一页");
+        nextSprite = Resources.Load<Sprite>("PPTIcons/下一页");
+        volumeSprite = Resources.Load<Sprite>("PPTIcons/声音");
+        muteSprite = Resources.Load<Sprite>("PPTIcons/静音");
+        
+        // 检查加载结果
+        if (playSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载播放图标");
+        if (pauseSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载暂停图标");
+        if (previousSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载上一页图标");
+        if (nextSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载下一页图标");
+        if (volumeSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载声音图标");
+        if (muteSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载静音图标");
+    }
+
+    /// <summary>
+    /// 创建控制栏UI
+    /// </summary>
+    void CreateControlBar()
+    {
+        // 创建主容器
+        controlBar = new GameObject("PPTControlBar");
+        controlBar.transform.SetParent(parentCanvas.transform, false);
+
+        RectTransform barRect = controlBar.AddComponent<RectTransform>();
+        barRect.anchorMin = new Vector2(0.5f, 0f);
+        barRect.anchorMax = new Vector2(0.5f, 0f);
+        barRect.pivot = new Vector2(0.5f, 0f);
+        barRect.anchoredPosition = new Vector2(0, 30);
+        barRect.sizeDelta = new Vector2(500, 70); // 增加宽度以容纳所有按钮
+
+        // 添加白色背景
+        Image bgImage = controlBar.AddComponent<Image>();
+        bgImage.color = new Color(1f, 1f, 1f, 0.95f); // 白色背景
+        bgImage.raycastTarget = true;
+
+        // 添加水平布局
+        HorizontalLayoutGroup layout = controlBar.AddComponent<HorizontalLayoutGroup>();
+        layout.childAlignment = TextAnchor.MiddleCenter;
+        layout.spacing = 10;
+        layout.padding = new RectOffset(20, 20, 10, 10);
+        layout.childForceExpandWidth = false;
+        layout.childForceExpandHeight = false;
+        layout.childControlWidth = false;
+        layout.childControlHeight = false;
+
+        // 创建按钮和显示元素(使用PNG图标)
+        playPauseButton = CreateImageButton(controlBar.transform, "PlayPause", playSprite, OnPlayPauseClicked);
+        previousButton = CreateImageButton(controlBar.transform, "Previous", previousSprite, OnPreviousSlideClicked);
+        nextButton = CreateImageButton(controlBar.transform, "Next", nextSprite, OnNextSlideClicked);
+        
+        // 页码显示
+        pageDisplay = CreatePageDisplay(controlBar.transform);
+        
+        muteButton = CreateImageButton(controlBar.transform, "Mute", volumeSprite, OnMuteClicked);
+        
+        // 用户按钮
+        CreateImageButton(controlBar.transform, "User", userSprite, null);
+
+        // 初始化显示
+        UpdatePageDisplay(1, 0);
+    }
+
+    /// <summary>
+    /// 创建图标按钮(使用Image)
+    /// </summary>
+    Button CreateImageButton(Transform parent, string name, Sprite iconSprite, UnityEngine.Events.UnityAction onClick)
+    {
+        GameObject btnObj = new GameObject($"Button_{name}");
+        btnObj.transform.SetParent(parent, false);
+
+        RectTransform btnRect = btnObj.AddComponent<RectTransform>();
+        btnRect.sizeDelta = new Vector2(50, 50); // 按钮大小
+
+        Image btnBg = btnObj.AddComponent<Image>();
+        btnBg.color = new Color(1f, 1f, 1f, 0f); // 透明按钮背景
+
+        Button btn = btnObj.AddComponent<Button>();
+        if (onClick != null)
+        {
+            btn.onClick.AddListener(onClick);
+        }
+
+        // 按钮颜色 - 透明主题
+        ColorBlock colors = btn.colors;
+        colors.normalColor = new Color(1f, 1f, 1f, 0f);
+        colors.highlightedColor = new Color(0.9f, 0.9f, 0.9f, 0.3f);
+        colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 0.5f);
+        colors.disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.2f);
+        btn.colors = colors;
+
+        // 图标Image
+        GameObject iconObj = new GameObject("Icon");
+        iconObj.transform.SetParent(btnObj.transform, false);
+
+        RectTransform iconRect = iconObj.AddComponent<RectTransform>();
+        iconRect.anchorMin = Vector2.zero;
+        iconRect.anchorMax = Vector2.one;
+        iconRect.offsetMin = new Vector2(8, 8);
+        iconRect.offsetMax = new Vector2(-8, -8);
+
+        Image iconImage = iconObj.AddComponent<Image>();
+        iconImage.sprite = iconSprite;
+        iconImage.color = new Color(0.2f, 0.2f, 0.2f, 1f); // 深色图标
+        iconImage.raycastTarget = false;
+
+        // 保存图标Image引用
+        if (name == "PlayPause")
+            playPauseIcon = iconImage;
+        else if (name == "Previous")
+            previousIcon = iconImage;
+        else if (name == "Next")
+            nextIcon = iconImage;
+        else if (name == "Mute")
+            muteIcon = iconImage;
+
+        return btn;
+    }
+
+    /// <summary>
+    /// 创建页码显示
+    /// </summary>
+    TMP_Text CreatePageDisplay(Transform parent)
+    {
+        GameObject displayObj = new GameObject("PageDisplay");
+        displayObj.transform.SetParent(parent, false);
+
+        RectTransform displayRect = displayObj.AddComponent<RectTransform>();
+        displayRect.sizeDelta = new Vector2(100, 50); // 初始宽度,会被 ContentSizeFitter 覆盖
+        
+        // 添加 ContentSizeFitter 使宽度自适应
+        ContentSizeFitter fitter = displayObj.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        fitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+        TMP_Text displayText = displayObj.AddComponent<TextMeshProUGUI>();
+        displayText.text = "1 / 4";
+        displayText.fontSize = 22; // 稍微增大字体
+        displayText.color = new Color(0.2f, 0.2f, 0.2f, 1f); // 深色文字
+        displayText.alignment = TextAlignmentOptions.Center;
+        displayText.fontStyle = FontStyles.Bold;
+        displayText.margin = new Vector4(10, 0, 10, 0); // 左右边距
+        FontManager.ApplyFont(displayText);
+
+        return displayText;
+    }
+
+    /// <summary>
+    /// 显示控制栏
+    /// </summary>
+    public void ShowControlBar()
+    {
+        if (controlBar != null)
+        {
+            controlBar.SetActive(true);
+            isVisible = true;
+            
+            // 更新页码显示
+            if (pptService != null)
+            {
+                int current = pptService.GetCurrentSlide();
+                int total = pptService.GetTotalSlides();
+                UpdatePageDisplay(current, total);
+            }
+            
+            Debug.Log("[PPTControlUI] 显示控制栏");
+        }
+    }
+
+    /// <summary>
+    /// 隐藏控制栏
+    /// </summary>
+    public void HideControlBar()
+    {
+        if (controlBar != null)
+        {
+            controlBar.SetActive(false);
+            isVisible = false;
+            Debug.Log("[PPTControlUI] 隐藏控制栏");
+        }
+    }
+
+    /// <summary>
+    /// 切换控制栏显示状态
+    /// </summary>
+    public void ToggleControlBar()
+    {
+        if (isVisible)
+            HideControlBar();
+        else
+            ShowControlBar();
+    }
+
+    /// <summary>
+    /// 播放/暂停按钮点击
+    /// </summary>
+    void OnPlayPauseClicked()
+    {
+        if (uiSetOnOff != null)
+        {
+            uiSetOnOff.ToggleBubbleFeature();
+            Debug.Log("[PPTControlUI] 切换播放/暂停");
+        }
+        else
+        {
+            Debug.LogWarning("[PPTControlUI] UISetOnOff未找到");
+        }
+    }
+
+    /// <summary>
+    /// 上一页按钮点击
+    /// </summary>
+    void OnPreviousSlideClicked()
+    {
+        if (pptService != null)
+        {
+            int current = pptService.GetCurrentSlide();
+            int total = pptService.GetTotalSlides();
+            
+            Debug.Log($"[PPTControlUI] 上一页点击 - 当前: {current}/{total}");
+            
+            if (current <= 1)
+            {
+                // 循环到最后一页
+                pptService.GoToSlide(total);
+                Debug.Log($"[PPTControlUI] 循环到最后一页: {total}");
+            }
+            else
+            {
+                pptService.PreviousSlide();
+                Debug.Log($"[PPTControlUI] 上一页 -> {current - 1}");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[PPTControlUI] PPTService未找到");
+        }
+    }
+
+    /// <summary>
+    /// 下一页按钮点击
+    /// </summary>
+    void OnNextSlideClicked()
+    {
+        if (pptService != null)
+        {
+            int current = pptService.GetCurrentSlide();
+            int total = pptService.GetTotalSlides();
+            
+            Debug.Log($"[PPTControlUI] 下一页点击 - 当前: {current}/{total}");
+            
+            if (current >= total)
+            {
+                // 循环到第一页
+                pptService.GoToSlide(1);
+                Debug.Log("[PPTControlUI] 循环到第一页");
+            }
+            else
+            {
+                pptService.NextSlide();
+                Debug.Log($"[PPTControlUI] 下一页 -> {current + 1}");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[PPTControlUI] PPTService未找到");
+        }
+    }
+
+    /// <summary>
+    /// 静音按钮点击
+    /// </summary>
+    void OnMuteClicked()
+    {
+        isMuted = !isMuted;
+        UpdateMuteButton(isMuted);
+        
+        // TODO: 实现实际的静音功能(需要PPT.Host.exe支持)
+        Debug.Log($"[PPTControlUI] 切换静音: {isMuted}");
+    }
+
+    /// <summary>
+    /// PPT页码变化事件处理
+    /// </summary>
+    void OnSlideChanged(int slideNum)
+    {
+        if (pptService != null)
+        {
+            int total = pptService.GetTotalSlides();
+            UpdatePageDisplay(slideNum, total);
+            Debug.Log($"[PPTControlUI] 页码变化事件 - 更新为: {slideNum}/{total}");
+        }
+        else
+        {
+            Debug.LogWarning("[PPTControlUI] OnSlideChanged - PPTService为null");
+        }
+    }
+
+    /// <summary>
+    /// PPT关闭事件处理
+    /// </summary>
+    void OnPresentationClosed()
+    {
+        HideControlBar();
+        Debug.Log("[PPTControlUI] PPT关闭,隐藏控制栏");
+    }
+
+    /// <summary>
+    /// 更新页码显示
+    /// </summary>
+    void UpdatePageDisplay(int current, int total)
+    {
+        if (pageDisplay != null)
+        {
+            if (total > 0)
+            {
+                pageDisplay.text = $"{current} / {total}";
+            }
+            else
+            {
+                pageDisplay.text = "- / -";
+            }
+        }
+    }
+
+    /// <summary>
+    /// 更新播放/暂停按钮图标
+    /// </summary>
+    public void UpdatePlayPauseButton(bool isPlaying)
+    {
+        if (playPauseIcon != null)
+        {
+            playPauseIcon.sprite = isPlaying ? pauseSprite : playSprite;
+        }
+    }
+
+    /// <summary>
+    /// 更新静音按钮图标
+    /// </summary>
+    void UpdateMuteButton(bool isMuted)
+    {
+        if (muteIcon != null)
+        {
+            muteIcon.sprite = isMuted ? muteSprite : volumeSprite;
+        }
+    }
+}

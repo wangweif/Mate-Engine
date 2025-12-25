@@ -320,6 +320,15 @@ public class SmartWindowsTTS : MonoBehaviour
     }
 
     /// <summary>
+    /// 清除所有恢复位置
+    /// </summary>
+    public void ClearResumePositions()
+    {
+        resumePositions.Clear();
+        Log("🗑️ 已清除所有语音恢复位置");
+    }
+
+    /// <summary>
     /// 生成音频键值
     /// </summary>
     public string GenerateAudioKey(string text)

@@ -195,6 +195,13 @@ namespace MateEngine.PPT
                         currentSlide = 1;
                         OnSlideChanged?.Invoke(currentSlide);
                     }
+                    // 处理翻页命令返回的页码 (OK|页码)
+                    else if (parts.Length > 1 && int.TryParse(parts[1], out int newSlide))
+                    {
+                        currentSlide = newSlide;
+                        OnSlideChanged?.Invoke(currentSlide);
+                        UnityEngine.Debug.Log($"[PPT] 翻页成功,当前页: {currentSlide}/{totalSlides}");
+                    }
                     break;
 
                 case "ERROR":

@@ -70,6 +70,7 @@ namespace MATE_ENGINE___Scripts.Tools
         private PPTListItem selectedPPTItem = null;
 
         [SerializeField] private PPTController pptController;
+        [SerializeField] private PPTControlUI pptControlUI;
         
         // PPT列表项数据结构
         private class PPTListItem
@@ -93,6 +94,22 @@ namespace MATE_ENGINE___Scripts.Tools
         {
             InitializeComponents();
             SetupUI();
+            LoadChangelog();
+            
+            // 查找或创建PPTControlUI组件
+            if (pptControlUI == null)
+            {
+                pptControlUI = FindObjectOfType<PPTControlUI>();
+                
+                // 如果场景中没有,自动创建一个
+                if (pptControlUI == null)
+                {
+                    GameObject pptControlUIObj = new GameObject("PPTControlUI");
+                    pptControlUI = pptControlUIObj.AddComponent<PPTControlUI>();
+                    Debug.Log("[SettingsPanelUI] 自动创建PPTControlUI组件");
+                }
+            }
+            
             // 注意：如果面板是关闭的，ShowTab 可能不会正确显示，所以在 OpenPanel 时再调用
         }
 
@@ -1818,29 +1835,24 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 Debug.Log("调用UISetOnOff.ToggleBubbleFeature开始播放PPT");
                 uiSetOnOff.ToggleBubbleFeature(selectedPPTItem.pptInfo.filename);
+                
+                // 显示PPT控制UI
+                if (pptControlUI != null)
+                {
+                    pptControlUI.ShowControlBar();
+                    Debug.Log("[SettingsPanelUI] 显示PPT控制栏");
+                }
+                else
+                {
+                    Debug.LogWarning("[SettingsPanelUI] PPTControlUI未找到,无法显示控制栏");
+                }
             }
             else
             {
-                Debug.LogWarning("UISetOnOff组件未找到，无法播放PPT");
-                // 回退到原来的播放方式
-                if (pptController == null)
-                {
-                    pptController = FindObjectOfType<PPTController>();
-                }
-
-                if (pptController == null)
-                {
-                    Debug.LogWarning("PPTController 未找到，无法播放PPT");
-                    return;
-                }
-
-                if (!string.IsNullOrEmpty(selectedPPTItem.pptInfo.file_path))
-                {
-                    pptController.SetPPTFile(selectedPPTItem.pptInfo.file_path);
-                }
-
-                pptController.OpenPPT();
+                Debug.LogWarning("UISetOnOff组件未找到,无法播放PPT");
+                return;
             }
+            
             // 关闭UI界面
             mainPanel.SetActive(false);
         }

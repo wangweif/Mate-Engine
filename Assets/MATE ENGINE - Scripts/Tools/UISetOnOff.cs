@@ -40,6 +40,9 @@ public class UISetOnOff : MonoBehaviour
     public Sprite playImage;
     public Sprite displayImage;
 
+    [HideInInspector] public PPTControlUI pptControlUI;
+
+
     /// <summary>
     /// 初始化，监听下拉框变化
     /// </summary>
@@ -133,6 +136,12 @@ public class UISetOnOff : MonoBehaviour
 
             // 清除所有恢复时间记录(翻页后从头播放)
             pageResumeTimes.Clear();
+            
+            // 清除SmartWindowsTTS的恢复位置
+            if (windowsTTS != null)
+            {
+                windowsTTS.ClearResumePositions();
+            }
 
             // 更新当前页面索引
             currentPageIndex = newPageIndex;
@@ -145,6 +154,12 @@ public class UISetOnOff : MonoBehaviour
             {
                 play.image = playImage;
             }
+            
+            // 更新PPTControlUI的播放/暂停图标
+            if (pptControlUI != null)
+            {
+                pptControlUI.UpdatePlayPauseButton(false);
+            }
 
             Debug.Log($"✅ 已暂停在第{newSlideNumber}页,等待用户点击播放按钮");
         }
@@ -153,6 +168,15 @@ public class UISetOnOff : MonoBehaviour
         {
             Debug.Log("⏸️ 暂停状态下检测到翻页");
             
+            // 清除所有恢复时间记录(翻页后从头播放)
+            pageResumeTimes.Clear();
+            Debug.Log("🗑️ 已清除所有页面的播放记录");
+            
+            // 清除SmartWindowsTTS的恢复位置
+            if (windowsTTS != null)
+            {
+                windowsTTS.ClearResumePositions();
+            }
             // 更新当前页面索引
             currentPageIndex = newPageIndex;
             
@@ -200,6 +224,12 @@ public class UISetOnOff : MonoBehaviour
         if (play != null && playImage != null)
         {
             play.image = playImage;
+        }
+        
+        // 更新PPTControlUI的播放/暂停图标
+        if (pptControlUI != null)
+        {
+            pptControlUI.UpdatePlayPauseButton(false);
         }
 
         Debug.Log("✅ 已停止播放并重置状态");
@@ -267,6 +297,12 @@ public class UISetOnOff : MonoBehaviour
         {
             play.image = playImage;
         }
+        
+        // 更新PPTControlUI的播放/暂停图标
+        if (resetButton && pptControlUI != null)
+        {
+            pptControlUI.UpdatePlayPauseButton(false);
+        }
 
         Debug.Log("🔄 播放状态已完全重置（历史记录已清除）");
     }
@@ -310,6 +346,13 @@ public class UISetOnOff : MonoBehaviour
         {
             Debug.Log("⏸️ 暂停播放演示");
             play.image = playImage;
+            
+            // 更新PPTControlUI的播放/暂停图标为播放
+            if (pptControlUI != null)
+            {
+                pptControlUI.UpdatePlayPauseButton(false);
+            }
+            
             PausePresentation();
             count++; // 增加计数,下次点击将恢复播放
         }
@@ -320,6 +363,13 @@ public class UISetOnOff : MonoBehaviour
             if (count == 0)
             {
                 play.image = displayImage;
+                
+                // 更新PPTControlUI的播放/暂停图标为暂停
+                if (pptControlUI != null)
+                {
+                    pptControlUI.UpdatePlayPauseButton(true);
+                }
+                
                 Debug.Log("🎬 第一次点击 - 开始播放演示");
                 if (LoadAndSetPPTInfoFromJson(pptName))
                 {
@@ -346,6 +396,13 @@ public class UISetOnOff : MonoBehaviour
             {
                 Debug.Log("▶️ 继续播放演示");
                 play.image = displayImage;
+                
+                // 更新PPTControlUI的播放/暂停图标为暂停
+                if (pptControlUI != null)
+                {
+                    pptControlUI.UpdatePlayPauseButton(true);
+                }
+                
                 presentationCoroutine = StartCoroutine(ResumePresentationSequence());
                 count++; // 增加计数
             }
