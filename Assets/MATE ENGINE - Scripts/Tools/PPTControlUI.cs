@@ -16,6 +16,7 @@ public class PPTControlUI : MonoBehaviour
     public Canvas parentCanvas;
     public PPTService pptService;
     public UISetOnOff uiSetOnOff;
+    private VRMLoader vrmLoader;
 
     [Header("UI元素")]
     private GameObject controlBar;
@@ -23,6 +24,7 @@ public class PPTControlUI : MonoBehaviour
     private Button previousButton;
     private Button nextButton;
     private Button muteButton;
+    private Button avatarToggleButton;
     private TMP_Text pageDisplay;
     
     // 按钮图标Image
@@ -30,6 +32,7 @@ public class PPTControlUI : MonoBehaviour
     private Image previousIcon;
     private Image nextIcon;
     private Image muteIcon;
+    private Image avatarToggleIcon;
     
     // 图标Sprite资源
     private Sprite playSprite;
@@ -39,6 +42,10 @@ public class PPTControlUI : MonoBehaviour
     private Sprite volumeSprite;
     private Sprite muteSprite;
     private Sprite userSprite;
+    private Sprite hideUserSprite;
+    
+    // 数字人显示状态
+    private bool isAvatarVisible = true;
 
     private bool isVisible = false;
     private bool isMuted = false;
@@ -76,6 +83,16 @@ public class PPTControlUI : MonoBehaviour
         else
         {
             Debug.LogWarning("[PPTControlUI] UISetOnOff未找到,无法注册");
+        }
+        
+        // 查找VRMLoader
+        if (vrmLoader == null)
+        {
+            vrmLoader = FindObjectOfType<VRMLoader>();
+            if (vrmLoader != null)
+            {
+                Debug.Log("[PPTControlUI] 已找到VRMLoader组件");
+            }
         }
 
         // 加载图标资源
@@ -122,6 +139,8 @@ public class PPTControlUI : MonoBehaviour
         nextSprite = Resources.Load<Sprite>("PPTIcons/下一页");
         volumeSprite = Resources.Load<Sprite>("PPTIcons/声音");
         muteSprite = Resources.Load<Sprite>("PPTIcons/静音");
+        userSprite = Resources.Load<Sprite>("PPTIcons/显示-人");
+        hideUserSprite = Resources.Load<Sprite>("PPTIcons/隐藏-人");
         
         // 检查加载结果
         if (playSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载播放图标");
@@ -130,6 +149,8 @@ public class PPTControlUI : MonoBehaviour
         if (nextSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载下一页图标");
         if (volumeSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载声音图标");
         if (muteSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载静音图标");
+        if (userSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载显示-人图标");
+        if (hideUserSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载隐藏-人图标");
     }
 
     /// <summary>
@@ -173,8 +194,8 @@ public class PPTControlUI : MonoBehaviour
         
         muteButton = CreateImageButton(controlBar.transform, "Mute", volumeSprite, OnMuteClicked);
         
-        // 用户按钮
-        CreateImageButton(controlBar.transform, "User", userSprite, null);
+        // 数字人显示/隐藏按钮
+        avatarToggleButton = CreateImageButton(controlBar.transform, "AvatarToggle", userSprite, OnAvatarToggleClicked);
 
         // 初始化显示
         UpdatePageDisplay(1, 0);
@@ -232,6 +253,8 @@ public class PPTControlUI : MonoBehaviour
             nextIcon = iconImage;
         else if (name == "Mute")
             muteIcon = iconImage;
+        else if (name == "AvatarToggle")
+            avatarToggleIcon = iconImage;
 
         return btn;
     }
@@ -397,6 +420,49 @@ public class PPTControlUI : MonoBehaviour
         // TODO: 实现实际的静音功能(需要PPT.Host.exe支持)
         Debug.Log($"[PPTControlUI] 切换静音: {isMuted}");
     }
+    
+    /// <summary>
+    /// 数字人显示/隐藏按钮点击
+    /// </summary>
+    void OnAvatarToggleClicked()
+    {
+        if (vrmLoader == null)
+        {
+            vrmLoader = FindObjectOfType<VRMLoader>();
+            if (vrmLoader == null)
+            {
+                Debug.LogWarning("[PPTControlUI] VRMLoader未找到,无法切换数字人显示");
+                return;
+            }
+        }
+        
+        isAvatarVisible = !isAvatarVisible;
+        ToggleAvatarVisibility(isAvatarVisible);
+        UpdateAvatarToggleButton(isAvatarVisible);
+        Debug.Log($"[PPTControlUI] 数字人显示状态: {isAvatarVisible}");
+    }
+    
+    /// <summary>
+    /// 切换数字人显示/隐藏(仅控制当前加载的自定义VRM模型)
+    /// </summary>
+    void ToggleAvatarVisibility(bool visible)
+    {
+        if (vrmLoader == null) return;
+        
+        // 获取当前加载的自定义VRM模型
+        GameObject currentModel = vrmLoader.GetCurrentModel();
+        
+        // 只控制当前自定义模型,不影响默认小女孩模型
+        if (currentModel != null)
+        {
+            currentModel.SetActive(visible);
+            Debug.Log($"[PPTControlUI] 已{(visible ? "显示" : "隐藏")}自定义VRM模型: {currentModel.name}");
+        }
+        else
+        {
+            Debug.LogWarning("[PPTControlUI] 当前没有加载自定义VRM模型");
+        }
+    }
 
     /// <summary>
     /// PPT页码变化事件处理
@@ -422,6 +488,14 @@ public class PPTControlUI : MonoBehaviour
     {
         HideControlBar();
         Debug.Log("[PPTControlUI] PPT关闭,隐藏控制栏");
+        
+        // PPT退出时恢复模型显示
+        if (!isAvatarVisible)
+        {
+            isAvatarVisible = true;
+            ToggleAvatarVisibility(true);
+            Debug.Log("[PPTControlUI] PPT退出,已恢复模型显示");
+        }
     }
 
     /// <summary>
@@ -461,6 +535,20 @@ public class PPTControlUI : MonoBehaviour
         if (muteIcon != null)
         {
             muteIcon.sprite = isMuted ? muteSprite : volumeSprite;
+        }
+    }
+    
+    /// <summary>
+    /// 更新VRM显示/隐藏按钮图标
+    /// </summary>
+    void UpdateAvatarToggleButton(bool isVisible)
+    {
+        if (avatarToggleIcon != null)
+        {
+            // isVisible=true(显示中) → 显示用户图标
+            // isVisible=false(隐藏中) → 显示隐藏图标
+            avatarToggleIcon.sprite = isVisible ? userSprite : hideUserSprite;
+            Debug.Log($"[PPTControlUI] 更新VRM按钮图标: {(isVisible ? "显示" : "隐藏")}");
         }
     }
 }
