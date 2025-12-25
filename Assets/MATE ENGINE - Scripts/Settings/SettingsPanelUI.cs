@@ -94,7 +94,6 @@ namespace MATE_ENGINE___Scripts.Tools
         {
             InitializeComponents();
             SetupUI();
-            LoadChangelog();
             
             // 查找或创建PPTControlUI组件
             if (pptControlUI == null)
