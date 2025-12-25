@@ -37,6 +37,9 @@ namespace MATE_ENGINE___Scripts.Tools
 
             // 获取当前选中的模型
             GetCurrentSelectedModel();
+
+            //更新模型列表状态
+            UpdateAllItemSelections();
         }
 
         /// <summary>
