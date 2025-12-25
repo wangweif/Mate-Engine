@@ -169,7 +169,7 @@ namespace MATE_ENGINE___Scripts.Tools
 
             // 添加背景图片组件用于高亮
             Image backgroundImage = itemObj.AddComponent<Image>();
-            backgroundImage.color = new Color(1f, 1f, 1f, 0f); // 透明背景
+            backgroundImage.color = new Color(0.15f, 0.16f, 0.20f, 0f); // 透明背景（暗黑风格）
 
             // 添加按钮组件用于点击
             Button itemButton = itemObj.AddComponent<Button>();
@@ -241,7 +241,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text nameText = nameObj.AddComponent<TextMeshProUGUI>();
             nameText.text = Path.GetFileNameWithoutExtension(modelFileName);
             nameText.fontSize = 20;
-            nameText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+            nameText.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 改为浅色文字（暗黑风格）
             nameText.alignment = TextAlignmentOptions.Left;
             FontManager.ApplyFont(nameText);
             
@@ -353,13 +353,13 @@ namespace MATE_ENGINE___Scripts.Tools
             // 更新背景高亮
             if (isSelected)
             {
-                item.backgroundImage.color = new Color(0.23f, 0.45f, 0.85f, 0.2f); // 淡蓝色高亮
-                item.nameText.color = new Color(0.23f, 0.45f, 0.85f, 1f); // 蓝色文字
+                item.backgroundImage.color = new Color(0.25f, 0.47f, 0.87f, 0.3f); // 蓝色高亮（暗黑风格）
+                item.nameText.color = new Color(0.40f, 0.65f, 1.0f, 1f); // 亮蓝色文字
             }
             else
             {
-                item.backgroundImage.color = new Color(1f, 1f, 1f, 0f); // 透明背景
-                item.nameText.color = new Color(0.12f, 0.12f, 0.12f, 1f); // 默认文字颜色
+                item.backgroundImage.color = new Color(0.15f, 0.16f, 0.20f, 0f); // 透明背景
+                item.nameText.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 浅色文字（暗黑风格）
             }
         }
 

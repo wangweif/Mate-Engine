@@ -60,9 +60,14 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             dropdownRect.sizeDelta = new Vector2(0, 40);
 
-            // 添加背景图片
+            // 添加背景图片 - 暗黑风格
             Image dropdownBg = dropdownObj.AddComponent<Image>();
-            dropdownBg.color = new Color(1f, 1f, 1f, 1f);
+            dropdownBg.color = new Color(0.18f, 0.20f, 0.25f, 1f);
+            
+            // 添加下拉框边框效果
+            Outline dropdownOutline = dropdownObj.AddComponent<Outline>();
+            dropdownOutline.effectColor = new Color(0.25f, 0.30f, 0.40f, 0.5f);
+            dropdownOutline.effectDistance = new Vector2(1, -1);
 
             // 添加下拉框组件
             versionDropdown = dropdownObj.AddComponent<TMP_Dropdown>();
@@ -79,12 +84,12 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text labelText = labelObj.AddComponent<TextMeshProUGUI>();
             labelText.text = "选择版本...";
             labelText.fontSize = 20;
-            labelText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+            labelText.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 白色文字
             labelText.alignment = TextAlignmentOptions.Left;
             FontManager.ApplyFont(labelText);
             versionDropdown.captionText = labelText;
 
-            // 创建模板（下拉列表）
+            // 创建模板（下拉列表）- 暗黑风格
             GameObject templateObj = new GameObject("Template");
             templateObj.transform.SetParent(dropdownObj.transform, false);
             RectTransform templateRect = templateObj.AddComponent<RectTransform>();
@@ -94,14 +99,20 @@ namespace MATE_ENGINE___Scripts.Tools
             templateRect.anchoredPosition = Vector2.zero;
             templateRect.sizeDelta = new Vector2(0, 150);
             Image templateBg = templateObj.AddComponent<Image>();
-            templateBg.color = new Color(1f, 1f, 1f, 1f);
+            templateBg.color = new Color(0.15f, 0.16f, 0.20f, 1f); // 暗黑背景
+            
+            // 添加模板边框
+            Outline templateOutline = templateObj.AddComponent<Outline>();
+            templateOutline.effectColor = new Color(0.25f, 0.30f, 0.40f, 0.5f);
+            templateOutline.effectDistance = new Vector2(1, -1);
+            
             ScrollRect templateScroll = templateObj.AddComponent<ScrollRect>();
             templateScroll.horizontal = false;
             templateScroll.vertical = true;
             versionDropdown.template = templateRect;
             templateObj.SetActive(false);
 
-            // 创建视口
+            // 创建视口 - 暗黑风格
             GameObject viewportObj = new GameObject("Viewport");
             viewportObj.transform.SetParent(templateObj.transform, false);
             RectTransform viewportRect = viewportObj.AddComponent<RectTransform>();
@@ -110,7 +121,7 @@ namespace MATE_ENGINE___Scripts.Tools
             viewportRect.sizeDelta = Vector2.zero;
             viewportRect.anchoredPosition = Vector2.zero;
             Image viewportMask = viewportObj.AddComponent<Image>();
-            viewportMask.color = new Color(1f, 1f, 1f, 1f);
+            viewportMask.color = new Color(0.15f, 0.16f, 0.20f, 1f); // 暗黑背景
             Mask mask = viewportObj.AddComponent<Mask>();
             mask.showMaskGraphic = false;
             templateScroll.viewport = viewportRect;
@@ -130,7 +141,7 @@ namespace MATE_ENGINE___Scripts.Tools
             contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             templateScroll.content = contentRect;
 
-            // 创建选项项模板（必须作为Content的子对象）
+            // 创建选项项模板（必须作为Content的子对象）- 暗黑风格
             GameObject itemObj = new GameObject("Item");
             itemObj.transform.SetParent(contentObj.transform, false);
             // 注意：Item模板应该保持激活状态，Unity会使用它作为模板来创建选项
@@ -138,8 +149,16 @@ namespace MATE_ENGINE___Scripts.Tools
             itemRect.sizeDelta = new Vector2(0, 30);
             Toggle itemToggle = itemObj.AddComponent<Toggle>();
             Image itemBg = itemObj.AddComponent<Image>();
-            itemBg.color = new Color(0.96f, 0.96f, 0.98f, 1f);
+            itemBg.color = new Color(0.18f, 0.20f, 0.25f, 1f); // 暗黑背景
             itemToggle.targetGraphic = itemBg;
+            
+            // 设置Toggle颜色状态
+            ColorBlock itemColors = itemToggle.colors;
+            itemColors.normalColor = new Color(0.18f, 0.20f, 0.25f, 1f);
+            itemColors.highlightedColor = new Color(0.22f, 0.24f, 0.30f, 1f);
+            itemColors.pressedColor = new Color(0.15f, 0.17f, 0.22f, 1f);
+            itemColors.selectedColor = new Color(0.25f, 0.47f, 0.87f, 0.6f); // 选中时蓝色高亮
+            itemToggle.colors = itemColors;
             // 注意：不需要设置 ToggleGroup，TMP_Dropdown 会自动管理选中状态
 
             // 创建选项标签
@@ -153,7 +172,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text itemLabelText = itemLabelObj.AddComponent<TextMeshProUGUI>();
             itemLabelText.text = "选项";
             itemLabelText.fontSize = 20;
-            itemLabelText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+            itemLabelText.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 白色文字
             itemLabelText.alignment = TextAlignmentOptions.Left;
             FontManager.ApplyFont(itemLabelText);
             versionDropdown.itemText = itemLabelText;
@@ -176,8 +195,13 @@ namespace MATE_ENGINE___Scripts.Tools
             changelogScrollRect.vertical = true;
 
             Image scrollBg = scrollObj.AddComponent<Image>();
-            // 更新日志滚动区域背景：浅灰
-            scrollBg.color = new Color(0.96f, 0.96f, 0.98f, 1f);
+            // 更新日志滚动区域背景：暗黑风格
+            scrollBg.color = new Color(0.15f, 0.16f, 0.20f, 1f);
+            
+            // 添加滚动视图边框
+            Outline scrollOutline = scrollObj.AddComponent<Outline>();
+            scrollOutline.effectColor = new Color(0.25f, 0.30f, 0.40f, 0.5f);
+            scrollOutline.effectDistance = new Vector2(1, -1);
 
             // 创建视口
             GameObject changelogViewport = new GameObject("Viewport");
@@ -231,7 +255,7 @@ namespace MATE_ENGINE___Scripts.Tools
             changelogText = changelogTextObj.AddComponent<TextMeshProUGUI>();
             changelogText.text = "加载中...";
             changelogText.fontSize = 20; // 调大字体 (16 -> 20)
-            changelogText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+            changelogText.color = new Color(0.90f, 0.92f, 0.96f, 1f); // 白色文字（暗黑风格）
             changelogText.alignment = TextAlignmentOptions.TopLeft;
             FontManager.ApplyFont(changelogText);
 

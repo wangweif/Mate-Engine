@@ -344,11 +344,21 @@ namespace MATE_ENGINE___Scripts.Tools
             panelRect.anchoredPosition = Vector2.zero;
 
             Image panelBg = mainPanel.AddComponent<Image>();
-            // 主面板背景：白色半透明，现代浅色风格
-            panelBg.color = new Color(1f, 1f, 1f, 0.98f);
+            // 主面板背景：暗黑风格深色背景，带有轻微的蓝色调
+            panelBg.color = new Color(0.12f, 0.13f, 0.16f, 0.98f);
             // 确保使用默认UI材质，避免_MainTex警告
             panelBg.material = null;
             panelBg.raycastTarget = true; // 阻止点击穿透到场景
+            
+            // 添加外发光效果的阴影
+            Shadow shadow = mainPanel.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0.1f, 0.15f, 0.25f, 0.8f);
+            shadow.effectDistance = new Vector2(0, 10);
+            
+            // 添加内阴影效果（通过Outline模拟）
+            Outline innerGlow = mainPanel.AddComponent<Outline>();
+            innerGlow.effectColor = new Color(0.2f, 0.25f, 0.35f, 0.3f);
+            innerGlow.effectDistance = new Vector2(0, -2);
 
             // 确保主面板阻塞射线
             CanvasGroup panelCanvasGroup = mainPanel.AddComponent<CanvasGroup>();
@@ -402,8 +412,20 @@ namespace MATE_ENGINE___Scripts.Tools
             titleRect.sizeDelta = new Vector2(0, 60);
 
             Image titleBg = titleBar.AddComponent<Image>();
-            // 标题栏背景：浅灰色
-            titleBg.color = new Color(0.95f, 0.95f, 0.97f, 1f);
+            // 标题栏背景：暗黑风格深色，带有紫蓝色调
+            titleBg.color = new Color(0.15f, 0.16f, 0.22f, 1f);
+            
+            // 添加标题栏底部边框效果
+            GameObject titleBorder = new GameObject("TitleBorder");
+            titleBorder.transform.SetParent(titleBar.transform, false);
+            RectTransform borderRect = titleBorder.AddComponent<RectTransform>();
+            borderRect.anchorMin = new Vector2(0, 0);
+            borderRect.anchorMax = new Vector2(1, 0);
+            borderRect.pivot = new Vector2(0.5f, 0);
+            borderRect.anchoredPosition = Vector2.zero;
+            borderRect.sizeDelta = new Vector2(0, 2);
+            Image borderImg = titleBorder.AddComponent<Image>();
+            borderImg.color = new Color(0.3f, 0.4f, 0.6f, 0.5f);
 
             GameObject titleText = new GameObject("TitleText");
             titleText.transform.SetParent(titleBar.transform, false);
@@ -420,11 +442,17 @@ namespace MATE_ENGINE___Scripts.Tools
 
             TMP_Text title = titleText.AddComponent<TextMeshProUGUI>();
             title.text = "设置";
-            title.fontSize = 36; // 调大字体 (28 -> 36)
-            // 标题文字使用深色，提高在浅色背景上的可读性
-            title.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+            title.fontSize = 36;
+            // 标题文字使用明亮的白色，带有轻微发光效果
+            title.color = new Color(0.95f, 0.97f, 1f, 1f);
             title.alignment = TextAlignmentOptions.Center;
+            title.fontStyle = FontStyles.Bold;
             FontManager.ApplyFont(title);
+            
+            // 添加文字外发光效果
+            Shadow titleGlow = titleText.AddComponent<Shadow>();
+            titleGlow.effectColor = new Color(0.4f, 0.5f, 0.8f, 0.3f);
+            titleGlow.effectDistance = new Vector2(0, 0);
         }
 
         void CreateTabBar()
@@ -446,8 +474,12 @@ namespace MATE_ENGINE___Scripts.Tools
             HorizontalLayoutGroup layout = tabBar.AddComponent<HorizontalLayoutGroup>();
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = true;
-            layout.spacing = 5;
-            layout.padding = new RectOffset(10, 10, 5, 5);
+            layout.spacing = 8;
+            layout.padding = new RectOffset(15, 15, 8, 8);
+            
+            // 添加标签栏背景：深色背景
+            Image tabBarBg = tabBar.AddComponent<Image>();
+            tabBarBg.color = new Color(0.10f, 0.11f, 0.14f, 1f);
 
             // 创建PPT标签按钮
             pptTabButton = CreateTabButton(tabBar.transform, "PPT", 0);
@@ -463,15 +495,23 @@ namespace MATE_ENGINE___Scripts.Tools
             btnObj.transform.SetParent(parent, false);
 
             Image btnBg = btnObj.AddComponent<Image>();
-            // 标签按钮默认背景：与通用按钮一致的蓝色
-            btnBg.color = new Color(0.23f, 0.45f, 0.85f, 1f);
+            // 标签按钮默认背景：暗色调
+            btnBg.color = new Color(0.18f, 0.20f, 0.25f, 1f);
 
             Button btn = btnObj.AddComponent<Button>();
             ColorBlock colors = btn.colors;
-            // 标签按钮颜色：与其它按钮风格统一（蓝底白字）
-            colors.normalColor = new Color(0.23f, 0.45f, 0.85f, 1f);
-            colors.selectedColor = new Color(0.20f, 0.38f, 0.70f, 1f);
+            // 标签按钮颜色：暗黑风格配色
+            colors.normalColor = new Color(0.18f, 0.20f, 0.25f, 1f);
+            colors.highlightedColor = new Color(0.25f, 0.28f, 0.35f, 1f);
+            colors.pressedColor = new Color(0.15f, 0.17f, 0.22f, 1f);
+            colors.selectedColor = new Color(0.35f, 0.45f, 0.70f, 1f);
+            colors.disabledColor = new Color(0.15f, 0.15f, 0.18f, 0.5f);
             btn.colors = colors;
+            
+            // 添加按钮边框效果
+            Outline btnOutline = btnObj.AddComponent<Outline>();
+            btnOutline.effectColor = new Color(0.3f, 0.35f, 0.45f, 0.3f);
+            btnOutline.effectDistance = new Vector2(1, -1);
 
             GameObject textObj = new GameObject("Text");
             textObj.transform.SetParent(btnObj.transform, false);
@@ -488,10 +528,11 @@ namespace MATE_ENGINE___Scripts.Tools
 
             TMP_Text btnText = textObj.AddComponent<TextMeshProUGUI>();
             btnText.text = text;
-            btnText.fontSize = 26; // 调大字体 (20 -> 26)
-            // 标签按钮文字颜色：白色，与其它按钮一致
-            btnText.color = Color.white;
+            btnText.fontSize = 24;
+            // 标签按钮文字颜色：明亮的浅色
+            btnText.color = new Color(0.85f, 0.88f, 0.95f, 1f);
             btnText.alignment = TextAlignmentOptions.Center;
+            btnText.fontStyle = FontStyles.Bold;
             FontManager.ApplyFont(btnText);
 
             return btn;
@@ -547,7 +588,7 @@ namespace MATE_ENGINE___Scripts.Tools
         void CreatePPTPanelContent()
         {
             VerticalLayoutGroup layout = pptPanel.AddComponent<VerticalLayoutGroup>();
-            layout.spacing = 20;
+            layout.spacing = 15;
             layout.padding = new RectOffset(20, 20, 20, 20);
             layout.childForceExpandHeight = false;
             layout.childControlHeight = false;
@@ -600,7 +641,12 @@ namespace MATE_ENGINE___Scripts.Tools
             pptListScrollRect.vertical = true;
 
             Image scrollBg = scrollObj.AddComponent<Image>();
-            scrollBg.color = new Color(0.96f, 0.96f, 0.98f, 1f);
+            scrollBg.color = new Color(0.15f, 0.16f, 0.20f, 1f);
+            
+            // 添加滚动视图边框
+            Outline scrollOutline = scrollObj.AddComponent<Outline>();
+            scrollOutline.effectColor = new Color(0.25f, 0.30f, 0.40f, 0.5f);
+            scrollOutline.effectDistance = new Vector2(1, -1);
 
             // 创建视口
             GameObject viewport = new GameObject("Viewport");
@@ -616,7 +662,7 @@ namespace MATE_ENGINE___Scripts.Tools
             viewportRect.offsetMax = Vector2.zero;
 
             Image viewportMask = viewport.AddComponent<Image>();
-            viewportMask.color = new Color(1f, 1f, 1f, 1f);
+            viewportMask.color = new Color(0.15f, 0.16f, 0.20f, 1f);
             Mask mask = viewport.AddComponent<Mask>();
             mask.showMaskGraphic = false;
 
@@ -686,7 +732,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configOverlayRect.offsetMax = Vector2.zero;
 
             Image overlayBg = configOverlay.AddComponent<Image>();
-            overlayBg.color = new Color(0f, 0f, 0f, 0.45f);
+            overlayBg.color = new Color(0f, 0f, 0f, 0.6f);
 
             configPanel = new GameObject("ConfigPanel");
             configPanel.transform.SetParent(configOverlay.transform, false);
@@ -702,11 +748,21 @@ namespace MATE_ENGINE___Scripts.Tools
             configPanelRect.sizeDelta = new Vector2(720, 420);
 
             Image configPanelBg = configPanel.AddComponent<Image>();
-            configPanelBg.color = new Color(0.98f, 0.98f, 0.99f, 1f);
+            configPanelBg.color = new Color(0.16f, 0.17f, 0.22f, 1f);
+            
+            // 添加配置面板边框
+            Outline configOutline = configPanel.AddComponent<Outline>();
+            configOutline.effectColor = new Color(0.35f, 0.45f, 0.65f, 0.6f);
+            configOutline.effectDistance = new Vector2(2, -2);
+            
+            // 添加配置面板阴影
+            Shadow configShadow = configPanel.AddComponent<Shadow>();
+            configShadow.effectColor = new Color(0, 0, 0, 0.5f);
+            configShadow.effectDistance = new Vector2(0, 8);
 
             VerticalLayoutGroup configLayout = configPanel.AddComponent<VerticalLayoutGroup>();
-            configLayout.spacing = 10;
-            configLayout.padding = new RectOffset(20, 20, 20, 20);
+            configLayout.spacing = 15;
+            configLayout.padding = new RectOffset(25, 25, 25, 25);
             configLayout.childForceExpandWidth = true;
             configLayout.childControlHeight = false;
 
@@ -725,8 +781,13 @@ namespace MATE_ENGINE___Scripts.Tools
 
             // 添加输入框背景
             Image inputFieldBg = configInputObj.AddComponent<Image>();
-            inputFieldBg.color = new Color(0.97f, 0.97f, 0.99f, 1f);
+            inputFieldBg.color = new Color(0.12f, 0.13f, 0.17f, 1f);
             inputFieldBg.raycastTarget = true;
+            
+            // 添加输入框边框效果
+            Outline inputOutline = configInputObj.AddComponent<Outline>();
+            inputOutline.effectColor = new Color(0.25f, 0.30f, 0.45f, 0.5f);
+            inputOutline.effectDistance = new Vector2(1, -1);
 
             configInputField = configInputObj.AddComponent<TMP_InputField>();
             
@@ -775,7 +836,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text configTextComp = textObj.AddComponent<TextMeshProUGUI>();
             configTextComp.text = "";
             configTextComp.fontSize = 20;
-            configTextComp.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+            configTextComp.color = new Color(0.90f, 0.92f, 0.96f, 1f);
             configTextComp.alignment = TextAlignmentOptions.TopLeft;
             configTextComp.enableWordWrapping = true;
             configTextComp.overflowMode = TextOverflowModes.Overflow;
@@ -797,7 +858,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text configPlaceholderComp = placeholderObj.AddComponent<TextMeshProUGUI>();
             configPlaceholderComp.text = "请输入演讲稿或使用AI生成...";
             configPlaceholderComp.fontSize = 20;
-            configPlaceholderComp.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            configPlaceholderComp.color = new Color(0.45f, 0.48f, 0.55f, 0.6f);
             configPlaceholderComp.alignment = TextAlignmentOptions.TopLeft;
             configPlaceholderComp.enableWordWrapping = true;
             FontManager.ApplyFont(configPlaceholderComp);
@@ -899,10 +960,22 @@ namespace MATE_ENGINE___Scripts.Tools
             closeRect.sizeDelta = new Vector2(40, 40);
 
             Image closeBg = closeBtnObj.AddComponent<Image>();
-            // 关闭按钮背景：柔和红色
-            closeBg.color = new Color(0.95f, 0.35f, 0.35f, 1f);
+            // 关闭按钮背景：现代化的红色
+            closeBg.color = new Color(0.95f, 0.40f, 0.40f, 1f);
+            
+            // 添加关闭按钮阴影
+            Shadow closeShadow = closeBtnObj.AddComponent<Shadow>();
+            closeShadow.effectColor = new Color(0, 0, 0, 0.2f);
+            closeShadow.effectDistance = new Vector2(0, 2);
 
             closeButton = closeBtnObj.AddComponent<Button>();
+            
+            // 设置关闭按钮的颜色状态
+            ColorBlock closeColors = closeButton.colors;
+            closeColors.normalColor = new Color(0.95f, 0.40f, 0.40f, 1f);
+            closeColors.highlightedColor = new Color(0.98f, 0.50f, 0.50f, 1f);
+            closeColors.pressedColor = new Color(0.85f, 0.30f, 0.30f, 1f);
+            closeButton.colors = closeColors;
 
             GameObject closeText = new GameObject("Text");
             closeText.transform.SetParent(closeBtnObj.transform, false);
@@ -938,8 +1011,8 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text labelText = label.AddComponent<TextMeshProUGUI>();
             labelText.text = text;
             labelText.fontSize = fontSize;
-            // 标签文字：深色
-            labelText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+            // 标签文字：浅色（暗黑风格）
+            labelText.color = new Color(0.85f, 0.88f, 0.95f, 1f);
             labelText.alignment = TextAlignmentOptions.Left;
             FontManager.ApplyFont(labelText);
             return label;
@@ -963,10 +1036,23 @@ namespace MATE_ENGINE___Scripts.Tools
             btnLayoutElement.preferredHeight = size.y;
 
             Image btnBg = btnObj.AddComponent<Image>();
-            // 通用按钮背景：蓝色主色
-            btnBg.color = new Color(0.23f, 0.45f, 0.85f, 1f);
+            // 通用按钮背景：现代化蓝色
+            btnBg.color = new Color(0.25f, 0.47f, 0.87f, 1f);
+            
+            // 添加按钮阴影
+            Shadow btnShadow = btnObj.AddComponent<Shadow>();
+            btnShadow.effectColor = new Color(0, 0, 0, 0.15f);
+            btnShadow.effectDistance = new Vector2(0, 2);
 
             Button btn = btnObj.AddComponent<Button>();
+            
+            // 设置按钮颜色状态
+            ColorBlock colors = btn.colors;
+            colors.normalColor = new Color(0.25f, 0.47f, 0.87f, 1f);
+            colors.highlightedColor = new Color(0.30f, 0.52f, 0.92f, 1f);
+            colors.pressedColor = new Color(0.20f, 0.42f, 0.77f, 1f);
+            colors.disabledColor = new Color(0.7f, 0.7f, 0.7f, 0.5f);
+            btn.colors = colors;
 
             GameObject btnText = new GameObject("Text");
             btnText.transform.SetParent(btnObj.transform, false);
@@ -982,9 +1068,10 @@ namespace MATE_ENGINE___Scripts.Tools
 
             TMP_Text textComp = btnText.AddComponent<TextMeshProUGUI>();
             textComp.text = text;
-            textComp.fontSize = 22; // 调大字体 (18 -> 22)
+            textComp.fontSize = 20; // 调整字体大小
             textComp.color = Color.white;
             textComp.alignment = TextAlignmentOptions.Center;
+            textComp.fontStyle = FontStyles.Bold;
             FontManager.ApplyFont(textComp);
 
             return btn;
@@ -1007,8 +1094,8 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text textComp = textObj.AddComponent<TextMeshProUGUI>();
             textComp.text = text;
             textComp.fontSize = 20; // 调大字体 (16 -> 20)
-            // 输入内容文字：深色
-            textComp.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+            // 输入内容文字：浅色（暗黑风格）
+            textComp.color = new Color(0.85f, 0.88f, 0.95f, 1f);
             textComp.alignment = TextAlignmentOptions.TopLeft;
             FontManager.ApplyFont(textComp);
 
@@ -1072,8 +1159,9 @@ namespace MATE_ENGINE___Scripts.Tools
                     if (pptTabButton != null)
                     {
                         Image img = pptTabButton.GetComponent<Image>();
-                        // 选中 Tab：略深一点的蓝色
-                        if (img != null) img.color = new Color(0.20f, 0.38f, 0.70f, 1f);
+                        if (img != null) img.color = new Color(0.25f, 0.47f, 0.87f, 1f);
+                        TMP_Text txt = pptTabButton.GetComponentInChildren<TMP_Text>();
+                        if (txt != null) txt.color = Color.white;
                     }
                     break;
                 case 1: // Model
@@ -1089,7 +1177,9 @@ namespace MATE_ENGINE___Scripts.Tools
                     if (modelTabButton != null)
                     {
                         Image img = modelTabButton.GetComponent<Image>();
-                        if (img != null) img.color = new Color(0.20f, 0.38f, 0.70f, 1f);
+                        if (img != null) img.color = new Color(0.25f, 0.47f, 0.87f, 1f);
+                        TMP_Text txt = modelTabButton.GetComponentInChildren<TMP_Text>();
+                        if (txt != null) txt.color = Color.white;
                     }
                     break;
                 case 2: // Settings
@@ -1105,7 +1195,9 @@ namespace MATE_ENGINE___Scripts.Tools
                     if (settingsTabButton != null)
                     {
                         Image img = settingsTabButton.GetComponent<Image>();
-                        if (img != null) img.color = new Color(0.20f, 0.38f, 0.70f, 1f);
+                        if (img != null) img.color = new Color(0.25f, 0.47f, 0.87f, 1f);
+                        TMP_Text txt = settingsTabButton.GetComponentInChildren<TMP_Text>();
+                        if (txt != null) txt.color = Color.white;
                     }
                     break;
             }
@@ -1116,17 +1208,23 @@ namespace MATE_ENGINE___Scripts.Tools
             if (pptTabButton != null)
             {
                 Image img = pptTabButton.GetComponent<Image>();
-                if (img != null) img.color = new Color(0.23f, 0.45f, 0.85f, 1f);
+                if (img != null) img.color = new Color(0.18f, 0.20f, 0.25f, 1f); // 暗黑风格未选中背景
+                TMP_Text txt = pptTabButton.GetComponentInChildren<TMP_Text>();
+                if (txt != null) txt.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 浅色文字
             }
             if (modelTabButton != null)
             {
                 Image img = modelTabButton.GetComponent<Image>();
-                if (img != null) img.color = new Color(0.23f, 0.45f, 0.85f, 1f);
+                if (img != null) img.color = new Color(0.18f, 0.20f, 0.25f, 1f); // 暗黑风格未选中背景
+                TMP_Text txt = modelTabButton.GetComponentInChildren<TMP_Text>();
+                if (txt != null) txt.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 浅色文字
             }
             if (settingsTabButton != null)
             {
                 Image img = settingsTabButton.GetComponent<Image>();
-                if (img != null) img.color = new Color(0.23f, 0.45f, 0.85f, 1f);
+                if (img != null) img.color = new Color(0.18f, 0.20f, 0.25f, 1f); // 暗黑风格未选中背景
+                TMP_Text txt = settingsTabButton.GetComponentInChildren<TMP_Text>();
+                if (txt != null) txt.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 浅色文字
             }
         }
 
@@ -1459,13 +1557,19 @@ namespace MATE_ENGINE___Scripts.Tools
             itemRect.sizeDelta = new Vector2(0, 40);
 
             Image itemBg = itemObj.AddComponent<Image>();
-            itemBg.color = new Color(0.98f, 0.98f, 1f, 1f);
+            itemBg.color = new Color(0.18f, 0.20f, 0.25f, 1f); // 暗黑风格背景
+            
+            // 添加列表项边框
+            Outline itemOutline = itemObj.AddComponent<Outline>();
+            itemOutline.effectColor = new Color(0.25f, 0.30f, 0.40f, 0.5f); // 暗色边框
+            itemOutline.effectDistance = new Vector2(1, -1);
 
             Button itemButton = itemObj.AddComponent<Button>();
             ColorBlock colors = itemButton.colors;
-            colors.normalColor = new Color(0.98f, 0.98f, 1f, 1f);
-            colors.selectedColor = new Color(0.85f, 0.90f, 1f, 1f);
-            colors.highlightedColor = new Color(0.90f, 0.93f, 1f, 1f);
+            colors.normalColor = new Color(0.18f, 0.20f, 0.25f, 1f); // 暗黑风格
+            colors.highlightedColor = new Color(0.22f, 0.24f, 0.30f, 1f); // 悬停时稍亮
+            colors.pressedColor = new Color(0.15f, 0.17f, 0.22f, 1f); // 按下时稍暗
+            colors.selectedColor = new Color(0.25f, 0.47f, 0.87f, 0.4f); // 选中时蓝色
             itemButton.colors = colors;
 
             HorizontalLayoutGroup itemLayout = itemObj.AddComponent<HorizontalLayoutGroup>();
@@ -1486,7 +1590,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text fileNameText = fileNameObj.AddComponent<TextMeshProUGUI>();
             fileNameText.text = pptInfo.filename;
             fileNameText.fontSize = 20;
-            fileNameText.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+            fileNameText.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 浅色文字（暗黑风格）
             fileNameText.alignment = TextAlignmentOptions.Left;
             fileNameText.enableWordWrapping = false;
             fileNameText.overflowMode = TextOverflowModes.Ellipsis;
@@ -1515,7 +1619,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text pageCountText = pageCountObj.AddComponent<TextMeshProUGUI>();
             pageCountText.text = $"页数: {pptInfo.pageCount}";
             pageCountText.fontSize = 18;
-            pageCountText.color = new Color(0.5f, 0.5f, 0.5f, 1f);
+            pageCountText.color = new Color(0.65f, 0.68f, 0.75f, 1f); // 中等亮度浅色（暗黑风格）
             pageCountText.alignment = TextAlignmentOptions.Center;
             FontManager.ApplyFont(pageCountText);
 
@@ -1579,11 +1683,11 @@ namespace MATE_ENGINE___Scripts.Tools
         {
             switch (status)
             {
-                case 0: return new Color(0.7f, 0.7f, 0.7f, 1f); // 灰色
-                case 1: return new Color(1f, 0.65f, 0f, 1f); // 橙色
-                case 2: return new Color(0f, 0.7f, 0f, 1f); // 绿色
-                case 3: return new Color(1f, 0f, 0f, 1f); // 红色
-                default: return Color.black;
+                case 0: return new Color(0.65f, 0.68f, 0.75f, 1f); // 浅灰色（暗黑风格）
+                case 1: return new Color(1f, 0.75f, 0.2f, 1f); // 亮橙色
+                case 2: return new Color(0.3f, 0.9f, 0.3f, 1f); // 亮绿色
+                case 3: return new Color(1f, 0.3f, 0.3f, 1f); // 亮红色
+                default: return new Color(0.85f, 0.88f, 0.95f, 1f); // 默认浅色
             }
         }
 
@@ -1598,7 +1702,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 Image prevImg = selectedPPTItem.itemButton.GetComponent<Image>();
                 if (prevImg != null)
                 {
-                    prevImg.color = new Color(0.98f, 0.98f, 1f, 1f);
+                    prevImg.color = new Color(1f, 1f, 1f, 1f);
                 }
             }
 
@@ -1611,7 +1715,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 Image img = item.itemButton.GetComponent<Image>();
                 if (img != null)
                 {
-                    img.color = new Color(0.85f, 0.90f, 1f, 1f);
+                    img.color = new Color(0.25f, 0.47f, 0.87f, 0.5f); // 蓝色高亮（暗黑风格）
                 }
             }
 
@@ -1628,7 +1732,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 Image prevImg = selectedPPTItem.itemButton.GetComponent<Image>();
                 if (prevImg != null)
                 {
-                    prevImg.color = new Color(0.98f, 0.98f, 1f, 1f);
+                    prevImg.color = new Color(1f, 1f, 1f, 1f);
                 }
             }
 
