@@ -531,9 +531,9 @@ namespace MATE_ENGINE___Scripts.Tools
         void CreatePPTPanelContent()
         {
             VerticalLayoutGroup layout = pptPanel.AddComponent<VerticalLayoutGroup>();
-            layout.spacing = 15;
+            layout.spacing = 20;
             layout.padding = new RectOffset(20, 20, 20, 20);
-            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
             layout.childControlHeight = false;
 
             // 创建标题和添加按钮的容器

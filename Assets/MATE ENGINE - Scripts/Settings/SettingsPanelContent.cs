@@ -42,9 +42,9 @@ namespace MATE_ENGINE___Scripts.Tools
             if (settingsPanel == null) return;
 
             VerticalLayoutGroup layout = settingsPanel.AddComponent<VerticalLayoutGroup>();
-            layout.spacing = 15;
+            layout.spacing = 20;
             layout.padding = new RectOffset(20, 20, 20, 20);
-            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
             layout.childControlHeight = false;
 
             // 更新日志标题
