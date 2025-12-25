@@ -56,11 +56,8 @@ namespace MATE_ENGINE___Scripts.Tools
         [Header("Model Panel Reference")]
         public ModelPanelUI modelPanelUI;
 
-        [Header("Settings Panel Components")]
-        public ScrollRect changelogScrollRect;
-        public TMP_Text changelogText;
-        public Button exitButton;
-        
+        [Header("Settings Panel Reference")]
+        public SettingsPanelContent settingsPanelContent;        
         [Header("Canvas Sorting")]
         [Tooltip("设置面板所在Canvas的排序层级，确保高于数字人以拦截点击")]
         public int canvasSortingOrder = 1000;
@@ -96,7 +93,6 @@ namespace MATE_ENGINE___Scripts.Tools
         {
             InitializeComponents();
             SetupUI();
-            LoadChangelog();
             // 注意：如果面板是关闭的，ShowTab 可能不会正确显示，所以在 OpenPanel 时再调用
         }
 
@@ -163,6 +159,16 @@ namespace MATE_ENGINE___Scripts.Tools
                 if (modelPanelUI == null)
                 {
                     modelPanelUI = gameObject.AddComponent<ModelPanelUI>();
+                }
+            }
+
+            // 初始化SettingsPanelContent组件
+            if (settingsPanelContent == null)
+            {
+                settingsPanelContent = gameObject.GetComponent<SettingsPanelContent>();
+                if (settingsPanelContent == null)
+                {
+                    settingsPanelContent = gameObject.AddComponent<SettingsPanelContent>();
                 }
             }
 
@@ -305,10 +311,6 @@ namespace MATE_ENGINE___Scripts.Tools
                 closeButton.onClick.AddListener(ClosePanel);
 
             // 注意: generateSpeechButton的点击事件已在CreatePPTPanelContent中设置
-
-            // 设置退出按钮
-            if (exitButton != null)
-                exitButton.onClick.AddListener(OnExit);
         }
 
         void CreateMainPanel()
@@ -852,13 +854,16 @@ namespace MATE_ENGINE___Scripts.Tools
 
         void CreateSettingsPanelContent()
         {
-            SettingsPanelContent.CreateSettingsPanelContent(
-                settingsPanel,
-                out changelogScrollRect,
-                out changelogText,
-                CreateLabel,
-                CreateButton
-            );
+            // 委托给SettingsPanelContent组件处理设置面板内容创建
+            if (settingsPanelContent != null)
+            {
+                settingsPanelContent.SetSettingsPanel(settingsPanel);
+                settingsPanelContent.CreateSettingsPanelContent(CreateLabel, CreateButton);
+            }
+            else
+            {
+                Debug.LogError("SettingsPanelContent组件未找到，无法创建设置面板内容");
+            }
         }
 
         void CreateCloseButton()
@@ -1109,32 +1114,6 @@ namespace MATE_ENGINE___Scripts.Tools
             }
         }
 
-        // 旧的OnGenerateSpeech和WaitForSpeechGeneration方法已移除，新版本在文件末尾
-        // 模型相关方法已移至ModelPanelUI.cs
-
-        void LoadChangelog()
-        {
-            if (changelogText == null) return;
-
-            string changelogPath = Path.Combine(Application.dataPath, "..", "version.md");
-            if (File.Exists(changelogPath))
-            {
-                try
-                {
-                    string content = File.ReadAllText(changelogPath);
-                    changelogText.text = content;
-                }
-                catch (System.Exception e)
-                {
-                    changelogText.text = $"加载更新日志失败：{e.Message}";
-                }
-            }
-            else
-            {
-                changelogText.text = "更新日志文件未找到";
-            }
-        }
-
         void OnExit()
         {
             #if UNITY_EDITOR
@@ -1172,7 +1151,6 @@ namespace MATE_ENGINE___Scripts.Tools
                     
                     // 设置UI事件监听
                     SetupUI();
-                    LoadChangelog();
                     
                     // 应用字体到所有 TextMeshPro 组件
                     FontManager.ApplyFontToAll(mainPanel);
