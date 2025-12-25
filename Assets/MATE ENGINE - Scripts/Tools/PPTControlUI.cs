@@ -241,7 +241,7 @@ public class PPTControlUI : MonoBehaviour
 
         Image iconImage = iconObj.AddComponent<Image>();
         iconImage.sprite = iconSprite;
-        iconImage.color = new Color(0.2f, 0.2f, 0.2f, 1f); // 深色图标
+        iconImage.color = Color.white; // 白色,保持原始图片颜色
         iconImage.raycastTarget = false;
 
         // 保存图标Image引用
@@ -494,7 +494,8 @@ public class PPTControlUI : MonoBehaviour
         {
             isAvatarVisible = true;
             ToggleAvatarVisibility(true);
-            Debug.Log("[PPTControlUI] PPT退出,已恢复模型显示");
+            UpdateAvatarToggleButton(true); // 同步更新按钮图标
+            Debug.Log("[PPTControlUI] PPT退出,已恢复模型显示并更新图标");
         }
     }
 
