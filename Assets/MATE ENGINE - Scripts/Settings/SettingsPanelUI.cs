@@ -808,6 +808,12 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             configInputRect.sizeDelta = new Vector2(0, 220);
 
+            // 添加LayoutElement以固定高度
+            LayoutElement inputLayout = configInputObj.AddComponent<LayoutElement>();
+            inputLayout.minHeight = 400;
+            inputLayout.preferredHeight = 400;
+            inputLayout.flexibleHeight = 0;
+
             // 添加输入框背景
             Image inputFieldBg = configInputObj.AddComponent<Image>();
             inputFieldBg.color = new Color(0.12f, 0.13f, 0.17f, 1f);
@@ -978,17 +984,20 @@ namespace MATE_ENGINE___Scripts.Tools
         void CreateCloseButton()
         {
             GameObject closeBtnObj = new GameObject("CloseButton");
-            closeBtnObj.transform.SetParent(mainPanel.transform, false);
+            // 将关闭按钮放在标题栏中
+            Transform titleBar = mainPanel.transform.Find("TitleBar");
+            closeBtnObj.transform.SetParent(titleBar != null ? titleBar : mainPanel.transform, false);
 
             RectTransform closeRect = closeBtnObj.GetComponent<RectTransform>();
             if (closeRect == null)
             {
                 closeRect = closeBtnObj.AddComponent<RectTransform>();
             }
-            closeRect.anchorMin = new Vector2(1, 1);
-            closeRect.anchorMax = new Vector2(1, 1);
-            closeRect.pivot = new Vector2(1, 1);
-            closeRect.anchoredPosition = new Vector2(-15, -15);
+            // 定位在标题栏右侧，垂直居中
+            closeRect.anchorMin = new Vector2(1, 0.5f);
+            closeRect.anchorMax = new Vector2(1, 0.5f);
+            closeRect.pivot = new Vector2(1, 0.5f);
+            closeRect.anchoredPosition = new Vector2(-15, 0);
             closeRect.sizeDelta = new Vector2(45, 45);
 
             Image closeBg = closeBtnObj.AddComponent<Image>();
