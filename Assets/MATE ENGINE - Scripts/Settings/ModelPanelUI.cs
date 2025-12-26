@@ -14,6 +14,7 @@ namespace MATE_ENGINE___Scripts.Tools
     {
         [Header("Model Panel Components")]
         public GameObject modelPanel;
+        public ScrollRect scrollRect; // 滚动视图组件
 
         private VRMLoader vrmLoader;
         private List<ModelListItem> modelItems = new List<ModelListItem>();
@@ -57,17 +58,165 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             modelItems.Clear();
 
+            // 设置或获取ScrollRect组件
+            if (scrollRect == null)
+            {
+                scrollRect = modelPanel.GetComponentInParent<ScrollRect>();
+            }
+
+            // 如果没有ScrollRect，创建滚动视图结构
+            if (scrollRect == null)
+            {
+                SetupScrollView();
+            }
+
             VerticalLayoutGroup layout = modelPanel.GetComponent<VerticalLayoutGroup>();
             if (layout == null)
             {
                 layout = modelPanel.AddComponent<VerticalLayoutGroup>();
             }
             layout.spacing = 2;
-            layout.padding = new RectOffset(8, 8, 8, 8);
+            layout.padding = new RectOffset(8, 8, 20, 8);
             layout.childForceExpandHeight = false;
             layout.childControlHeight = true;
+            
+            // 添加ContentSizeFitter以自动调整内容大小
+            ContentSizeFitter fitter = modelPanel.GetComponent<ContentSizeFitter>();
+            if (fitter == null)
+            {
+                fitter = modelPanel.AddComponent<ContentSizeFitter>();
+            }
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            
             // 创建模型列表
             CreateModelList();
+        }
+
+        /// <summary>
+        /// 设置滚动视图
+        /// </summary>
+        void SetupScrollView()
+        {
+            Transform parent = modelPanel.transform.parent;
+            if (parent == null) return;
+
+            // 创建ScrollRect容器
+            GameObject scrollViewObj = new GameObject("ScrollView");
+            scrollViewObj.transform.SetParent(parent, false);
+            scrollViewObj.transform.SetSiblingIndex(modelPanel.transform.GetSiblingIndex());
+            
+            RectTransform scrollViewRect = scrollViewObj.AddComponent<RectTransform>();
+            scrollViewRect.anchorMin = new Vector2(0, 0);
+            scrollViewRect.anchorMax = new Vector2(1, 1);
+            scrollViewRect.offsetMin = Vector2.zero;
+            scrollViewRect.offsetMax = Vector2.zero;
+
+            // 添加ScrollRect组件
+            scrollRect = scrollViewObj.AddComponent<ScrollRect>();
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.scrollSensitivity = 20f;
+
+            // 创建Viewport
+            GameObject viewportObj = new GameObject("Viewport");
+            viewportObj.transform.SetParent(scrollViewObj.transform, false);
+            
+            RectTransform viewportRect = viewportObj.AddComponent<RectTransform>();
+            viewportRect.anchorMin = new Vector2(0, 0);
+            viewportRect.anchorMax = new Vector2(1, 1);
+            viewportRect.offsetMin = Vector2.zero;
+            viewportRect.offsetMax = Vector2.zero;
+            
+            // Image viewportMask = viewportObj.AddComponent<Image>();
+            // viewportMask.color = Color.clear;
+            
+            // Mask mask = viewportObj.AddComponent<Mask>();
+            // mask.showMaskGraphic = false;
+
+            scrollRect.viewport = viewportRect;
+
+            // 将modelPanel移到Viewport下
+            modelPanel.transform.SetParent(viewportObj.transform, false);
+            RectTransform contentRect = modelPanel.GetComponent<RectTransform>();
+            if (contentRect == null)
+            {
+                contentRect = modelPanel.AddComponent<RectTransform>();
+            }
+            contentRect.anchorMin = new Vector2(0, 1);
+            contentRect.anchorMax = new Vector2(1, 1);
+            contentRect.pivot = new Vector2(0.5f, 1);
+            contentRect.anchoredPosition = Vector2.zero;
+
+            scrollRect.content = contentRect;
+
+            // 创建滚动条
+            CreateScrollbar(scrollViewObj);
+        }
+
+        /// <summary>
+        /// 创建滚动条
+        /// </summary>
+        void CreateScrollbar(GameObject scrollViewObj)
+        {
+            // 创建滚动条对象
+            GameObject scrollbarObj = new GameObject("Scrollbar");
+            scrollbarObj.transform.SetParent(scrollViewObj.transform, false);
+            
+            RectTransform scrollbarRect = scrollbarObj.AddComponent<RectTransform>();
+            scrollbarRect.anchorMin = new Vector2(1, 0);
+            scrollbarRect.anchorMax = new Vector2(1, 1);
+            scrollbarRect.pivot = new Vector2(1, 0.5f);
+            scrollbarRect.sizeDelta = new Vector2(12, 0);
+            scrollbarRect.anchoredPosition = new Vector2(0, 0);
+
+            Image scrollbarBg = scrollbarObj.AddComponent<Image>();
+            scrollbarBg.color = new Color(0.1f, 0.1f, 0.12f, 0.8f); // 暗黑风格背景
+
+            Scrollbar scrollbar = scrollbarObj.AddComponent<Scrollbar>();
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+
+            // 创建滑动区域
+            GameObject slidingAreaObj = new GameObject("Sliding Area");
+            slidingAreaObj.transform.SetParent(scrollbarObj.transform, false);
+            
+            RectTransform slidingAreaRect = slidingAreaObj.AddComponent<RectTransform>();
+            slidingAreaRect.anchorMin = Vector2.zero;
+            slidingAreaRect.anchorMax = Vector2.one;
+            slidingAreaRect.offsetMin = new Vector2(2, 2);
+            slidingAreaRect.offsetMax = new Vector2(-2, -2);
+
+            // 创建滑块
+            GameObject handleObj = new GameObject("Handle");
+            handleObj.transform.SetParent(slidingAreaObj.transform, false);
+            
+            RectTransform handleRect = handleObj.AddComponent<RectTransform>();
+            handleRect.anchorMin = Vector2.zero;
+            handleRect.anchorMax = Vector2.one;
+            handleRect.offsetMin = Vector2.zero;
+            handleRect.offsetMax = Vector2.zero;
+
+            Image handleImage = handleObj.AddComponent<Image>();
+            handleImage.color = new Color(0.4f, 0.45f, 0.55f, 0.8f); // 暗黑风格滑块
+
+            scrollbar.handleRect = handleRect;
+            scrollbar.targetGraphic = handleImage;
+
+            // 设置滚动条过渡效果
+            ColorBlock colors = scrollbar.colors;
+            colors.normalColor = new Color(0.4f, 0.45f, 0.55f, 0.8f);
+            colors.highlightedColor = new Color(0.5f, 0.55f, 0.65f, 1f);
+            colors.pressedColor = new Color(0.3f, 0.35f, 0.45f, 1f);
+            colors.selectedColor = new Color(0.5f, 0.55f, 0.65f, 1f);
+            colors.disabledColor = new Color(0.3f, 0.3f, 0.35f, 0.5f);
+            scrollbar.colors = colors;
+
+            // 连接滚动条到ScrollRect
+            if (scrollRect != null)
+            {
+                scrollRect.verticalScrollbar = scrollbar;
+                scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
+            }
         }
 
         /// <summary>
@@ -185,22 +334,38 @@ namespace MATE_ENGINE___Scripts.Tools
             horizontalLayout.childForceExpandHeight = false;
             horizontalLayout.childAlignment = TextAnchor.MiddleLeft;
 
-            // 创建选中标记（√）
-            GameObject checkmarkObj = new GameObject("Checkmark");
-            checkmarkObj.transform.SetParent(itemObj.transform, false);
-            RectTransform checkmarkRect = checkmarkObj.AddComponent<RectTransform>();
-            checkmarkRect.sizeDelta = new Vector2(30, 30);
+            // 创建单选框（Radio Button）
+            GameObject radioObj = new GameObject("RadioButton");
+            radioObj.transform.SetParent(itemObj.transform, false);
+            RectTransform radioRect = radioObj.AddComponent<RectTransform>();
+            radioRect.sizeDelta = new Vector2(24, 24);
             
-            TMP_Text checkmarkText = checkmarkObj.AddComponent<TextMeshProUGUI>();
-            checkmarkText.text = "✓";
-            checkmarkText.fontSize = 24;
-            checkmarkText.color = new Color(0.2f, 0.8f, 0.2f, 1f); // 绿色
-            checkmarkText.alignment = TextAlignmentOptions.Center;
-            FontManager.ApplyFont(checkmarkText);
+            // 单选框外圈
+            Image radioOuterCircle = radioObj.AddComponent<Image>();
+            radioOuterCircle.color = new Color(0.5f, 0.55f, 0.65f, 1f); // 暗黑风格边框
+            radioOuterCircle.sprite = CreateCircleSprite();
+            radioOuterCircle.type = Image.Type.Sliced;
             
-            LayoutElement checkmarkLayout = checkmarkObj.AddComponent<LayoutElement>();
-            checkmarkLayout.minWidth = 30;
-            checkmarkLayout.preferredWidth = 30;
+            LayoutElement radioLayout = radioObj.AddComponent<LayoutElement>();
+            radioLayout.minWidth = 24;
+            radioLayout.preferredWidth = 24;
+            radioLayout.minHeight = 24;
+            radioLayout.preferredHeight = 24;
+
+            // 创建单选框内圈（选中标记）
+            GameObject radioInnerObj = new GameObject("RadioInner");
+            radioInnerObj.transform.SetParent(radioObj.transform, false);
+            RectTransform radioInnerRect = radioInnerObj.AddComponent<RectTransform>();
+            radioInnerRect.anchorMin = new Vector2(0.5f, 0.5f);
+            radioInnerRect.anchorMax = new Vector2(0.5f, 0.5f);
+            radioInnerRect.pivot = new Vector2(0.5f, 0.5f);
+            radioInnerRect.sizeDelta = new Vector2(12, 12);
+            radioInnerRect.anchoredPosition = Vector2.zero;
+            
+            Image radioInnerCircle = radioInnerObj.AddComponent<Image>();
+            radioInnerCircle.color = new Color(0.3f, 0.9f, 0.3f, 1f); // 绿色选中标记
+            radioInnerCircle.sprite = CreateCircleSprite();
+            radioInnerCircle.type = Image.Type.Sliced;
 
             // 创建模型图片
             GameObject imageObj = new GameObject("ModelImage");
@@ -254,7 +419,8 @@ namespace MATE_ENGINE___Scripts.Tools
                 fileName = modelFileName,
                 itemObject = itemObj,
                 backgroundImage = backgroundImage,
-                checkmarkText = checkmarkText,
+                radioInnerCircle = radioInnerCircle,
+                radioOuterCircle = radioOuterCircle,
                 nameText = nameText,
                 button = itemButton,
                 modelImage = modelImageComponent
@@ -267,6 +433,48 @@ namespace MATE_ENGINE___Scripts.Tools
 
             // 更新选中状态
             UpdateItemSelection(item);
+        }
+
+        /// <summary>
+        /// 创建圆形Sprite（用于单选框）
+        /// </summary>
+        Sprite CreateCircleSprite()
+        {
+            // 创建一个简单的圆形纹理
+            int size = 64;
+            Texture2D texture = new Texture2D(size, size);
+            Color[] pixels = new Color[size * size];
+            
+            Vector2 center = new Vector2(size / 2f, size / 2f);
+            float radius = size / 2f - 2;
+            
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float distance = Vector2.Distance(new Vector2(x, y), center);
+                    
+                    // 创建圆形边框
+                    if (distance <= radius && distance >= radius - 2)
+                    {
+                        pixels[y * size + x] = Color.white;
+                    }
+                    else if (distance < radius - 2)
+                    {
+                        // 内部填充（用于内圈）
+                        pixels[y * size + x] = Color.white;
+                    }
+                    else
+                    {
+                        pixels[y * size + x] = Color.clear;
+                    }
+                }
+            }
+            
+            texture.SetPixels(pixels);
+            texture.Apply();
+            
+            return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
         }
 
         /// <summary>
@@ -347,14 +555,24 @@ namespace MATE_ENGINE___Scripts.Tools
         {
             bool isSelected = Path.GetFileName(item.fileName) == currentSelectedModel;
             
-            // 更新选中标记显示
-            item.checkmarkText.gameObject.SetActive(isSelected);
+            // 更新单选框内圈显示（选中时显示，未选中时隐藏）
+            item.radioInnerCircle.gameObject.SetActive(isSelected);
+            
+            // 更新单选框外圈颜色
+            if (isSelected)
+            {
+                item.radioOuterCircle.color = new Color(0.3f, 0.9f, 0.3f, 1f); // 绿色边框
+            }
+            else
+            {
+                item.radioOuterCircle.color = new Color(0.5f, 0.55f, 0.65f, 1f); // 灰色边框
+            }
             
             // 更新背景高亮
             if (isSelected)
             {
                 item.backgroundImage.color = new Color(0.25f, 0.47f, 0.87f, 0.3f); // 蓝色高亮（暗黑风格）
-                item.nameText.color = new Color(0.40f, 0.65f, 1.0f, 1f); // 亮蓝色文字
+                item.nameText.color = new Color(0.3f, 0.9f, 0.3f, 1f); // 亮绿色文字            
             }
             else
             {
@@ -405,7 +623,8 @@ namespace MATE_ENGINE___Scripts.Tools
         public string fileName;
         public GameObject itemObject;
         public Image backgroundImage;
-        public TMP_Text checkmarkText;
+        public Image radioInnerCircle; // 单选框内圈
+        public Image radioOuterCircle; // 单选框外圈
         public TMP_Text nameText;
         public Button button;
         public Image modelImage;
