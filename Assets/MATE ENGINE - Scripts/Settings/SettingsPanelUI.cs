@@ -1858,6 +1858,10 @@ namespace MATE_ENGINE___Scripts.Tools
                 // 等待一帧后再刷新列表，避免在渲染过程中修改UI
                 yield return null;
                 RefreshPPTList();
+
+                // 上传PPT到知识库
+                Debug.Log($"开始上传PPT到知识库: {newFileName}");
+                yield return StartCoroutine(UploadPPTToKnowledgeBase(newInfo, newFilePath));
             }
 
             // 文件选择完成后再次确保Unity窗口在前台
@@ -1865,6 +1869,45 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 SetForegroundWindow(hWnd);
             }
+        }
+
+        /// <summary>
+        /// 上传PPT到知识库（调用KnowledgeBaseManager）
+        /// </summary>
+        private IEnumerator UploadPPTToKnowledgeBase(PPTInfo pptInfo, string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            {
+                Debug.LogError($"文件不存在或路径为空: {filePath}");
+                yield break;
+            }
+
+            Debug.Log($"[SettingsPanelUI] 调用KnowledgeBaseManager上传PPT: {filePath}");
+
+            // 调用KnowledgeBaseManager的上传方法
+            yield return StartCoroutine(KnowledgeBaseManager.UploadFileToKnowledgeBase(filePath, null, 1));
+
+            // 上传完成后，根据上传和解析结果更新PPTInfo的状态
+            // 只有上传和解析都成功时才更新状态
+            if (KnowledgeBaseManager.LastUploadSuccess)
+            {
+                pptInfo.is_uploaded = true;
+                Debug.Log($"[SettingsPanelUI] PPT上传并解析成功，更新状态: {Path.GetFileName(filePath)}");
+            }
+            else
+            {
+                pptInfo.is_uploaded = KnowledgeBaseManager.LastUploadSuccess;
+                Debug.LogWarning($"[SettingsPanelUI] PPT上传或解析失败 - 上传: {KnowledgeBaseManager.LastUploadSuccess}");
+            }
+
+            // 保存更新后的PPTInfo到JSON
+            string jsonFileName = Path.ChangeExtension(Path.GetFileName(filePath), ".json");
+            PPTDataManager.SavePPTInfoToJson(pptInfo, jsonFileName);
+            Debug.Log($"[SettingsPanelUI] PPTInfo已保存，is_uploaded: {pptInfo.is_uploaded}");
+
+            // 刷新列表以显示更新后的状态
+            yield return null;
+            RefreshPPTList();
         }
 
         /// <summary>
