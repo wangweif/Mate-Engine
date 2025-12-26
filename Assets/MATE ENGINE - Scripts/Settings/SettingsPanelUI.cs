@@ -336,8 +336,8 @@ namespace MATE_ENGINE___Scripts.Tools
             mainPanel.transform.SetParent(parentCanvas.transform, false);
 
             RectTransform panelRect = mainPanel.AddComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0.3f, 0.1f);
-            panelRect.anchorMax = new Vector2(0.7f, 0.9f);
+            panelRect.anchorMin = new Vector2(0.3f, 0.25f);
+            panelRect.anchorMax = new Vector2(0.7f, 0.75f);
             panelRect.pivot = new Vector2(0.5f, 0.5f);
             panelRect.offsetMin = Vector2.zero;
             panelRect.offsetMax = Vector2.zero;
@@ -484,7 +484,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 创建PPT标签按钮
             pptTabButton = CreateTabButton(tabBar.transform, "PPT", 0);
             // 创建模型标签按钮
-            modelTabButton = CreateTabButton(tabBar.transform, "模型", 1);
+            modelTabButton = CreateTabButton(tabBar.transform, "角色", 1);
             // 创建设置标签按钮
             settingsTabButton = CreateTabButton(tabBar.transform, "系统设置", 2);
         }
@@ -634,7 +634,7 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 scrollRect = scrollObj.AddComponent<RectTransform>();
             }
-            scrollRect.sizeDelta = new Vector2(0, 200);
+            scrollRect.sizeDelta = new Vector2(0, 280);
 
             pptListScrollRect = scrollObj.AddComponent<ScrollRect>();
             pptListScrollRect.horizontal = false;
@@ -707,7 +707,7 @@ namespace MATE_ENGINE___Scripts.Tools
             buttonLayout.childForceExpandHeight = true;
             buttonLayout.spacing = 10;
             buttonLayout.padding = new RectOffset(0, 0, 0, 0);
-            buttonLayout.childAlignment = TextAnchor.MiddleLeft;
+            buttonLayout.childAlignment = TextAnchor.MiddleRight;
 
             // 配置按钮
             configButton = CreateButton(buttonContainer.transform, "配置", new Vector2(100, 40));
@@ -745,7 +745,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configPanelRect.anchorMax = new Vector2(0.5f, 0.5f);
             configPanelRect.pivot = new Vector2(0.5f, 0.5f);
             configPanelRect.anchoredPosition = Vector2.zero;
-            configPanelRect.sizeDelta = new Vector2(720, 420);
+            configPanelRect.sizeDelta = new Vector2(750, 560);
 
             Image configPanelBg = configPanel.AddComponent<Image>();
             configPanelBg.color = new Color(0.16f, 0.17f, 0.22f, 1f);
@@ -761,13 +761,42 @@ namespace MATE_ENGINE___Scripts.Tools
             configShadow.effectDistance = new Vector2(0, 8);
 
             VerticalLayoutGroup configLayout = configPanel.AddComponent<VerticalLayoutGroup>();
-            configLayout.spacing = 15;
-            configLayout.padding = new RectOffset(25, 25, 25, 25);
-            configLayout.childForceExpandWidth = true;
-            configLayout.childControlHeight = false;
+            configLayout.spacing = 18;
+            configLayout.padding = new RectOffset(20, 20, 20, 20);
+            configLayout.childForceExpandHeight = false;
+            configLayout.childControlHeight = true;
+
+            // 演讲稿输入框标签和AI生成按钮容器
+            GameObject labelContainer = new GameObject("LabelContainer");
+            labelContainer.transform.SetParent(configPanel.transform, false);
+            RectTransform labelContainerRect = labelContainer.GetComponent<RectTransform>();
+            if (labelContainerRect == null)
+            {
+                labelContainerRect = labelContainer.AddComponent<RectTransform>();
+            }
+            labelContainerRect.sizeDelta = new Vector2(0, 30);
+
+            HorizontalLayoutGroup labelLayout = labelContainer.AddComponent<HorizontalLayoutGroup>();
+            labelLayout.childForceExpandWidth = false;
+            labelLayout.childForceExpandHeight = true;
+            labelLayout.spacing = 10;
+            labelLayout.padding = new RectOffset(0, 0, 0, 0);
+            labelLayout.childAlignment = TextAnchor.MiddleLeft;
 
             // 演讲稿输入框标签
-            GameObject configInputLabel = CreateLabel(configPanel.transform, "演讲稿：", 16);
+            GameObject configInputLabel = CreateLabel(labelContainer.transform, "演讲稿(一段对应一页)：", 16);
+            LayoutElement labelElement = configInputLabel.AddComponent<LayoutElement>();
+            labelElement.preferredWidth = -1;
+            labelElement.flexibleWidth = 0;
+
+            GameObject spacer = new GameObject("Spacer");
+            spacer.transform.SetParent(labelContainer.transform, false);
+
+            LayoutElement spacerElement = spacer.AddComponent<LayoutElement>();
+            spacerElement.flexibleWidth = 1;
+
+            // AI生成演讲稿按钮（放在标签右侧）
+            generateSpeechButton = CreateButton(labelContainer.transform, "AI生成演讲稿", new Vector2(200, 40));
 
             // 演讲稿输入框（使用TMP_InputField自带滚动）
             GameObject configInputObj = new GameObject("ConfigInputField");
@@ -871,7 +900,10 @@ namespace MATE_ENGINE___Scripts.Tools
             configInputField.lineType = TMP_InputField.LineType.MultiLineNewline;
             configInputField.scrollSensitivity = 40f;
 
-            // 生成演讲稿和确认按钮容器
+            // 设置AI生成演讲稿按钮的点击事件
+            generateSpeechButton.onClick.AddListener(OnGenerateSpeech);
+
+            // 确认和取消按钮容器
             GameObject configButtonContainer = new GameObject("ConfigButtonContainer");
             configButtonContainer.transform.SetParent(configPanel.transform, false);
             RectTransform configButtonContainerRect = configButtonContainer.GetComponent<RectTransform>();
@@ -886,15 +918,15 @@ namespace MATE_ENGINE___Scripts.Tools
             configButtonLayout.childForceExpandHeight = true;
             configButtonLayout.spacing = 10;
             configButtonLayout.padding = new RectOffset(0, 0, 0, 0);
-            configButtonLayout.childAlignment = TextAnchor.MiddleLeft;
-
-            // 生成演讲稿按钮
-            generateSpeechButton = CreateButton(configButtonContainer.transform, "生成演讲稿", new Vector2(200, 40));
-            generateSpeechButton.onClick.AddListener(OnGenerateSpeech);
+            configButtonLayout.childAlignment = TextAnchor.MiddleRight;
 
             // 确认按钮
             confirmConfigButton = CreateButton(configButtonContainer.transform, "确认", new Vector2(100, 40));
             confirmConfigButton.onClick.AddListener(OnConfirmConfig);
+
+            // 取消按钮
+            Button cancelConfigButton = CreateButton(configButtonContainer.transform, "取消", new Vector2(100, 40));
+            cancelConfigButton.onClick.AddListener(OnCancelConfig);
 
             configOverlay.SetActive(false);
 
@@ -2069,6 +2101,18 @@ namespace MATE_ENGINE___Scripts.Tools
                 {
                     configOverlay.SetActive(false);
                 }
+            }
+        }
+
+        /// <summary>
+        /// 取消配置按钮点击
+        /// </summary>
+        void OnCancelConfig()
+        {
+            // 直接关闭配置面板，不保存任何更改
+            if (configOverlay != null)
+            {
+                configOverlay.SetActive(false);
             }
         }
 

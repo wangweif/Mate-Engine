@@ -188,7 +188,7 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 scrollRect = scrollObj.AddComponent<RectTransform>();
             }
-            scrollRect.sizeDelta = new Vector2(0, 400);
+            scrollRect.sizeDelta = new Vector2(0, 280);
 
             changelogScrollRect = scrollObj.AddComponent<ScrollRect>();
             changelogScrollRect.horizontal = false;
