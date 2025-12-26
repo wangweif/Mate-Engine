@@ -4,6 +4,7 @@ using TMPro;
 using System;
 using MateEngine.PPT;
 using MATE_ENGINE___Scripts.Tools;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// PPT控制UI组件
@@ -49,6 +50,10 @@ public class PPTControlUI : MonoBehaviour
 
     private bool isVisible = false;
     private bool isMuted = false;
+    
+    [Header("UI 风格配置")]
+    public Color panelBackgroundColor = new Color(0.12f, 0.13f, 0.16f, 0.98f);
+    public Color accentColor = new Color(1f, 1f, 1f, 1f);
 
     void Start()
     {
@@ -166,19 +171,26 @@ public class PPTControlUI : MonoBehaviour
         barRect.anchorMin = new Vector2(0.5f, 0f);
         barRect.anchorMax = new Vector2(0.5f, 0f);
         barRect.pivot = new Vector2(0.5f, 0f);
-        barRect.anchoredPosition = new Vector2(0, 30);
-        barRect.sizeDelta = new Vector2(500, 70); // 增加宽度以容纳所有按钮
+        barRect.anchoredPosition = new Vector2(0, 50); // 稍微抬高一点，不贴边
+        barRect.sizeDelta = new Vector2(520, 75); // 增加尺寸以容纳所有按钮
 
-        // 添加白色背景
+        // 1. 背景处理：使用深色半透明（毛玻璃感）
         Image bgImage = controlBar.AddComponent<Image>();
-        bgImage.color = new Color(1f, 1f, 1f, 0.95f); // 白色背景
+        // bgImage.sprite = Resources.Load<Sprite>("PPTIcons/RoundedRect");
+        // bgImage.type = Image.Type.Sliced;
+        bgImage.color = panelBackgroundColor;
         bgImage.raycastTarget = true;
+        
+        // 2. 添加外边框 (描边) 增加精致感
+        Outline outline = controlBar.AddComponent<Outline>();
+        outline.effectColor = new Color(1, 1, 1, 0.15f);
+        outline.effectDistance = new Vector2(1, -1);
 
-        // 添加水平布局
+        // 3. 布局微调
         HorizontalLayoutGroup layout = controlBar.AddComponent<HorizontalLayoutGroup>();
         layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.spacing = 10;
-        layout.padding = new RectOffset(20, 20, 10, 10);
+        layout.spacing = 15; // 增加间距
+        layout.padding = new RectOffset(25, 25, 10, 10);
         layout.childForceExpandWidth = false;
         layout.childForceExpandHeight = false;
         layout.childControlWidth = false;
@@ -187,11 +199,11 @@ public class PPTControlUI : MonoBehaviour
         // 创建按钮和显示元素(使用PNG图标)
         playPauseButton = CreateImageButton(controlBar.transform, "PlayPause", playSprite, OnPlayPauseClicked);
         previousButton = CreateImageButton(controlBar.transform, "Previous", previousSprite, OnPreviousSlideClicked);
-        nextButton = CreateImageButton(controlBar.transform, "Next", nextSprite, OnNextSlideClicked);
         
         // 页码显示
         pageDisplay = CreatePageDisplay(controlBar.transform);
         
+        nextButton = CreateImageButton(controlBar.transform, "Next", nextSprite, OnNextSlideClicked);
         muteButton = CreateImageButton(controlBar.transform, "Mute", volumeSprite, OnMuteClicked);
         
         // 数字人显示/隐藏按钮
@@ -210,10 +222,10 @@ public class PPTControlUI : MonoBehaviour
         btnObj.transform.SetParent(parent, false);
 
         RectTransform btnRect = btnObj.AddComponent<RectTransform>();
-        btnRect.sizeDelta = new Vector2(50, 50); // 按钮大小
+        btnRect.sizeDelta = new Vector2(55, 55); // 按钮大小
 
         Image btnBg = btnObj.AddComponent<Image>();
-        btnBg.color = new Color(1f, 1f, 1f, 0f); // 透明按钮背景
+        btnBg.color = new Color(1f, 1f, 1f, 0f); // 保持背景透明
 
         Button btn = btnObj.AddComponent<Button>();
         if (onClick != null)
@@ -221,13 +233,17 @@ public class PPTControlUI : MonoBehaviour
             btn.onClick.AddListener(onClick);
         }
 
-        // 按钮颜色 - 透明主题
+        // 设置按钮过渡颜色：悬停时微亮
         ColorBlock colors = btn.colors;
-        colors.normalColor = new Color(1f, 1f, 1f, 0f);
-        colors.highlightedColor = new Color(0.9f, 0.9f, 0.9f, 0.3f);
-        colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 0.5f);
+        colors.normalColor = Color.clear;
+        colors.highlightedColor = new Color(1, 1, 1, 0.1f);
+        colors.pressedColor = new Color(1, 1, 1, 0.2f);
         colors.disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.2f);
         btn.colors = colors;
+        btn.transition = Selectable.Transition.ColorTint;
+        
+        // 添加悬停缩放脚本 (动态添加)
+        btnObj.AddComponent<UIPointerAnimation>();
 
         // 图标Image
         GameObject iconObj = new GameObject("Icon");
@@ -236,12 +252,12 @@ public class PPTControlUI : MonoBehaviour
         RectTransform iconRect = iconObj.AddComponent<RectTransform>();
         iconRect.anchorMin = Vector2.zero;
         iconRect.anchorMax = Vector2.one;
-        iconRect.offsetMin = new Vector2(8, 8);
-        iconRect.offsetMax = new Vector2(-8, -8);
+        iconRect.offsetMin = new Vector2(12, 12);
+        iconRect.offsetMax = new Vector2(-12, -12);
 
         Image iconImage = iconObj.AddComponent<Image>();
         iconImage.sprite = iconSprite;
-        iconImage.color = Color.white; // 白色,保持原始图片颜色
+        iconImage.color = accentColor; // 统一图标颜色为白色
         iconImage.raycastTarget = false;
 
         // 保存图标Image引用
@@ -277,10 +293,10 @@ public class PPTControlUI : MonoBehaviour
 
         TMP_Text displayText = displayObj.AddComponent<TextMeshProUGUI>();
         displayText.text = "1 / 4";
-        displayText.fontSize = 22; // 稍微增大字体
-        displayText.color = new Color(0.2f, 0.2f, 0.2f, 1f); // 深色文字
+        displayText.fontSize = 20;
+        displayText.color = Color.white; // 改为白色，与深色背景搭配
         displayText.alignment = TextAlignmentOptions.Center;
-        displayText.fontStyle = FontStyles.Bold;
+        displayText.fontStyle = FontStyles.Normal; // 稍微细一点显得更有高级感
         displayText.margin = new Vector4(10, 0, 10, 0); // 左右边距
         FontManager.ApplyFont(displayText);
 
@@ -573,5 +589,28 @@ public class PPTControlUI : MonoBehaviour
             avatarToggleIcon.sprite = isVisible ? userSprite : hideUserSprite;
             Debug.Log($"[PPTControlUI] 更新VRM按钮图标: {(isVisible ? "显示" : "隐藏")}");
         }
+    }
+}
+
+/// <summary>
+/// 简单的辅助脚本：处理悬停时的微缩放动效
+/// </summary>
+public class UIPointerAnimation : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+{
+    private Vector3 originalScale;
+    
+    void Awake()
+    {
+        originalScale = transform.localScale;
+    }
+    
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        transform.localScale = originalScale * 1.15f; // 悬停放大 15%
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        transform.localScale = originalScale;
     }
 }
