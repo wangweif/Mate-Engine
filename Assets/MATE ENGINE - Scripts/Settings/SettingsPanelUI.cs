@@ -2030,6 +2030,28 @@ namespace MATE_ENGINE___Scripts.Tools
                 return;
             }
 
+            // 禁用生成演讲稿按钮、确认按钮和输入框
+            if (generateSpeechButton != null)
+            {
+                generateSpeechButton.interactable = false;
+                // 修改按钮文字为"生成中..."
+                TMP_Text btnText = generateSpeechButton.GetComponentInChildren<TMP_Text>();
+                if (btnText != null)
+                {
+                    btnText.text = "生成中...";
+                }
+            }
+            
+            if (confirmConfigButton != null)
+            {
+                confirmConfigButton.interactable = false;
+            }
+            
+            if (configInputField != null)
+            {
+                configInputField.interactable = false;
+            }
+
             // 设置配置状态为进行中
             selectedPPTItem.pptInfo.configStatus = 1;
             if (selectedPPTItem.statusText != null)
@@ -2051,12 +2073,6 @@ namespace MATE_ENGINE___Scripts.Tools
                 // 调用AutoDesc的生成方法，直接传递filename
                 autoDesc.StartGetDescProcess(selectedPPTItem.pptInfo.filename);
             }
-
-            // 隐藏配置面板
-            if (configOverlay != null)
-            {
-                configOverlay.SetActive(false);
-            }
         }
 
         /// <summary>
@@ -2065,6 +2081,28 @@ namespace MATE_ENGINE___Scripts.Tools
         /// <param name="generatedContent">生成的演讲稿内容</param>
         private void OnSpeechContentGenerated(string[] generatedContent)
         {
+            // 恢复生成演讲稿按钮、确认按钮和输入框的可用状态
+            if (generateSpeechButton != null)
+            {
+                generateSpeechButton.interactable = true;
+                // 恢复按钮文字为"生成演讲稿"
+                TMP_Text btnText = generateSpeechButton.GetComponentInChildren<TMP_Text>();
+                if (btnText != null)
+                {
+                    btnText.text = "生成演讲稿";
+                }
+            }
+            
+            if (confirmConfigButton != null)
+            {
+                confirmConfigButton.interactable = true;
+            }
+            
+            if (configInputField != null)
+            {
+                configInputField.interactable = true;
+            }
+
             // 更新UI输入框
             if (configInputField != null)
             {
