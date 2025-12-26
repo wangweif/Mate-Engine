@@ -306,49 +306,78 @@ namespace PPT.Host
             PresentationClosed?.Invoke();
             
             // 放映结束后自动清理资源
-            Console.WriteLine("[PPT] 放映结束,开始自动清理资源...");
-            try
+            // 注意：PowerPoint 不允许在事件处理程序中调用 Quit()
+            // 需要延迟到事件处理完成后执行
+            Console.WriteLine("[PPT] 放映结束,准备延迟清理资源...");
+            
+            // 先取消事件订阅（这个可以在事件处理程序中执行）
+            if (_app != null)
             {
-                _sta.Invoke(() =>
+                try
                 {
-                    try
-                    {
-                        // 取消事件订阅
-                        if (_app != null)
-                        {
-                            _app.SlideShowNextSlide -= OnSlideShowNextSlide;
-                            _app.SlideShowEnd -= OnSlideShowEnd;
-                        }
-                        
-                        // 关闭演示文稿
-                        if (_presentation != null)
-                        {
-                            _presentation.Close();
-                            Console.WriteLine("[PPT] 演示文稿已关闭");
-                        }
-
-                        // 退出PowerPoint
-                        if (_app != null)
-                        {
-                            _app.Quit();
-                            Console.WriteLine("[PPT] PowerPoint 已退出");
-                        }
-                    }
-                    catch (Exception exInner)
-                    {
-                        Console.WriteLine($"[PPT] 自动清理内部错误: {exInner.Message}");
-                    }
-                    finally
-                    {
-                        ReleaseComObjects();
-                    }
-                });
-                Console.WriteLine("[PPT] 自动清理完成");
+                    _app.SlideShowNextSlide -= OnSlideShowNextSlide;
+                    _app.SlideShowEnd -= OnSlideShowEnd;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[PPT] 取消事件订阅时出错: {ex.Message}");
+                }
             }
-            catch (Exception ex)
+            
+            // 异步延迟执行清理操作（在事件处理程序完成后）
+            ThreadPool.QueueUserWorkItem(_ =>
             {
-                Console.WriteLine($"[PPT] 自动清理失败: {ex.Message}");
-            }
+                // 等待一小段时间确保事件处理完成
+                Thread.Sleep(200);
+                
+                Console.WriteLine("[PPT] 开始执行延迟清理...");
+                try
+                {
+                    _sta.Invoke(() =>
+                    {
+                        try
+                        {
+                            // 关闭演示文稿
+                            if (_presentation != null)
+                            {
+                                try
+                                {
+                                    _presentation.Close();
+                                    Console.WriteLine("[PPT] 演示文稿已关闭");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"[PPT] 关闭演示文稿时出错: {ex.Message}");
+                                }
+                            }
+
+                            // 退出PowerPoint
+                            if (_app != null)
+                            {
+                                try
+                                {
+                                    _app.Quit();
+                                    Console.WriteLine("[PPT] PowerPoint 已退出");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"[PPT] 退出PowerPoint时出错: {ex.Message}");
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            // 释放COM对象
+                            ReleaseComObjects();
+                        }
+                    });
+                    Console.WriteLine("[PPT] 延迟清理完成");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[PPT] 延迟清理失败: {ex.Message}");
+                }
+            });
         }
 
         /// <summary>
