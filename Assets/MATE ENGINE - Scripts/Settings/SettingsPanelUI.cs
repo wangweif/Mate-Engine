@@ -51,6 +51,7 @@ namespace MATE_ENGINE___Scripts.Tools
         public GameObject configPanel;
         public TMP_InputField configInputField;
         public Button confirmConfigButton;
+        public Button cancelConfigButton;
         private GameObject configOverlay;
 
         [Header("Model Panel Reference")]
@@ -950,7 +951,7 @@ namespace MATE_ENGINE___Scripts.Tools
             confirmConfigButton.onClick.AddListener(OnConfirmConfig);
 
             // 取消按钮
-            Button cancelConfigButton = CreateButton(configButtonContainer.transform, "取消", new Vector2(100, 40));
+            cancelConfigButton = CreateButton(configButtonContainer.transform, "取消", new Vector2(100, 40));
             cancelConfigButton.onClick.AddListener(OnCancelConfig);
 
             configOverlay.SetActive(false);
@@ -2177,6 +2178,11 @@ namespace MATE_ENGINE___Scripts.Tools
                 confirmConfigButton.interactable = false;
             }
             
+            if (cancelConfigButton != null)
+            {
+                cancelConfigButton.interactable = false;
+            }
+            
             if (configInputField != null)
             {
                 configInputField.interactable = false;
@@ -2226,6 +2232,11 @@ namespace MATE_ENGINE___Scripts.Tools
             if (confirmConfigButton != null)
             {
                 confirmConfigButton.interactable = true;
+            }
+            
+            if (cancelConfigButton != null)
+            {
+                cancelConfigButton.interactable = true;
             }
             
             if (configInputField != null)
