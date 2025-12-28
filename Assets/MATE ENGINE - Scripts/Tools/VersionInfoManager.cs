@@ -6,6 +6,15 @@ using System.Text;
 
 namespace MATE_ENGINE___Scripts.Tools
 {
+    /// <summary>
+    /// 版本信息管理器
+    /// 从StreamingAssets中的version.md文件加载版本信息
+    /// 支持编辑器环境和打包后的环境
+    /// 
+    /// 文件位置：Assets/StreamingAssets/version.md
+    /// 编辑器加载：直接从StreamingAssets路径读取
+    /// 打包后加载：从Application.streamingAssetsPath读取（自动复制到应用程序）
+    /// </summary>
     public static class VersionInfoManager
     {
         /// <summary>
@@ -45,17 +54,20 @@ namespace MATE_ENGINE___Scripts.Tools
         
         /// <summary>
         /// 读取version.md文件
+        /// 优先从StreamingAssets加载，支持编辑器和打包环境
         /// </summary>
         private static string ReadVersionFile()
         {
-            // 尝试多个可能的路径
+            // 优化后的路径加载顺序：优先StreamingAssets
             string[] possiblePaths = {
-                Path.Combine(Application.dataPath, "../version.md"),        // 项目根目录
+                Path.Combine(Application.streamingAssetsPath, "version.md"), // StreamingAssets（推荐）
+                Path.Combine(Application.dataPath, "../version.md"),        // 项目根目录（编辑器环境）
+                Path.Combine(Application.dataPath, "version.md"),           // Assets目录（编辑器环境）
                 Path.Combine(Application.dataPath, "../../version.md"),     // 项目上一级目录
-                Path.Combine(Application.dataPath, "version.md"),           // Assets目录
-                Path.Combine(Application.streamingAssetsPath, "version.md"), // StreamingAssets
                 "version.md"                                                // 当前目录
             };
+            
+            Debug.Log($"[VersionInfoManager] 开始查找version.md文件，StreamingAssets路径: {Application.streamingAssetsPath}");
             
             foreach (string path in possiblePaths)
             {
@@ -63,22 +75,28 @@ namespace MATE_ENGINE___Scripts.Tools
                 {
                     try
                     {
-                        return File.ReadAllText(path, Encoding.UTF8);
+                        string content = File.ReadAllText(path, Encoding.UTF8);
+                        Debug.Log($"[VersionInfoManager] 成功从 {path} 加载version.md");
+                        return content;
                     }
                     catch (System.Exception e)
                     {
-                        Debug.LogError($"读取文件失败 {path}: {e.Message}");
+                        Debug.LogError($"[VersionInfoManager] 读取文件失败 {path}: {e.Message}");
                     }
                 }
             }
             
-            // 尝试从Resources加载
+            Debug.LogWarning("[VersionInfoManager] 未从直接路径找到version.md，尝试从Resources加载");
+            
+            // 尝试从Resources加载（作为后备方案）
             TextAsset textAsset = Resources.Load<TextAsset>("version");
             if (textAsset != null)
             {
+                Debug.Log("[VersionInfoManager] 成功从Resources加载version");
                 return textAsset.text;
             }
             
+            Debug.LogError("[VersionInfoManager] 无法找到version.md文件，已尝试所有可能的路径和Resources");
             return null;
         }
         
