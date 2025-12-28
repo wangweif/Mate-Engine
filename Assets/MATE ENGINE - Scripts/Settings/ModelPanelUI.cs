@@ -534,7 +534,7 @@ namespace MATE_ENGINE___Scripts.Tools
         /// </summary>
         void GetCurrentSelectedModel()
         {
-            currentSelectedModel = PlayerPrefs.GetString(SelectedModelPrefsKey, "xiaozhi");
+            currentSelectedModel = PlayerPrefs.GetString(SelectedModelPrefsKey, "xiaozhi.vrm");
         }
 
         /// <summary>
