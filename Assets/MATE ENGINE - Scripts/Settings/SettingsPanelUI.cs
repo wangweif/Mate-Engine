@@ -590,8 +590,9 @@ namespace MATE_ENGINE___Scripts.Tools
             VerticalLayoutGroup layout = pptPanel.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 15;
             layout.padding = new RectOffset(20, 20, 20, 20);
+            // 让中间滚动区域填充剩余空间：让布局控制子对象高度并允许扩展
+            layout.childControlHeight = true;
             layout.childForceExpandHeight = false;
-            layout.childControlHeight = false;
 
             // 创建标题和添加按钮的容器
             GameObject headerContainer = new GameObject("HeaderContainer");
@@ -602,6 +603,10 @@ namespace MATE_ENGINE___Scripts.Tools
                 headerRect = headerContainer.AddComponent<RectTransform>();
             }
             headerRect.sizeDelta = new Vector2(0, 40);
+            // 固定标题高度，不随布局伸缩
+            LayoutElement headerLayoutElement = headerContainer.AddComponent<LayoutElement>();
+            headerLayoutElement.preferredHeight = 40;
+            headerLayoutElement.flexibleHeight = 0;
             
             HorizontalLayoutGroup headerLayout = headerContainer.AddComponent<HorizontalLayoutGroup>();
             headerLayout.childForceExpandWidth = true;
@@ -634,7 +639,14 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 scrollRect = scrollObj.AddComponent<RectTransform>();
             }
-            scrollRect.sizeDelta = new Vector2(0, 280);
+            // 让滚动视图在垂直方向上可伸缩以填充布局剩余空间
+            scrollRect.anchorMin = new Vector2(0, 0);
+            scrollRect.anchorMax = new Vector2(1, 1);
+            scrollRect.offsetMin = Vector2.zero;
+            scrollRect.offsetMax = Vector2.zero;
+            LayoutElement scrollLayoutElement = scrollObj.AddComponent<LayoutElement>();
+            scrollLayoutElement.preferredHeight = -1;
+            scrollLayoutElement.flexibleHeight = 1;
 
             pptListScrollRect = scrollObj.AddComponent<ScrollRect>();
             pptListScrollRect.horizontal = false;
@@ -701,6 +713,10 @@ namespace MATE_ENGINE___Scripts.Tools
                 buttonContainerRect = buttonContainer.AddComponent<RectTransform>();
             }
             buttonContainerRect.sizeDelta = new Vector2(0, 50);
+            // 固定底部按钮容器高度
+            LayoutElement btnContainerLayout = buttonContainer.AddComponent<LayoutElement>();
+            btnContainerLayout.preferredHeight = 50;
+            btnContainerLayout.flexibleHeight = 0;
 
             HorizontalLayoutGroup buttonLayout = buttonContainer.AddComponent<HorizontalLayoutGroup>();
             buttonLayout.childForceExpandWidth = false;

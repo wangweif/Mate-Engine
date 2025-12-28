@@ -45,20 +45,67 @@ namespace MATE_ENGINE___Scripts.Tools
             layout.spacing = 20;
             layout.padding = new RectOffset(20, 20, 20, 20);
             layout.childForceExpandHeight = false;
-            layout.childControlHeight = false;
+            layout.childControlHeight = true;
 
-            // 更新日志标题
-            GameObject changelogLabel = createLabelFunc(settingsPanel.transform, "更新日志：", 16);
+            // 更新日志标题和下拉框放在同一行（标题在左，下拉框在右）
+            GameObject changelogHeader = new GameObject("ChangelogHeader");
+            changelogHeader.transform.SetParent(settingsPanel.transform, false);
+            RectTransform changelogHeaderRect = changelogHeader.GetComponent<RectTransform>();
+            if (changelogHeaderRect == null)
+            {
+                changelogHeaderRect = changelogHeader.AddComponent<RectTransform>();
+            }
+            HorizontalLayoutGroup headerLayout = changelogHeader.AddComponent<HorizontalLayoutGroup>();
+            headerLayout.spacing = 10;
+            headerLayout.childForceExpandHeight = false;
+            headerLayout.childControlHeight = true;
+            // 垂直居中子项
+            headerLayout.childAlignment = TextAnchor.MiddleLeft;
+            // 允许子项水平拉伸，使标题占满剩余空间，下拉固定在右侧
+            headerLayout.childForceExpandWidth = false;
+            headerLayout.childControlWidth = true;
+            changelogHeaderRect.anchorMin = new Vector2(0, 0);
+            changelogHeaderRect.anchorMax = new Vector2(1, 0);
+            changelogHeaderRect.sizeDelta = new Vector2(0, 40);
+            LayoutElement headerLayoutElem = changelogHeader.AddComponent<LayoutElement>();
+            headerLayoutElem.preferredHeight = 40;
+            headerLayoutElem.flexibleWidth = 1;
 
-            // 创建版本选择下拉框
+            // 更新日志标题（作为 header 的子对象）
+            GameObject changelogLabel = createLabelFunc(changelogHeader.transform, "更新日志：", 16);
+            RectTransform labelRectForLayout = changelogLabel.GetComponent<RectTransform>();
+            if (labelRectForLayout != null)
+            {
+                LayoutElement labelLayout = changelogLabel.AddComponent<LayoutElement>();
+                // 让标题占据剩余空间并与下拉框保持相同高度
+                labelLayout.flexibleWidth = 1;
+                labelLayout.minWidth = 120;
+                labelLayout.preferredHeight = 40;
+                labelLayout.flexibleHeight = 0;
+
+                // 垂直居中标签文字（尝试获取 TextMeshProUGUI）
+                var labelTmp = changelogLabel.GetComponentInChildren<TextMeshProUGUI>();
+                if (labelTmp != null)
+                {
+                    labelTmp.alignment = TextAlignmentOptions.MidlineLeft;
+                }
+            }
+
+            // 创建版本选择下拉框（作为 header 的子对象）
             GameObject dropdownObj = new GameObject("VersionDropdown");
-            dropdownObj.transform.SetParent(settingsPanel.transform, false);
+            dropdownObj.transform.SetParent(changelogHeader.transform, false);
             RectTransform dropdownRect = dropdownObj.GetComponent<RectTransform>();
             if (dropdownRect == null)
             {
                 dropdownRect = dropdownObj.AddComponent<RectTransform>();
             }
-            dropdownRect.sizeDelta = new Vector2(0, 40);
+            dropdownRect.sizeDelta = new Vector2(120, 40);
+            LayoutElement dropdownLayout = dropdownObj.AddComponent<LayoutElement>();
+            // 固定宽度并不拉伸，固定高度与标题一致
+            dropdownLayout.preferredWidth = 120;
+            dropdownLayout.flexibleWidth = 0;
+            dropdownLayout.preferredHeight = 40;
+            dropdownLayout.flexibleHeight = 0;
 
             // 添加背景图片 - 暗黑风格
             Image dropdownBg = dropdownObj.AddComponent<Image>();
@@ -85,7 +132,7 @@ namespace MATE_ENGINE___Scripts.Tools
             labelText.text = "选择版本...";
             labelText.fontSize = 20;
             labelText.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 白色文字
-            labelText.alignment = TextAlignmentOptions.Left;
+            labelText.alignment = TextAlignmentOptions.MidlineLeft;
             FontManager.ApplyFont(labelText);
             versionDropdown.captionText = labelText;
 
@@ -188,7 +235,13 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 scrollRect = scrollObj.AddComponent<RectTransform>();
             }
-            scrollRect.sizeDelta = new Vector2(0, 280);
+            scrollRect.anchorMin = new Vector2(0, 0);
+            scrollRect.anchorMax = new Vector2(1, 1);
+            scrollRect.offsetMin = new Vector2(0, 0);
+            scrollRect.offsetMax = new Vector2(0, 0);
+            LayoutElement scrollLayoutElement = scrollObj.AddComponent<LayoutElement>();
+            scrollLayoutElement.preferredHeight = -1;
+            scrollLayoutElement.flexibleHeight = 1;
 
             changelogScrollRect = scrollObj.AddComponent<ScrollRect>();
             changelogScrollRect.horizontal = false;
