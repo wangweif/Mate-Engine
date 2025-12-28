@@ -891,6 +891,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configTextComp.alignment = TextAlignmentOptions.TopLeft;
             configTextComp.enableWordWrapping = true;
             configTextComp.overflowMode = TextOverflowModes.Overflow;
+            configTextComp.margin = new Vector4(5, 5, 5, 5);
             FontManager.ApplyFont(configTextComp);
             
             // 创建占位符文本组件
@@ -920,7 +921,9 @@ namespace MATE_ENGINE___Scripts.Tools
             configInputField.textViewport = configViewportRect;
             configInputField.targetGraphic = inputFieldBg;
             configInputField.lineType = TMP_InputField.LineType.MultiLineNewline;
-            configInputField.scrollSensitivity = 40f;
+            configInputField.scrollSensitivity = 10f;
+            configInputField.onFocusSelectAll = false;
+            configInputField.caretWidth = 2;
 
             // 设置AI生成演讲稿按钮的点击事件
             generateSpeechButton.onClick.AddListener(OnGenerateSpeech);
