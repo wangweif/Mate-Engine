@@ -1633,7 +1633,7 @@ namespace MATE_ENGINE___Scripts.Tools
             itemRect.sizeDelta = new Vector2(0, 40);
 
             Image itemBg = itemObj.AddComponent<Image>();
-            itemBg.color = new Color(0.18f, 0.20f, 0.25f, 1f); // 暗黑风格背景
+            itemBg.color = Color.white;
             
             // 添加列表项边框
             Outline itemOutline = itemObj.AddComponent<Outline>();
