@@ -124,7 +124,7 @@ Thry/presets_known_materials.txt
 # 额外忽略的Unity生成文件
 *.unitypackage
 # *.asset.meta
-*.prefab.meta
+# *.prefab.meta
 
 # 临时生成的播放器设置
 /[Pp]layerSettings/
