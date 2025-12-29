@@ -70,6 +70,33 @@ namespace MATE_ENGINE___Scripts.Tools
                 SetupScrollView();
             }
 
+            // 确保modelPanel的RectTransform设置正确，以便自适应父容器并跟随缩放
+            RectTransform contentRect = modelPanel.GetComponent<RectTransform>();
+            if (contentRect != null)
+            {
+                // 如果有ScrollRect，设置为内容自适应模式
+                if (scrollRect != null)
+                {
+                    // 设置锚点在顶部，宽度拉伸，高度自适应内容
+                    contentRect.anchorMin = new Vector2(0, 1);
+                    contentRect.anchorMax = new Vector2(1, 1);
+                    contentRect.pivot = new Vector2(0.5f, 1);
+                    contentRect.anchoredPosition = Vector2.zero;
+                    // 宽度设置为0表示跟随锚点拉伸，高度由ContentSizeFitter控制
+                    contentRect.sizeDelta = new Vector2(0, contentRect.sizeDelta.y);
+                }
+                else
+                {
+                    // 没有ScrollRect时，完全跟随父容器
+                    contentRect.anchorMin = new Vector2(0, 0);
+                    contentRect.anchorMax = new Vector2(1, 1);
+                    contentRect.pivot = new Vector2(0.5f, 0.5f);
+                    contentRect.offsetMin = Vector2.zero;
+                    contentRect.offsetMax = Vector2.zero;
+                    contentRect.sizeDelta = Vector2.zero;
+                }
+            }
+
             VerticalLayoutGroup layout = modelPanel.GetComponent<VerticalLayoutGroup>();
             if (layout == null)
             {
@@ -79,6 +106,9 @@ namespace MATE_ENGINE___Scripts.Tools
             layout.padding = new RectOffset(8, 8, 20, 8);
             layout.childForceExpandHeight = false;
             layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;  // 确保子元素宽度跟随父容器
+            layout.childControlWidth = true;
+            // layout.childAlignment = TextAnchor.UpperCenter;
             
             // 添加ContentSizeFitter以自动调整内容大小
             ContentSizeFitter fitter = modelPanel.GetComponent<ContentSizeFitter>();
@@ -87,6 +117,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 fitter = modelPanel.AddComponent<ContentSizeFitter>();
             }
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;  // 水平方向不限制，跟随父容器
             
             // 创建模型列表
             CreateModelList();
@@ -106,10 +137,13 @@ namespace MATE_ENGINE___Scripts.Tools
             scrollViewObj.transform.SetSiblingIndex(modelPanel.transform.GetSiblingIndex());
             
             RectTransform scrollViewRect = scrollViewObj.AddComponent<RectTransform>();
+            // 设置锚点拉伸，使ScrollView跟随父容器缩放
             scrollViewRect.anchorMin = new Vector2(0, 0);
             scrollViewRect.anchorMax = new Vector2(1, 1);
+            scrollViewRect.pivot = new Vector2(0.5f, 0.5f);
             scrollViewRect.offsetMin = Vector2.zero;
             scrollViewRect.offsetMax = Vector2.zero;
+            scrollViewRect.sizeDelta = Vector2.zero;
 
             // 添加ScrollRect组件
             scrollRect = scrollViewObj.AddComponent<ScrollRect>();
@@ -123,16 +157,22 @@ namespace MATE_ENGINE___Scripts.Tools
             viewportObj.transform.SetParent(scrollViewObj.transform, false);
             
             RectTransform viewportRect = viewportObj.AddComponent<RectTransform>();
+            // Viewport也需要跟随ScrollView缩放
             viewportRect.anchorMin = new Vector2(0, 0);
             viewportRect.anchorMax = new Vector2(1, 1);
+            viewportRect.pivot = new Vector2(0.5f, 0.5f);
             viewportRect.offsetMin = Vector2.zero;
             viewportRect.offsetMax = Vector2.zero;
+            viewportRect.sizeDelta = Vector2.zero;
             
             // Image viewportMask = viewportObj.AddComponent<Image>();
             // viewportMask.color = Color.clear;
             
             // Mask mask = viewportObj.AddComponent<Mask>();
             // mask.showMaskGraphic = false;
+
+            viewportObj.AddComponent<RectMask2D>();
+
 
             scrollRect.viewport = viewportRect;
 
@@ -143,10 +183,12 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 contentRect = modelPanel.AddComponent<RectTransform>();
             }
+            // 设置content锚点，使其宽度跟随viewport，高度自适应内容
             contentRect.anchorMin = new Vector2(0, 1);
             contentRect.anchorMax = new Vector2(1, 1);
             contentRect.pivot = new Vector2(0.5f, 1);
             contentRect.anchoredPosition = Vector2.zero;
+            contentRect.sizeDelta = new Vector2(0, contentRect.sizeDelta.y);  // 宽度为0表示跟随锚点拉伸
 
             scrollRect.content = contentRect;
 
