@@ -286,7 +286,8 @@ namespace MateEngine.PPT
         {
             try
             {
-                string exePath = Path.Combine(Application.dataPath, "..", hostExePath);
+                // 使用 StreamingAssets 路径,确保打包后能正确找到文件
+                string exePath = Path.Combine(Application.streamingAssetsPath, hostExePath);
                 
                 if (!File.Exists(exePath))
                 {
