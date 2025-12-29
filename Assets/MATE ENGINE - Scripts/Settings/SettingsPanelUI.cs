@@ -2035,8 +2035,10 @@ namespace MATE_ENGINE___Scripts.Tools
                     
                     // 等待一帧，确保文本设置完成
                     yield return null;
-                    
-                    Debug.Log("配置面板已打开，演讲稿已加载");
+
+                    // 跳转到顶部
+                    configInputField.ActivateInputField();
+                    configInputField.MoveTextStart(false);
                 }
             }
         }
