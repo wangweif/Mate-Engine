@@ -108,8 +108,8 @@ public class AdvancedChatManager : MonoBehaviour
 
     void Start()
     {
-        userMessagePrefab = Resources.Load<GameObject>("Prefabs/UserMessagePreFab Variant");
-        aiMessagePrefab = Resources.Load<GameObject>("Prefabs/AIMessagePreFab Variant");
+        userMessagePrefab = Resources.Load<GameObject>("Prefabs/UserMessagePreFab");
+        aiMessagePrefab = Resources.Load<GameObject>("Prefabs/AIMessagePreFab");
         // 初始化 - 语音输入按钮点击事件
         voiceInputButton.onClick.AddListener(OnVoiceInputButtonClicked);
 
