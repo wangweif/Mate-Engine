@@ -21982,7 +21982,7 @@ Transform:
   m_GameObject: {fileID: 638481094}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -1, z: -0, w: 0}
-  m_LocalPosition: {x: 0, y: -0.8, z: 0}
+  m_LocalPosition: {x: 0, y: -0.6, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -28345,7 +28345,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 1, g: 0.26999998, b: 0.96203995, a: 1}
-  m_Intensity: 2.3181318e-33
+  m_Intensity: 1.6287486e-33
   m_Range: 0.5
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -69059,7 +69059,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0, g: 0.44799995, b: 1, a: 1}
-  m_Intensity: 4.6362636e-33
+  m_Intensity: 3.2574973e-33
   m_Range: 1
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -90616,7 +90616,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0, g: 0.44799995, b: 1, a: 1}
-  m_Intensity: 3.4771975e-33
+  m_Intensity: 2.4431228e-33
   m_Range: 1
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -216368,7 +216368,7 @@ MonoBehaviour:
     groupID: ambi_lights
     exclusiveTags:
     - lights
-    fadeCurrentValue: 1.1590659e-33
+    fadeCurrentValue: 8.143743e-34
     fadeTarget: 0
     isFading: 1
     hasYSet: 0
@@ -216392,7 +216392,7 @@ MonoBehaviour:
     groupID: ambi_lights
     exclusiveTags:
     - lights
-    fadeCurrentValue: 1.1590659e-33
+    fadeCurrentValue: 8.143743e-34
     fadeTarget: 0
     isFading: 1
     hasYSet: 0
@@ -216416,7 +216416,7 @@ MonoBehaviour:
     groupID: ambi_lights
     exclusiveTags:
     - lights
-    fadeCurrentValue: 1.1590659e-33
+    fadeCurrentValue: 8.143743e-34
     fadeTarget: 0
     isFading: 1
     hasYSet: 0
@@ -240700,8 +240700,6 @@ MonoBehaviour:
   - componentTypeName: AvatarRebindHandler
     disableInBigScreen: 0
   - componentTypeName: AvatarMinecraftMessages
-    disableInBigScreen: 0
-  - componentTypeName: AvatarFoodController
     disableInBigScreen: 0
 --- !u!114 &8924917334924735512
 MonoBehaviour:
