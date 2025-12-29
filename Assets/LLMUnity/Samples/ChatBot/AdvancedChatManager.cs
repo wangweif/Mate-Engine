@@ -220,6 +220,7 @@ public class AdvancedChatManager : MonoBehaviour
 
         // 清空输入框
         inputField.text = "";
+        inputField.text = "思考中...";
 
         // 生成AI回复
         StartCoroutine(ChatWithRAGFlow(text));
@@ -287,6 +288,7 @@ public class AdvancedChatManager : MonoBehaviour
                 }
             }));
         }
+        inputField.text = "";
         inputField.interactable = true;
     }
 
