@@ -246,6 +246,7 @@ namespace MATE_ENGINE___Scripts.Tools
             changelogScrollRect = scrollObj.AddComponent<ScrollRect>();
             changelogScrollRect.horizontal = false;
             changelogScrollRect.vertical = true;
+            changelogScrollRect.scrollSensitivity = 10f;
 
             Image scrollBg = scrollObj.AddComponent<Image>();
             // 更新日志滚动区域背景：暗黑风格
@@ -284,6 +285,11 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 changelogContentRect = changelogContent.AddComponent<RectTransform>();
             }
+
+            ContentSizeFitter changelogContentFitter = changelogContent.AddComponent<ContentSizeFitter>();
+            changelogContentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            changelogContentFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
             changelogContentRect.anchorMin = new Vector2(0, 1);
             changelogContentRect.anchorMax = new Vector2(1, 1);
             changelogContentRect.pivot = new Vector2(0.5f, 1);
@@ -292,6 +298,7 @@ namespace MATE_ENGINE___Scripts.Tools
             VerticalLayoutGroup changelogContentLayout = changelogContent.AddComponent<VerticalLayoutGroup>();
             changelogContentLayout.childForceExpandWidth = true;
             changelogContentLayout.childControlHeight = false;
+            changelogContentLayout.childControlHeight = true;
             changelogContentLayout.padding = new RectOffset(60, 10, 10, 10);
 
             changelogScrollRect.content = changelogContentRect;

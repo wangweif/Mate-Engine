@@ -185,6 +185,7 @@ namespace MATE_ENGINE___Scripts.Tools
                     inNewFeatures = true;
                     inImprovements = false;
                     inFixes = false;
+                    sb.AppendLine();
                     sb.AppendLine("新增功能");
                     sb.AppendLine();
                     continue;
@@ -194,6 +195,7 @@ namespace MATE_ENGINE___Scripts.Tools
                     inNewFeatures = false;
                     inImprovements = true;
                     inFixes = false;
+                    sb.AppendLine();
                     sb.AppendLine("功能优化");
                     sb.AppendLine();
                     continue;
@@ -203,6 +205,7 @@ namespace MATE_ENGINE___Scripts.Tools
                     inNewFeatures = false;
                     inImprovements = false;
                     inFixes = true;
+                    sb.AppendLine();
                     sb.AppendLine("修复问题");
                     sb.AppendLine();
                     continue;
