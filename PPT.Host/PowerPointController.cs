@@ -19,14 +19,22 @@ namespace PPT.Host
         private PowerPoint.SlideShowWindow _slideShowWindow;
 
         private readonly StaTaskRunner _sta;
+        private readonly PPTApplicationType _appType;
+        
         public event Action<int> SlideChanged;
         public event Action PresentationClosed;
 
         private bool _isDisposed = false;
 
-        public PowerPointController()
+        /// <summary>
+        /// 构造函数
+        /// </summary>
+        /// <param name="appType">应用类型(Auto/WPS/Office),默认为 Auto 自动检测</param>
+        public PowerPointController(PPTApplicationType appType = PPTApplicationType.Auto)
         {
+            _appType = appType;
             _sta = new StaTaskRunner();
+            Console.WriteLine($"[PPT] 应用类型: {PPTApplicationDetector.GetDisplayName(_appType)}");
         }
 
         /// <summary>
@@ -43,15 +51,24 @@ namespace PPT.Host
 
                 _sta.Invoke(() =>
                 {
-                    Console.WriteLine("[PPT] 步骤2: (STA) 创建 PowerPoint 应用程序实例...");
-                    // 尝试获取已运行的实例，若不存在则创建新实例
+                    Console.WriteLine("[PPT] 步骤2: (STA) 创建 应用程序实例...");
+                    // 根据应用类型创建实例
                     try
                     {
-                        // 如果 PowerPoint 已经运行，优先使用 GetActiveObject 避免再次创建实例
+                        // 获取对应的 ProgID
+                        string progId = PPTApplicationDetector.GetProgID(_appType);
+                        PPTApplicationType actualType = _appType == PPTApplicationType.Auto 
+                            ? PPTApplicationDetector.DetectBestAvailable() 
+                            : _appType;
+                        
+                        Console.WriteLine($"[PPT] 使用应用: {PPTApplicationDetector.GetDisplayName(actualType)} (ProgID: {progId})");
+
+                        // 尝试获取已运行的实例                                                       
                         object existing = null;
                         try
                         {
-                            existing = Marshal.GetActiveObject("PowerPoint.Application");
+                            existing = Marshal.GetActiveObject(progId);
+                            Console.WriteLine($"[PPT] 检测到已运行的实例,将复用现有实例");
                         }
                         catch (COMException)
                         {
@@ -64,15 +81,23 @@ namespace PPT.Host
                         }
                         else
                         {
-                            _app = new PowerPoint.Application();
+                            // 通过 ProgID 创建新实例
+                            Type appType = Type.GetTypeFromProgID(progId);
+                            if (appType == null)
+                            {
+                                throw new InvalidOperationException($"无法获取 ProgID '{progId}' 对应的类型,请确认应用已正确安装");
+                            }
+                            
+                            _app = (PowerPoint.Application)Activator.CreateInstance(appType);
+                            Console.WriteLine($"[PPT] 已创建新的应用实例");
                         }
 
                         _app.Visible = Office.MsoTriState.msoTrue;
-                        Console.WriteLine("[PPT] 步骤2: PowerPoint 应用程序实例创建成功");
+                        Console.WriteLine("[PPT] 步骤2: 应用程序实例创建成功");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[PPT] 创建 PowerPoint 实例失败: {ex.Message}");
+                        Console.WriteLine($"[PPT] 创建 实例失败: {ex.Message}");
                         throw;
                     }
 
@@ -93,7 +118,7 @@ namespace PPT.Host
                     _app.SlideShowNextSlide += OnSlideShowNextSlide;
                     _app.SlideShowEnd += OnSlideShowEnd;
                     Console.WriteLine("[PPT] 步骤4: 事件订阅成功");
-
+                    Thread.Sleep(500);
                     Console.WriteLine("[PPT] 步骤5: (STA) 开始放映...");
                     _presentation.SlideShowSettings.Run();
                     Console.WriteLine("[PPT] 步骤5: 放映已启动");

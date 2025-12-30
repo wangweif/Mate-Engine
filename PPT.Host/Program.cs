@@ -26,8 +26,38 @@ namespace PPT.Host
             Console.WriteLine("  PPT Host - PowerPoint 控制服务");
             Console.WriteLine("  监听端口: " + PORT);
             Console.WriteLine("===========================================");
+            Console.WriteLine();
 
-            _pptController = new PowerPointController();
+            // 解析命令行参数
+            PPTApplicationType appType = ParseApplicationType(args);
+            
+            // 显示系统安装情况
+            Console.WriteLine(PPTApplicationDetector.GetInstallationInfo());
+            Console.WriteLine();
+            
+            // 显示将使用的应用类型
+            if (appType == PPTApplicationType.Auto)
+            {
+                try
+                {
+                    var detected = PPTApplicationDetector.DetectBestAvailable();
+                    Console.WriteLine($"自动选择: {PPTApplicationDetector.GetDisplayName(detected)}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[错误] {ex.Message}");
+                    Console.WriteLine("请按任意键退出...");
+                    Console.ReadKey();
+                    return;
+                }
+            }
+            else
+            {
+                Console.WriteLine($"指定使用: {PPTApplicationDetector.GetDisplayName(appType)}");
+            }
+            Console.WriteLine();
+
+            _pptController = new PowerPointController(appType);
             
             // 订阅 PPT 事件
             _pptController.SlideChanged += OnSlideChanged;
@@ -225,6 +255,35 @@ namespace PPT.Host
             _listener?.Stop();
             
             Console.WriteLine("[服务器] 已关闭");
+        }
+
+        /// <summary>
+        /// 解析命令行参数,获取应用类型
+        /// </summary>
+        static PPTApplicationType ParseApplicationType(string[] args)
+        {
+            foreach (var arg in args)
+            {
+                if (arg.StartsWith("--app=", StringComparison.OrdinalIgnoreCase))
+                {
+                    string value = arg.Substring(6).ToLower();
+                    switch (value)
+                    {
+                        case "wps":
+                            return PPTApplicationType.WPS;
+                        case "office":
+                        case "powerpoint":
+                            return PPTApplicationType.Office;
+                        case "auto":
+                            return PPTApplicationType.Auto;
+                        default:
+                            Console.WriteLine($"[警告] 未知的应用类型参数: {value},将使用自动检测");
+                            break;
+                    }
+                }
+            }
+            
+            return PPTApplicationType.Auto;
         }
     }
 }
