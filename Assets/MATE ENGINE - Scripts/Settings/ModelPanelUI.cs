@@ -446,7 +446,7 @@ namespace MATE_ENGINE___Scripts.Tools
             RectTransform nameRect = nameObj.AddComponent<RectTransform>();
             
             TMP_Text nameText = nameObj.AddComponent<TextMeshProUGUI>();
-            nameText.text = Path.GetFileNameWithoutExtension(modelFileName);
+            nameText.text = GetModelDisplayName(modelFileName); // 使用中文显示名称
             nameText.fontSize = 20;
             nameText.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 改为浅色文字（暗黑风格）
             nameText.alignment = TextAlignmentOptions.Left;
@@ -563,11 +563,32 @@ namespace MATE_ENGINE___Scripts.Tools
                     return "aisjiuxu";
                 case "female01":
                     return "x4_xiaoyan";
+                case "female02":
+                    return "aisjinger";
                 case "xiaozhi":
                     return "x4_yezi";
                 default:
                     Debug.LogWarning($"[ModelPanelUI] 未知模型 {baseName}，使用默认语音");
                     return "x4_yezi"; // 默认语音
+            }
+        }
+
+        string GetModelDisplayName(string modelName)
+        {
+            string baseName = Path.GetFileNameWithoutExtension(modelName);
+
+            switch (baseName.ToLower())
+            {
+                case "male01":
+                    return "男性";
+                case "female01":
+                    return "女性1";
+                case "female02":
+                    return "女性2";
+                case "xiaozhi":
+                    return "小智";
+                default:
+                    return "基础模型"; // 默认语音
             }
         }
 
