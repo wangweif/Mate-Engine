@@ -166,6 +166,23 @@ public class AdvancedChatManager : MonoBehaviour
     {
         StopRealTimeVoiceChat();
         StopCurrentTTS();
+        CleanupAllTemporaryFiles();
+    }
+    void CleanupAllTemporaryFiles()
+    {
+        string tempDir = Path.Combine(Application.persistentDataPath, "TTSTemp");
+        if (Directory.Exists(tempDir))
+        {
+            try
+            {
+                Directory.Delete(tempDir, true);
+                Debug.Log($"已清理TTS临时目录: {tempDir}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"清理TTS临时目录失败: {e.Message}");
+            }
+        }
     }
 
     void FindAvatarAnimator()
