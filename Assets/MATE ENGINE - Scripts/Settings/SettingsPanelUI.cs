@@ -777,11 +777,12 @@ namespace MATE_ENGINE___Scripts.Tools
             configShadow.effectColor = new Color(0, 0, 0, 0.5f);
             configShadow.effectDistance = new Vector2(0, 8);
 
-            VerticalLayoutGroup configLayout = configPanel.AddComponent<VerticalLayoutGroup>();
-            configLayout.spacing = 18;
-            configLayout.padding = new RectOffset(20, 20, 20, 20);
-            configLayout.childForceExpandHeight = false;
-            configLayout.childControlHeight = true;
+            // 不使用VerticalLayoutGroup，改用手动定位以确保按钮在底部
+            // VerticalLayoutGroup configLayout = configPanel.AddComponent<VerticalLayoutGroup>();
+            // configLayout.spacing = 18;
+            // configLayout.padding = new RectOffset(20, 20, 20, 20);
+            // configLayout.childForceExpandHeight = false;
+            // configLayout.childControlHeight = false;
 
             // 演讲稿输入框标签和AI生成按钮容器
             GameObject labelContainer = new GameObject("LabelContainer");
@@ -791,7 +792,12 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 labelContainerRect = labelContainer.AddComponent<RectTransform>();
             }
-            labelContainerRect.sizeDelta = new Vector2(0, 30);
+            // 固定在顶部
+            labelContainerRect.anchorMin = new Vector2(0, 1);
+            labelContainerRect.anchorMax = new Vector2(1, 1);
+            labelContainerRect.pivot = new Vector2(0.5f, 1);
+            labelContainerRect.anchoredPosition = new Vector2(0, -20);
+            labelContainerRect.sizeDelta = new Vector2(-40, 40);
 
             HorizontalLayoutGroup labelLayout = labelContainer.AddComponent<HorizontalLayoutGroup>();
             labelLayout.childForceExpandWidth = false;
@@ -802,13 +808,13 @@ namespace MATE_ENGINE___Scripts.Tools
 
             // 演讲稿输入框标签
             GameObject configInputLabel = CreateLabel(labelContainer.transform, "演讲稿(一段对应一页)：", 16);
-            LayoutElement labelElement = configInputLabel.AddComponent<LayoutElement>();
-            labelElement.preferredWidth = -1;
-            labelElement.flexibleWidth = 0;
+            RectTransform configInputLabelRect = configInputLabel.GetComponent<RectTransform>();
+            configInputLabelRect.sizeDelta = new Vector2(250, 40);
 
             GameObject spacer = new GameObject("Spacer");
             spacer.transform.SetParent(labelContainer.transform, false);
-
+            RectTransform spacerRect = spacer.AddComponent<RectTransform>();
+            spacerRect.sizeDelta = new Vector2(0, 40);
             LayoutElement spacerElement = spacer.AddComponent<LayoutElement>();
             spacerElement.flexibleWidth = 1;
 
@@ -823,13 +829,12 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 configInputRect = configInputObj.AddComponent<RectTransform>();
             }
-            configInputRect.sizeDelta = new Vector2(0, 220);
-
-            // 添加LayoutElement以固定高度
-            LayoutElement inputLayout = configInputObj.AddComponent<LayoutElement>();
-            inputLayout.minHeight = 400;
-            inputLayout.preferredHeight = 400;
-            inputLayout.flexibleHeight = 0;
+            // 固定在标签下方，底部留出空间给按钮
+            configInputRect.anchorMin = new Vector2(0, 0);
+            configInputRect.anchorMax = new Vector2(1, 1);
+            configInputRect.pivot = new Vector2(0.5f, 1);
+            configInputRect.anchoredPosition = new Vector2(0, -78); // 标签高度40 + 间距18 + 顶部边距20
+            configInputRect.sizeDelta = new Vector2(-40, -165); // 左右边距20，底部留出空间给按钮容器(70) + 顶部(78) + 底部边距(20)
 
             // 添加输入框背景
             Image inputFieldBg = configInputObj.AddComponent<Image>();
@@ -930,7 +935,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 设置AI生成演讲稿按钮的点击事件
             generateSpeechButton.onClick.AddListener(OnGenerateSpeech);
 
-            // 确认和取消按钮容器
+            // 确认和取消按钮容器 - 固定在配置面板最底部
             GameObject configButtonContainer = new GameObject("ConfigButtonContainer");
             configButtonContainer.transform.SetParent(configPanel.transform, false);
             RectTransform configButtonContainerRect = configButtonContainer.GetComponent<RectTransform>();
@@ -938,7 +943,12 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 configButtonContainerRect = configButtonContainer.AddComponent<RectTransform>();
             }
-            configButtonContainerRect.sizeDelta = new Vector2(0, 40);
+            // 固定在底部
+            configButtonContainerRect.anchorMin = new Vector2(0, 0);
+            configButtonContainerRect.anchorMax = new Vector2(1, 0);
+            configButtonContainerRect.pivot = new Vector2(0.5f, 0);
+            configButtonContainerRect.anchoredPosition = new Vector2(0, 20); // 底部边距20
+            configButtonContainerRect.sizeDelta = new Vector2(-40, 50); // 左右边距20，高度50
 
             HorizontalLayoutGroup configButtonLayout = configButtonContainer.AddComponent<HorizontalLayoutGroup>();
             configButtonLayout.childForceExpandWidth = false;
