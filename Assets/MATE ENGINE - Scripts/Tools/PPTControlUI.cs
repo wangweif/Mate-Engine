@@ -22,6 +22,7 @@ public class PPTControlUI : MonoBehaviour
     [Header("UI元素")]
     private GameObject controlBar;
     private Button playPauseButton;
+    private Button closeButton;
     private Button previousButton;
     private Button nextButton;
     private Button muteButton;
@@ -30,6 +31,7 @@ public class PPTControlUI : MonoBehaviour
     
     // 按钮图标Image
     private Image playPauseIcon;
+    private Image closeIcon;
     private Image previousIcon;
     private Image nextIcon;
     private Image muteIcon;
@@ -38,6 +40,7 @@ public class PPTControlUI : MonoBehaviour
     // 图标Sprite资源
     private Sprite playSprite;
     private Sprite pauseSprite;
+    private Sprite closeSprite;
     private Sprite previousSprite;
     private Sprite nextSprite;
     private Sprite volumeSprite;
@@ -140,6 +143,7 @@ public class PPTControlUI : MonoBehaviour
         // 使用Resources.Load加载资源(支持运行时)
         playSprite = Resources.Load<Sprite>("PPTIcons/播放");
         pauseSprite = Resources.Load<Sprite>("PPTIcons/暂停");
+        closeSprite = Resources.Load<Sprite>("PPTIcons/关闭");
         previousSprite = Resources.Load<Sprite>("PPTIcons/上一页");
         nextSprite = Resources.Load<Sprite>("PPTIcons/下一页");
         volumeSprite = Resources.Load<Sprite>("PPTIcons/声音");
@@ -150,6 +154,7 @@ public class PPTControlUI : MonoBehaviour
         // 检查加载结果
         if (playSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载播放图标");
         if (pauseSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载暂停图标");
+        if (closeSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载关闭图标");
         if (previousSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载上一页图标");
         if (nextSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载下一页图标");
         if (volumeSprite == null) Debug.LogWarning("[PPTControlUI] 未能加载声音图标");
@@ -198,6 +203,7 @@ public class PPTControlUI : MonoBehaviour
 
         // 创建按钮和显示元素(使用PNG图标)
         playPauseButton = CreateImageButton(controlBar.transform, "PlayPause", playSprite, OnPlayPauseClicked);
+        closeButton = CreateImageButton(controlBar.transform, "Close", closeSprite, OnCloseClicked);
         previousButton = CreateImageButton(controlBar.transform, "Previous", previousSprite, OnPreviousSlideClicked);
         
         // 页码显示
@@ -263,6 +269,8 @@ public class PPTControlUI : MonoBehaviour
         // 保存图标Image引用
         if (name == "PlayPause")
             playPauseIcon = iconImage;
+        else if (name == "Close")
+            closeIcon = iconImage;
         else if (name == "Previous")
             previousIcon = iconImage;
         else if (name == "Next")
@@ -363,6 +371,51 @@ public class PPTControlUI : MonoBehaviour
         {
             Debug.LogWarning("[PPTControlUI] UISetOnOff未找到");
         }
+    }
+
+    /// <summary>
+    /// 关闭按钮点击
+    /// </summary>
+    void OnCloseClicked()
+    {
+        Debug.Log("[PPTControlUI] 关闭按钮被点击");
+        
+        // 1. 关闭PPT演示文稿
+        if (pptService != null)
+        {
+            pptService.ClosePresentation();
+            Debug.Log("[PPTControlUI] 已发送关闭PPT命令");
+        }
+        else
+        {
+            Debug.LogWarning("[PPTControlUI] PPTService未找到,无法关闭PPT");
+        }
+        
+        // 2. 恢复数字人显示状态
+        if (!isAvatarVisible)
+        {
+            isAvatarVisible = true;
+            ToggleAvatarVisibility(true);
+            UpdateAvatarToggleButton(true);
+            Debug.Log("[PPTControlUI] 已恢复数字人显示");
+        }
+        
+        // 3. 恢复音量状态(取消静音)
+        if (isMuted)
+        {
+            isMuted = false;
+            UpdateMuteButton(false);
+            
+            if (uiSetOnOff != null && uiSetOnOff.windowsTTS != null)
+            {
+                uiSetOnOff.windowsTTS.SetVolume(1f);
+                Debug.Log("[PPTControlUI] 已恢复音量");
+            }
+        }
+        
+        // 4. 隐藏控制栏
+        HideControlBar();
+        Debug.Log("[PPTControlUI] 关闭操作完成");
     }
 
     /// <summary>
