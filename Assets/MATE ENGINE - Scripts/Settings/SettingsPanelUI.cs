@@ -762,7 +762,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configPanelRect.anchorMax = new Vector2(0.5f, 0.5f);
             configPanelRect.pivot = new Vector2(0.5f, 0.5f);
             configPanelRect.anchoredPosition = Vector2.zero;
-            configPanelRect.sizeDelta = new Vector2(750, 560);
+            configPanelRect.sizeDelta = new Vector2(1000, 650);
 
             Image configPanelBg = configPanel.AddComponent<Image>();
             configPanelBg.color = new Color(0.16f, 0.17f, 0.22f, 1f);
@@ -893,6 +893,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configTextComp.enableWordWrapping = true;
             configTextComp.overflowMode = TextOverflowModes.Overflow;
             configTextComp.margin = new Vector4(5, 5, 5, 5);
+            configTextComp.paragraphSpacing = 100; // 增加段落之间的间距
             FontManager.ApplyFont(configTextComp);
             
             // 创建占位符文本组件
