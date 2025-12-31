@@ -15,7 +15,7 @@ namespace MATE_ENGINE___Scripts.Tools
     public class AutoDesc : MonoBehaviour
     {
         private string filePath;
-        private string baseUrl = "http://192.168.8.88:7899";
+        private string baseUrl = "https://llm.bjzntd.com";
 
         // 跟踪请求状态
         private bool isRequestInProgress = false;
