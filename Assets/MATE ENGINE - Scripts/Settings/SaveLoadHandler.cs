@@ -143,7 +143,7 @@ public class SaveLoadHandler : MonoBehaviour
 
         public bool enableDiscordRPC = true;
 
-        public bool tutorialDone = false;
+        public bool tutorialDone = true;
 
         public string selectedLocaleCode = "en";
         public bool enableIK = true;
