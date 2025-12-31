@@ -46,6 +46,7 @@ namespace MATE_ENGINE___Scripts.Tools
         public Button addPPTButton;
         public ScrollRect pptListScrollRect;
         public GameObject pptListContent;
+        public Button deleteButton;
         public Button configButton;
         public Button playButton;
         public GameObject configPanel;
@@ -725,6 +726,23 @@ namespace MATE_ENGINE___Scripts.Tools
             buttonLayout.spacing = 10;
             buttonLayout.padding = new RectOffset(0, 0, 0, 0);
             buttonLayout.childAlignment = TextAnchor.MiddleRight;
+
+            // 删除按钮
+            deleteButton = CreateButton(buttonContainer.transform, "删除", new Vector2(100, 40));
+            deleteButton.onClick.AddListener(OnDeleteClicked);
+            // 设置删除按钮为红色风格
+            Image deleteBtnBg = deleteButton.GetComponent<Image>();
+            if (deleteBtnBg != null)
+            {
+                deleteBtnBg.color = new Color(0.85f, 0.25f, 0.25f, 1f);
+            }
+            ColorBlock deleteColors = deleteButton.colors;
+            deleteColors.normalColor = new Color(0.85f, 0.25f, 0.25f, 1f);
+            deleteColors.highlightedColor = new Color(0.95f, 0.35f, 0.35f, 1f);
+            deleteColors.pressedColor = new Color(0.75f, 0.15f, 0.15f, 1f);
+            deleteColors.disabledColor = new Color(0.7f, 0.7f, 0.7f, 0.5f);
+            deleteButton.colors = deleteColors;
+            deleteButton.interactable = false; // 默认不可点击，需先选中PPT
 
             // 配置按钮
             configButton = CreateButton(buttonContainer.transform, "配置", new Vector2(100, 40));
@@ -1875,6 +1893,12 @@ namespace MATE_ENGINE___Scripts.Tools
         {
             if (playButton == null) return;
 
+            // 更新删除按钮状态
+            if (deleteButton != null)
+            {
+                deleteButton.interactable = (selectedPPTItem != null);
+            }
+
             if (configButton != null) configButton.interactable = (selectedPPTItem != null);
 
             // 如果选中的PPT未配置或配置中，播放按钮不可点击
@@ -1993,6 +2017,164 @@ namespace MATE_ENGINE___Scripts.Tools
             Debug.Log($"[SettingsPanelUI] PPTInfo已保存，is_uploaded: {pptInfo.is_uploaded}");
 
             // 刷新列表以显示更新后的状态
+            yield return null;
+            RefreshPPTList();
+        }
+
+        /// <summary>
+        /// 删除按钮点击
+        /// </summary>
+        void OnDeleteClicked()
+        {
+            if (selectedPPTItem == null)
+            {
+                return;
+            }
+
+            // 显示确认对话框
+            ShowDeleteConfirmDialog();
+        }
+
+        /// <summary>
+        /// 显示删除确认对话框
+        /// </summary>
+        void ShowDeleteConfirmDialog()
+        {
+            if (selectedPPTItem == null) return;
+
+            // 创建确认对话框遮罩层
+            GameObject confirmOverlay = new GameObject("DeleteConfirmOverlay");
+            confirmOverlay.transform.SetParent(mainPanel.transform, false);
+            RectTransform overlayRect = confirmOverlay.AddComponent<RectTransform>();
+            overlayRect.anchorMin = Vector2.zero;
+            overlayRect.anchorMax = Vector2.one;
+            overlayRect.offsetMin = Vector2.zero;
+            overlayRect.offsetMax = Vector2.zero;
+
+            Image overlayBg = confirmOverlay.AddComponent<Image>();
+            overlayBg.color = new Color(0f, 0f, 0f, 0.7f);
+
+            // 创建确认对话框面板
+            GameObject confirmPanel = new GameObject("ConfirmPanel");
+            confirmPanel.transform.SetParent(confirmOverlay.transform, false);
+            RectTransform confirmPanelRect = confirmPanel.AddComponent<RectTransform>();
+            confirmPanelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            confirmPanelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            confirmPanelRect.pivot = new Vector2(0.5f, 0.5f);
+            confirmPanelRect.anchoredPosition = Vector2.zero;
+            confirmPanelRect.sizeDelta = new Vector2(400, 200);
+
+            Image confirmPanelBg = confirmPanel.AddComponent<Image>();
+            confirmPanelBg.color = new Color(0.16f, 0.17f, 0.22f, 1f);
+
+            // 添加边框和阴影
+            Outline confirmOutline = confirmPanel.AddComponent<Outline>();
+            confirmOutline.effectColor = new Color(0.35f, 0.45f, 0.65f, 0.6f);
+            confirmOutline.effectDistance = new Vector2(2, -2);
+
+            Shadow confirmShadow = confirmPanel.AddComponent<Shadow>();
+            confirmShadow.effectColor = new Color(0, 0, 0, 0.5f);
+            confirmShadow.effectDistance = new Vector2(0, 8);
+
+            // 创建提示文本
+            GameObject messageObj = new GameObject("Message");
+            messageObj.transform.SetParent(confirmPanel.transform, false);
+            RectTransform messageRect = messageObj.AddComponent<RectTransform>();
+            messageRect.anchorMin = new Vector2(0, 0.4f);
+            messageRect.anchorMax = new Vector2(1, 0.9f);
+            messageRect.offsetMin = new Vector2(20, 0);
+            messageRect.offsetMax = new Vector2(-20, -20);
+
+            TMP_Text messageText = messageObj.AddComponent<TextMeshProUGUI>();
+            messageText.text = $"确定要删除 \"{selectedPPTItem.pptInfo.filename}\" 吗？";
+            messageText.fontSize = 20;
+            messageText.color = new Color(0.90f, 0.92f, 0.96f, 1f);
+            messageText.alignment = TextAlignmentOptions.Center;
+            messageText.enableWordWrapping = true;
+            FontManager.ApplyFont(messageText);
+
+            // 创建按钮容器
+            GameObject buttonContainer = new GameObject("ButtonContainer");
+            buttonContainer.transform.SetParent(confirmPanel.transform, false);
+            RectTransform buttonContainerRect = buttonContainer.AddComponent<RectTransform>();
+            buttonContainerRect.anchorMin = new Vector2(0, 0);
+            buttonContainerRect.anchorMax = new Vector2(1, 0.4f);
+            buttonContainerRect.offsetMin = new Vector2(20, 20);
+            buttonContainerRect.offsetMax = new Vector2(-20, 0);
+
+            HorizontalLayoutGroup buttonLayout = buttonContainer.AddComponent<HorizontalLayoutGroup>();
+            buttonLayout.childForceExpandWidth = true;
+            buttonLayout.childForceExpandHeight = true;
+            buttonLayout.spacing = 20;
+            buttonLayout.padding = new RectOffset(0, 0, 0, 0);
+
+            // 创建确认按钮
+            Button confirmBtn = CreateButton(buttonContainer.transform, "确认删除", new Vector2(150, 50));
+            Image confirmBtnBg = confirmBtn.GetComponent<Image>();
+            if (confirmBtnBg != null)
+            {
+                confirmBtnBg.color = new Color(0.85f, 0.25f, 0.25f, 1f);
+            }
+            ColorBlock confirmColors = confirmBtn.colors;
+            confirmColors.normalColor = new Color(0.85f, 0.25f, 0.25f, 1f);
+            confirmColors.highlightedColor = new Color(0.95f, 0.35f, 0.35f, 1f);
+            confirmColors.pressedColor = new Color(0.75f, 0.15f, 0.15f, 1f);
+            confirmBtn.colors = confirmColors;
+            confirmBtn.onClick.AddListener(() => {
+                StartCoroutine(OnDeleteConfirmedCoroutine());
+                Destroy(confirmOverlay);
+            });
+
+            // 创建取消按钮
+            Button cancelBtn = CreateButton(buttonContainer.transform, "取消", new Vector2(150, 50));
+            cancelBtn.onClick.AddListener(() => {
+                Destroy(confirmOverlay);
+            });
+
+            // 确保对话框在最上层
+            confirmOverlay.transform.SetAsLastSibling();
+        }
+
+        /// <summary>
+        /// 确认删除后执行删除操作
+        /// </summary>
+        IEnumerator OnDeleteConfirmedCoroutine()
+        {
+            if (selectedPPTItem == null)
+            {
+                yield break;
+            }
+
+            // 等待一帧，确保不在渲染过程中
+            yield return null;
+
+            // 获取JSON文件路径
+            string jsonFileName = Path.ChangeExtension(selectedPPTItem.pptInfo.filename, ".json");
+            string jsonFilePath = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "pptinfo", jsonFileName);
+
+            // 删除JSON文件
+            if (File.Exists(jsonFilePath))
+            {
+                try
+                {
+                    File.Delete(jsonFilePath);
+                    Debug.Log($"已删除JSON文件: {jsonFilePath}");
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"删除JSON文件失败: {e.Message}");
+                    yield break;
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"JSON文件不存在: {jsonFilePath}");
+            }
+
+            // 清除选中状态
+            selectedPPTItem = null;
+
+            // 等待一帧后刷新列表
             yield return null;
             RefreshPPTList();
         }
