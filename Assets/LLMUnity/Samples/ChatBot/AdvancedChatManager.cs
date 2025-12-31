@@ -31,8 +31,8 @@ public class AdvancedChatManager : MonoBehaviour
     [SerializeField] private float maxBubbleWidth = 400f;     // 气泡最大宽度
     [SerializeField] private float minBubbleWidth = 80f;      // 气泡最小宽度
     [SerializeField] private float bubblePadding = 20f;       // 气泡内边距
-    [SerializeField] private float userMessageRightMargin = 15f;  // 用户消息右边距
-    [SerializeField] private float aiMessageLeftMargin = 15f;     // AI消息左边距
+    [SerializeField] private float userMessageRightMargin = 0f;  // 用户消息右边距
+    [SerializeField] private float aiMessageLeftMargin = 0f;     // AI消息左边距
     [SerializeField] private float messageSpacing = 12f;          // 消息垂直间距
 
     [Header("Visual Settings")]
@@ -108,8 +108,8 @@ public class AdvancedChatManager : MonoBehaviour
 
     void Start()
     {
-        userMessagePrefab = Resources.Load<GameObject>("Prefabs/UserMessagePreFab");
-        aiMessagePrefab = Resources.Load<GameObject>("Prefabs/AIMessagePreFab");
+        // userMessagePrefab = Resources.Load<GameObject>("Prefabs/UserMessagePreFab");
+        // aiMessagePrefab = Resources.Load<GameObject>("Prefabs/AIMessagePreFab");
         // 初始化 - 语音输入按钮点击事件
         voiceInputButton.onClick.AddListener(OnVoiceInputButtonClicked);
 
@@ -237,7 +237,6 @@ public class AdvancedChatManager : MonoBehaviour
 
         // 清空输入框
         inputField.text = "";
-        inputField.text = "思考中...";
 
         // 生成AI回复
         StartCoroutine(ChatWithRAGFlow(text));
@@ -305,7 +304,6 @@ public class AdvancedChatManager : MonoBehaviour
                 }
             }));
         }
-        inputField.text = "";
         inputField.interactable = true;
     }
 
