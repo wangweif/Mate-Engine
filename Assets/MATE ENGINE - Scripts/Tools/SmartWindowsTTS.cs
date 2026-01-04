@@ -16,6 +16,9 @@ public class SmartWindowsTTS : MonoBehaviour
     // 音频缓存变量
     private Dictionary<string, string> textToKeyMap = new Dictionary<string, string>();
     private Dictionary<string, float> resumePositions = new Dictionary<string, float>();
+    
+    // 【新增】停止标志,用于取消正在进行的TTS生成
+    private bool isStopped = false;
 
     // 配置选项
     [Header("TTS 配置")]
@@ -174,7 +177,7 @@ public class SmartWindowsTTS : MonoBehaviour
     // ==================== 音频缓存方法 ====================
 
     /// <summary>
-    /// 使用音频缓存播放语音（协程版本）
+    /// 使用音频缓存播放语音(协程版本)
     /// </summary>
     public IEnumerator Speak(string text, System.Action<bool> onComplete = null)
     {
@@ -191,6 +194,9 @@ public class SmartWindowsTTS : MonoBehaviour
             onComplete?.Invoke(false);
             yield break;
         }
+        
+        // 【新增】重置停止标志
+        isStopped = false;
 
         string key = GenerateAudioKey(text);
         textToKeyMap[key] = text;
@@ -201,11 +207,19 @@ public class SmartWindowsTTS : MonoBehaviour
         float resumeTime = resumePositions.ContainsKey(key) ? resumePositions[key] : 0f;
 
         yield return StartCoroutine(audioCache.GetOrCreateAudio(text, key, (audioClip) => {
+            // 【新增】检查是否已被停止
+            if (isStopped)
+            {
+                Log("⏹️ TTS已停止,取消播放");
+                onComplete?.Invoke(false);
+                return;
+            }
+            
             if (audioClip != null)
             {
                 audioCache.PlayAudio(key, audioClip, resumeTime);
 
-                // 如果是从恢复位置播放，清除恢复位置
+                // 如果是从恢复位置播放,清除恢复位置
                 if (resumeTime > 0)
                 {
                     resumePositions.Remove(key);
@@ -311,6 +325,9 @@ public class SmartWindowsTTS : MonoBehaviour
     /// </summary>
     public void StopSpeaking()
     {
+        // 【新增】设置停止标志,取消所有正在进行的TTS生成
+        isStopped = true;
+        
         if (audioCache != null)
         {
             audioCache.StopAudio();
