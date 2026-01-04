@@ -199,27 +199,9 @@ public class UISetOnOff : MonoBehaviour
             return;
         }
 
-        // 停止语音播放
-        if (windowsTTS != null && windowsTTS.IsSpeaking())
-        {
-            Debug.Log("⏹️ 停止语音播放");
-            windowsTTS.StopSpeaking();
-        }
-
-        // 停止播放协程
-        if (presentationCoroutine != null)
-        {
-            StopCoroutine(presentationCoroutine);
-            presentationCoroutine = null;
-        }
-
-        // 重置播放状态
-        isPlayingSequence = false;
-        currentPageIndex = 0;
-        count = 0;
-        pageResumeTimes.Clear();
-        isAutoPageChange = false;
-
+        // 【修改】直接调用StopPresentation确保彻底清理
+        StopPresentation();
+        
         // 更新按钮为播放图标
         if (play != null && playImage != null)
         {
@@ -232,7 +214,7 @@ public class UISetOnOff : MonoBehaviour
             pptControlUI.UpdatePlayPauseButton(false);
         }
 
-        Debug.Log("✅ 已停止播放并重置状态");
+        Debug.Log("✅ PPT关闭事件处理完成");
     }
 
     /// <summary>
@@ -819,25 +801,53 @@ public class UISetOnOff : MonoBehaviour
     /// </summary>
     public void StopPresentation()
     {
+        Debug.Log("⏹️ [StopPresentation] 开始停止演示");
+        
         // 停止演示协程
         if (presentationCoroutine != null)
         {
             StopCoroutine(presentationCoroutine);
             presentationCoroutine = null;
+            Debug.Log("⏹️ 已停止演示协程");
         }
 
+        // 重置状态
         isPlayingSequence = false;
         currentPageIndex = 0;
         count = 0;
         pageResumeTimes.Clear();
+        isAutoPageChange = false; // 重置自动翻页标志
 
+        // 【增强】强制停止语音播放
         if (windowsTTS != null)
+        {
             windowsTTS.StopSpeaking();
+            Debug.Log("⏹️ 已调用windowsTTS.StopSpeaking()");
+            
+            // 【新增】额外验证是否真正停止
+            if (windowsTTS.IsSpeaking())
+            {
+                Debug.LogWarning("⚠️ 语音仍在播放,尝试再次停止");
+                windowsTTS.StopSpeaking();
+            }
+        }
 
-        if (pptService != null)
+        // 【新增】直接停止AudioCacheManager的AudioSource(双重保险)
+        var audioCacheManager = FindObjectOfType<AudioCacheManager>();
+        if (audioCacheManager != null)
+        {
+            audioCacheManager.StopAudio();
+            Debug.Log("⏹️ 已直接停止AudioCacheManager");
+        }
+
+        // 关闭PPT(如果还在运行)
+        if (pptService != null && pptService.IsConnected())
+        {
             pptService.ClosePresentation();
+            Debug.Log("⏹️ 已发送关闭PPT命令");
+        }
 
-        Debug.Log("⏹️ 停止演示播放");
+        Debug.Log("✅ [StopPresentation] 演示停止完成");
     }
 
     /// <summary>

@@ -38,6 +38,25 @@ public class AudioCacheManager : MonoBehaviour
 
         Debug.Log($"🎵 音频缓存目录: {cacheDirectory}");
     }
+
+    void OnDestroy()
+    {
+        // 强制停止所有音频
+        StopAudio();
+        
+        // 清理AudioSource
+        AudioSource activeAudioSource = GetAudioSource();
+        if (activeAudioSource != null)
+        {
+            activeAudioSource.clip = null;
+            if (audioSource != null && audioSource == activeAudioSource)
+            {
+                Destroy(audioSource);
+            }
+        }
+        
+        Debug.Log("🗑️ AudioCacheManager已销毁,资源已清理");
+    }
     
     /// <summary>
     /// 获取实际使用的AudioSource
@@ -386,10 +405,14 @@ try {{
     public void StopAudio()
     {
         AudioSource activeAudioSource = GetAudioSource();
-        activeAudioSource.Stop();
+        if (activeAudioSource != null)
+        {
+            activeAudioSource.Stop();
+            activeAudioSource.clip = null; // 清理AudioClip引用
+        }
         currentPlayingKey = null;
         pauseTime = 0f;
-        Debug.Log("⏹️ 停止音频");
+        Debug.Log("⏹️ 停止音频并清理引用");
     }
 
     public float GetCurrentTime()

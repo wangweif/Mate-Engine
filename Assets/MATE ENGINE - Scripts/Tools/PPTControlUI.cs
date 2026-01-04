@@ -380,6 +380,13 @@ public class PPTControlUI : MonoBehaviour
     {
         Debug.Log("[PPTControlUI] 关闭按钮被点击");
         
+        // 【新增】立即强制停止所有音频播放
+        if (uiSetOnOff != null)
+        {
+            uiSetOnOff.StopPresentation(); // 停止演示协程和音频
+            Debug.Log("[PPTControlUI] 已立即停止演示和音频");
+        }
+        
         // 1. 关闭PPT演示文稿
         if (pptService != null)
         {

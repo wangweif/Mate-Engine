@@ -315,7 +315,14 @@ public class SmartWindowsTTS : MonoBehaviour
         {
             audioCache.StopAudio();
             resumePositions.Clear();
-            Log("⏹️ 停止音频播放");
+            Log("⏹️ 停止音频播放并清除恢复位置");
+            
+            // 【新增】验证是否真正停止
+            if (audioCache.IsPlaying())
+            {
+                LogWarning("⚠️ AudioCache仍在播放,尝试再次停止");
+                audioCache.StopAudio();
+            }
         }
     }
 
