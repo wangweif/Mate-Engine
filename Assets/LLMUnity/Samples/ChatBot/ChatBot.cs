@@ -50,10 +50,11 @@ namespace LLMUnitySamples
         public bool useRemoteModel = true;
         public string ragflowHost = "192.168.8.88";
         public int ragflowPort = 9380;
+        public string llmUrl = "llm.bjzntd.com";
         public string ragflowApiKey = "ragflow-cwZWU5YjBjMzUxODExZjBhNThhMDk2OD";
         public string ragflowAssistantId = "37fd87c8d3d711f097ac578fc36c86e8";
         public string ragflowFileUrlPrefix = "http://preview.bjzntd.com/onlinePreview?url=";
-        public string ragflowFileUrl = "https://know.baafs.net.cn";
+        public string ragflowFileUrl = "https://llm.bjzntd.com/llmforward";
         public string ragflowLanguage = "Chinese";
 
         [Header("Input Settings")]
@@ -1633,7 +1634,7 @@ namespace LLMUnitySamples
         /// </summary>
         IEnumerator CreateRAGFlowSession()
         {
-            string sessionUrl = $"http://{ragflowHost}:{ragflowPort}/api/v1/chats/{ragflowAssistantId}/sessions";
+            string sessionUrl = $"http://{llmUrl}/llmforward/api/v1/chats/{ragflowAssistantId}/sessions";
             
             // 使用时间戳作为会话名称
             string sessionName = $"Unity_Session_{System.DateTime.Now:yyyyMMdd_HHmmss}";
@@ -1694,7 +1695,7 @@ namespace LLMUnitySamples
                 yield return StartCoroutine(CreateRAGFlowSession());
             }
             
-            string questionUrl = $"http://{ragflowHost}:{ragflowPort}/api/v1/chats/{ragflowAssistantId}/completions";
+            string questionUrl = $"http://{llmUrl}/llmforward/api/v1/chats/{ragflowAssistantId}/completions";
             
             // 构建请求数据
             string jsonData = $"{{\"question\":\"{EscapeJsonString(userMessage)}\",\"stream\":true,\"session_id\":\"{currentSessionId}\",\"lang\":\"{ragflowLanguage}\"}}";
