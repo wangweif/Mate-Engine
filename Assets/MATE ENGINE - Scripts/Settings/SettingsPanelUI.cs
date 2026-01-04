@@ -54,6 +54,7 @@ namespace MATE_ENGINE___Scripts.Tools
         public Button confirmConfigButton;
         public Button cancelConfigButton;
         private GameObject configOverlay;
+        private TMP_Text pptPageCountLabel; // 显示PPT页数的文本组件
 
         [Header("Model Panel Reference")]
         public ModelPanelUI modelPanelUI;
@@ -828,6 +829,14 @@ namespace MATE_ENGINE___Scripts.Tools
             GameObject configInputLabel = CreateLabel(labelContainer.transform, "演讲稿(一段对应一页)：", 16);
             RectTransform configInputLabelRect = configInputLabel.GetComponent<RectTransform>();
             configInputLabelRect.sizeDelta = new Vector2(250, 40);
+
+            // 添加PPT页数显示
+            GameObject pageCountLabelObj = CreateLabel(labelContainer.transform, "共0页", 14);
+            RectTransform pageCountRect = pageCountLabelObj.GetComponent<RectTransform>();
+            pageCountRect.sizeDelta = new Vector2(80, 40);
+            // 设置文字颜色为浅灰色
+            pptPageCountLabel = pageCountLabelObj.GetComponent<TMP_Text>();
+            pptPageCountLabel.color = new Color(0.7f, 0.7f, 0.7f, 1f);
 
             GameObject spacer = new GameObject("Spacer");
             spacer.transform.SetParent(labelContainer.transform, false);
@@ -1825,6 +1834,12 @@ namespace MATE_ENGINE___Scripts.Tools
             }
 
             if (configButton != null) configButton.interactable = (selectedPPTItem != null);
+
+            // 更新PPT页数显示
+            if (pptPageCountLabel != null && selectedPPTItem != null && selectedPPTItem.pptInfo != null)
+            {
+                pptPageCountLabel.text = $"共{selectedPPTItem.pptInfo.pageCount}页";
+            }
 
             // 更新播放按钮状态
             UpdateButtonStates();
