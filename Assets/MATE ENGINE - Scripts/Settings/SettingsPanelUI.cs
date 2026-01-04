@@ -9,6 +9,8 @@ using System.Runtime.InteropServices;
 using System;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
+using System.Reflection;
 
 namespace MATE_ENGINE___Scripts.Tools
 {
@@ -55,6 +57,15 @@ namespace MATE_ENGINE___Scripts.Tools
         public Button cancelConfigButton;
         private GameObject configOverlay;
         private TMP_Text pptPageCountLabel; // 显示PPT页数的文本组件
+        private TextMeshProUGUI configParagraphNumberText;
+        private bool configNumberScrollOffsetInitialized;
+        private Vector2 configNumberScrollBaseAnchoredPos;
+        private Vector2 configContentScrollBaseAnchoredPos;
+        private Vector2 configNumberScrollLastViewportSize;
+        private float configNumberScrollLastCanvasScaleFactor;
+        private RectTransform configViewportRect;
+        private RectTransform configContentTextRect;
+        private RectTransform configPlaceholderRect;
 
         [Header("Model Panel Reference")]
         public ModelPanelUI modelPanelUI;
@@ -113,6 +124,26 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             
             // 注意：如果面板是关闭的，ShowTab 可能不会正确显示，所以在 OpenPanel 时再调用
+        }
+
+        void OnEnable()
+        {
+            Canvas.willRenderCanvases += OnWillRenderCanvases;
+        }
+
+        void OnDisable()
+        {
+            Canvas.willRenderCanvases -= OnWillRenderCanvases;
+        }
+
+        private void OnWillRenderCanvases()
+        {
+            SyncConfigParagraphNumberScroll();
+        }
+
+        void LateUpdate()
+        {
+            SyncConfigParagraphNumberScroll();
         }
 
         void Awake()
@@ -902,11 +933,73 @@ namespace MATE_ENGINE___Scripts.Tools
             textAreaRect.anchorMin = Vector2.zero;
             textAreaRect.anchorMax = Vector2.one;
             textAreaRect.offsetMin = new Vector2(5, 5);
-            textAreaRect.offsetMax = new Vector2(-5, -5);
-            
-            // 创建文本组件
-            GameObject textObj = new GameObject("Text");
-            textObj.transform.SetParent(textAreaObj.transform, false);
+            textAreaRect.offsetMax = new Vector2(-5, 0); // 增加底部边距到15像素，确保文本显示完整
+ 
+            GameObject paragraphLayoutObj = new GameObject("ParagraphLayout");
+            paragraphLayoutObj.transform.SetParent(textAreaObj.transform, false);
+            RectTransform paragraphLayoutRect = paragraphLayoutObj.GetComponent<RectTransform>();
+            if (paragraphLayoutRect == null)
+            {
+                paragraphLayoutRect = paragraphLayoutObj.AddComponent<RectTransform>();
+            }
+            paragraphLayoutRect.anchorMin = Vector2.zero;
+            paragraphLayoutRect.anchorMax = Vector2.one;
+            paragraphLayoutRect.offsetMin = Vector2.zero;
+            paragraphLayoutRect.offsetMax = Vector2.zero;
+
+            HorizontalLayoutGroup paragraphLayoutGroup = paragraphLayoutObj.AddComponent<HorizontalLayoutGroup>();
+            paragraphLayoutGroup.childAlignment = TextAnchor.UpperLeft;
+            paragraphLayoutGroup.childControlWidth = true;
+            paragraphLayoutGroup.childControlHeight = true;
+            paragraphLayoutGroup.childForceExpandWidth = false;
+            paragraphLayoutGroup.childForceExpandHeight = true;
+            paragraphLayoutGroup.padding = new RectOffset(0, 0, 0, 0);
+
+            GameObject numberTextObj = new GameObject("NumberText");
+            numberTextObj.transform.SetParent(paragraphLayoutObj.transform, false);
+            RectTransform numberTextRect = numberTextObj.GetComponent<RectTransform>();
+            if (numberTextRect == null)
+            {
+                numberTextRect = numberTextObj.AddComponent<RectTransform>();
+            }
+            numberTextRect.anchorMin = new Vector2(0, 0);
+            numberTextRect.anchorMax = new Vector2(0, 1);
+            numberTextRect.pivot = new Vector2(0, 1);
+
+            LayoutElement numberLayout = numberTextObj.AddComponent<LayoutElement>();
+            numberLayout.preferredWidth = 50;
+            numberLayout.flexibleWidth = 0;
+
+            configParagraphNumberText = numberTextObj.AddComponent<TextMeshProUGUI>();
+            configParagraphNumberText.text = "";
+            configParagraphNumberText.fontSize = 20;
+            configParagraphNumberText.color = new Color(0.65f, 0.68f, 0.75f, 1f);
+            configParagraphNumberText.alignment = TextAlignmentOptions.TopRight;
+            configParagraphNumberText.enableWordWrapping = false;
+            configParagraphNumberText.overflowMode = TextOverflowModes.Overflow;
+            configParagraphNumberText.margin = new Vector4(5, 5, 5, 5);
+            configParagraphNumberText.lineSpacing = 60;
+            FontManager.ApplyFont(configParagraphNumberText);
+
+            GameObject contentContainerObj = new GameObject("ContentContainer");
+            contentContainerObj.transform.SetParent(paragraphLayoutObj.transform, false);
+            RectTransform contentContainerRect = contentContainerObj.GetComponent<RectTransform>();
+            if (contentContainerRect == null)
+            {
+                contentContainerRect = contentContainerObj.AddComponent<RectTransform>();
+            }
+            contentContainerRect.anchorMin = Vector2.zero;
+            contentContainerRect.anchorMax = Vector2.one;
+            contentContainerRect.offsetMin = Vector2.zero;
+            contentContainerRect.offsetMax = Vector2.zero;
+
+            RectMask2D contentColumnMask = contentContainerObj.AddComponent<RectMask2D>();
+
+            LayoutElement contentLayoutElement = contentContainerObj.AddComponent<LayoutElement>();
+            contentLayoutElement.flexibleWidth = 1;
+
+            GameObject textObj = new GameObject("ContentText");
+            textObj.transform.SetParent(contentContainerObj.transform, false);
             RectTransform textRect = textObj.GetComponent<RectTransform>();
             if (textRect == null)
             {
@@ -922,15 +1015,15 @@ namespace MATE_ENGINE___Scripts.Tools
             configTextComp.fontSize = 20;
             configTextComp.color = new Color(0.90f, 0.92f, 0.96f, 1f);
             configTextComp.alignment = TextAlignmentOptions.TopLeft;
-            configTextComp.enableWordWrapping = true;
+            configTextComp.enableWordWrapping = false;
             configTextComp.overflowMode = TextOverflowModes.Overflow;
-            configTextComp.margin = new Vector4(5, 5, 5, 5);
-            configTextComp.paragraphSpacing = 100; // 增加段落之间的间距
+            configTextComp.margin = new Vector4(40, 5, 5, 5);  
+            configTextComp.lineSpacing = 60;
             FontManager.ApplyFont(configTextComp);
-            
-            // 创建占位符文本组件
+            ForceNoWrap(configTextComp);
+
             GameObject placeholderObj = new GameObject("Placeholder");
-            placeholderObj.transform.SetParent(textAreaObj.transform, false);
+            placeholderObj.transform.SetParent(contentContainerObj.transform, false);
             RectTransform placeholderRect = placeholderObj.GetComponent<RectTransform>();
             if (placeholderRect == null)
             {
@@ -940,14 +1033,18 @@ namespace MATE_ENGINE___Scripts.Tools
             placeholderRect.anchorMax = Vector2.one;
             placeholderRect.offsetMin = Vector2.zero;
             placeholderRect.offsetMax = Vector2.zero;
-            
+
+            configPlaceholderRect = placeholderRect;
+
             TMP_Text configPlaceholderComp = placeholderObj.AddComponent<TextMeshProUGUI>();
             configPlaceholderComp.text = "请输入演讲稿或使用AI生成...";
             configPlaceholderComp.fontSize = 20;
             configPlaceholderComp.color = new Color(0.45f, 0.48f, 0.55f, 0.6f);
             configPlaceholderComp.alignment = TextAlignmentOptions.TopLeft;
-            configPlaceholderComp.enableWordWrapping = true;
+            configPlaceholderComp.enableWordWrapping = false;
+            configPlaceholderComp.lineSpacing = 60;
             FontManager.ApplyFont(configPlaceholderComp);
+            ForceNoWrap(configPlaceholderComp);
             
             // 配置输入框
             configInputField.textComponent = configTextComp;
@@ -955,9 +1052,11 @@ namespace MATE_ENGINE___Scripts.Tools
             configInputField.textViewport = configViewportRect;
             configInputField.targetGraphic = inputFieldBg;
             configInputField.lineType = TMP_InputField.LineType.MultiLineNewline;
-            configInputField.scrollSensitivity = 10f;
+            configInputField.scrollSensitivity = 5f;
             configInputField.onFocusSelectAll = false;
             configInputField.caretWidth = 2;
+
+            configInputField.onValueChanged.AddListener(OnConfigInputFieldValueChanged);
 
             // 设置AI生成演讲稿按钮的点击事件
             generateSpeechButton.onClick.AddListener(OnGenerateSpeech);
@@ -2244,6 +2343,9 @@ namespace MATE_ENGINE___Scripts.Tools
                     // 等待一帧，确保文本设置完成
                     yield return null;
 
+                    RefreshConfigParagraphNumbers();
+                    configNumberScrollOffsetInitialized = false;
+
                     // 跳转到顶部
                     configInputField.ActivateInputField();
                     configInputField.MoveTextStart(false);
@@ -2458,6 +2560,8 @@ namespace MATE_ENGINE___Scripts.Tools
             if (configInputField != null)
             {
                 configInputField.text = string.Join("\n", generatedContent);
+                RefreshConfigParagraphNumbers();
+                configNumberScrollOffsetInitialized = false;
             }
 
             // 更新配置状态并保存到JSON
@@ -2491,6 +2595,112 @@ namespace MATE_ENGINE___Scripts.Tools
 
             if (pptLoadingIndicator != null)
                 pptLoadingIndicator.SetActive(false);
+        }
+
+        private void OnConfigInputFieldValueChanged(string _)
+        {
+            if (configInputField != null)
+            {
+                ForceNoWrap(configInputField.textComponent);
+                ForceNoWrap(configInputField.placeholder as TMP_Text);
+            }
+            RefreshConfigParagraphNumbers();
+        }
+
+        private static void ForceNoWrap(TMP_Text text)
+        {
+            if (text == null)
+            {
+                return;
+            }
+
+            text.enableWordWrapping = false;
+
+            try
+            {
+                PropertyInfo prop = typeof(TMP_Text).GetProperty("textWrappingMode", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (prop != null)
+                {
+                    object noWrap = Enum.Parse(prop.PropertyType, "NoWrap");
+                    prop.SetValue(text, noWrap);
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private void RefreshConfigParagraphNumbers()
+        {
+            if (configParagraphNumberText == null || configInputField == null || configInputField.textComponent == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrEmpty(configInputField.text))
+            {
+                configParagraphNumberText.text = "";
+                return;
+            }
+
+            TextMeshProUGUI contentText = configInputField.textComponent as TextMeshProUGUI;
+            if (contentText == null)
+            {
+                configParagraphNumberText.text = "";
+                return;
+            }
+
+            contentText.ForceMeshUpdate();
+
+            int lineCount = contentText.textInfo != null ? contentText.textInfo.lineCount : 0;
+            if (lineCount <= 0)
+            {
+                configParagraphNumberText.text = "";
+                return;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < lineCount; i++)
+            {
+                sb.Append(i + 1);
+                sb.Append('\n');
+            }
+
+            configParagraphNumberText.text = sb.ToString();
+        }
+
+        private void SyncConfigParagraphNumberScroll()
+        {
+            if (configParagraphNumberText == null || configInputField == null || configInputField.textComponent == null)
+            {
+                return;
+            }
+
+            TextMeshProUGUI contentText = configInputField.textComponent as TextMeshProUGUI;
+            if (contentText == null)
+            {
+                return;
+            }
+
+            RectTransform numberRect = configParagraphNumberText.rectTransform;
+            RectTransform contentRect = contentText.rectTransform;
+
+            Vector2 viewportSize = configViewportRect != null ? configViewportRect.rect.size : Vector2.zero;
+            float canvasScale = parentCanvas != null ? parentCanvas.scaleFactor : 1f;
+
+            if (!configNumberScrollOffsetInitialized || viewportSize != configNumberScrollLastViewportSize || !Mathf.Approximately(canvasScale, configNumberScrollLastCanvasScaleFactor))
+            {
+                configNumberScrollBaseAnchoredPos = numberRect.anchoredPosition;
+                configContentScrollBaseAnchoredPos = contentRect.anchoredPosition;
+                configNumberScrollLastViewportSize = viewportSize;
+                configNumberScrollLastCanvasScaleFactor = canvasScale;
+                configNumberScrollOffsetInitialized = true;
+            }
+
+            float deltaY = contentRect.anchoredPosition.y - configContentScrollBaseAnchoredPos.y;
+            Vector2 numberPos = numberRect.anchoredPosition;
+            numberPos.y = configNumberScrollBaseAnchoredPos.y + deltaY;
+            numberRect.anchoredPosition = numberPos;
         }
     }
 }
