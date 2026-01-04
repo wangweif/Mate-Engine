@@ -1017,7 +1017,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configTextComp.alignment = TextAlignmentOptions.TopLeft;
             configTextComp.enableWordWrapping = false;
             configTextComp.overflowMode = TextOverflowModes.Overflow;
-            configTextComp.margin = new Vector4(40, 5, 5, 5);  
+            configTextComp.margin = new Vector4(25, 5, 5, 5);  
             configTextComp.lineSpacing = 60;
             FontManager.ApplyFont(configTextComp);
             ForceNoWrap(configTextComp);
@@ -1049,7 +1049,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 配置输入框
             configInputField.textComponent = configTextComp;
             configInputField.placeholder = configPlaceholderComp;
-            configInputField.textViewport = configViewportRect;
+            configInputField.textViewport = contentContainerRect;
             configInputField.targetGraphic = inputFieldBg;
             configInputField.lineType = TMP_InputField.LineType.MultiLineNewline;
             configInputField.scrollSensitivity = 5f;
