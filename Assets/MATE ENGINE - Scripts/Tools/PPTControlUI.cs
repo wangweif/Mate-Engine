@@ -194,8 +194,8 @@ public class PPTControlUI : MonoBehaviour
         // 3. 布局微调
         HorizontalLayoutGroup layout = controlBar.AddComponent<HorizontalLayoutGroup>();
         layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.spacing = 15; // 增加间距
-        layout.padding = new RectOffset(25, 25, 10, 10);
+        layout.spacing = 12;
+        layout.padding = new RectOffset(20, 20, 10, 10);
         layout.childForceExpandWidth = false;
         layout.childForceExpandHeight = false;
         layout.childControlWidth = false;
@@ -292,20 +292,24 @@ public class PPTControlUI : MonoBehaviour
         displayObj.transform.SetParent(parent, false);
 
         RectTransform displayRect = displayObj.AddComponent<RectTransform>();
-        displayRect.sizeDelta = new Vector2(100, 50); // 初始宽度,会被 ContentSizeFitter 覆盖
+        displayRect.sizeDelta = new Vector2(80, 55);
         
-        // 添加 ContentSizeFitter 使宽度自适应
-        ContentSizeFitter fitter = displayObj.AddComponent<ContentSizeFitter>();
-        fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-        fitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+        // 添加 LayoutElement 确保布局控制
+        LayoutElement layoutElement = displayObj.AddComponent<LayoutElement>();
+        layoutElement.preferredWidth = 80;
+        layoutElement.preferredHeight = 55;
+        layoutElement.flexibleWidth = 0;
+        layoutElement.flexibleHeight = 0;
 
         TMP_Text displayText = displayObj.AddComponent<TextMeshProUGUI>();
         displayText.text = "1 / 4";
-        displayText.fontSize = 20;
-        displayText.color = Color.white; // 改为白色，与深色背景搭配
+        displayText.fontSize = 18;
+        displayText.color = Color.white;
         displayText.alignment = TextAlignmentOptions.Center;
-        displayText.fontStyle = FontStyles.Normal; // 稍微细一点显得更有高级感
-        displayText.margin = new Vector4(10, 0, 10, 0); // 左右边距
+        displayText.fontStyle = FontStyles.Normal;
+        displayText.enableAutoSizing = true;
+        displayText.fontSizeMin = 14;
+        displayText.fontSizeMax = 18;
         FontManager.ApplyFont(displayText);
 
         return displayText;
