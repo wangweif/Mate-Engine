@@ -129,6 +129,29 @@ public class AdvancedChatManager : MonoBehaviour
         //StartCoroutine(InitializeChat());
     }
 
+    void OnEnable()
+    {
+        // 当聊天面板激活时，自动聚焦到输入框
+        StartCoroutine(FocusInputFieldDelayed());
+    }
+
+    /// <summary>
+    /// 延迟聚焦输入框，确保UI布局完成后再聚焦
+    /// </summary>
+    IEnumerator FocusInputFieldDelayed()
+    {
+        // 等待一帧，确保UI完全激活
+        yield return new WaitForEndOfFrame();
+
+        // 激活输入框
+        if (inputField != null)
+        {
+            inputField.ActivateInputField();
+            inputField.Select();
+            Debug.Log("聊天面板已打开，输入框已聚焦");
+        }
+    }
+
     /// <summary>
     /// 语音输入按钮点击事件
     /// </summary>
