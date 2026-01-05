@@ -2279,6 +2279,114 @@ namespace MATE_ENGINE___Scripts.Tools
         }
 
         /// <summary>
+        /// 显示错误提示对话框
+        /// </summary>
+        /// <param name="errorMessage">错误信息</param>
+        void ShowErrorDialog(string errorMessage)
+        {
+            // 创建错误对话框遮罩层
+            GameObject errorOverlay = new GameObject("ErrorDialogOverlay");
+            errorOverlay.transform.SetParent(mainPanel.transform, false);
+            RectTransform overlayRect = errorOverlay.AddComponent<RectTransform>();
+            overlayRect.anchorMin = Vector2.zero;
+            overlayRect.anchorMax = Vector2.one;
+            overlayRect.offsetMin = Vector2.zero;
+            overlayRect.offsetMax = Vector2.zero;
+
+            Image overlayBg = errorOverlay.AddComponent<Image>();
+            overlayBg.color = new Color(0f, 0f, 0f, 0.7f);
+
+            // 创建错误对话框面板
+            GameObject errorPanel = new GameObject("ErrorPanel");
+            errorPanel.transform.SetParent(errorOverlay.transform, false);
+            RectTransform errorPanelRect = errorPanel.AddComponent<RectTransform>();
+            errorPanelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            errorPanelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            errorPanelRect.pivot = new Vector2(0.5f, 0.5f);
+            errorPanelRect.anchoredPosition = Vector2.zero;
+            errorPanelRect.sizeDelta = new Vector2(500, 250);
+
+            Image errorPanelBg = errorPanel.AddComponent<Image>();
+            errorPanelBg.color = new Color(0.16f, 0.17f, 0.22f, 1f);
+
+            // 添加边框和阴影
+            Outline errorOutline = errorPanel.AddComponent<Outline>();
+            errorOutline.effectColor = new Color(0.85f, 0.25f, 0.25f, 0.6f);
+            errorOutline.effectDistance = new Vector2(2, -2);
+
+            Shadow errorShadow = errorPanel.AddComponent<Shadow>();
+            errorShadow.effectColor = new Color(0, 0, 0, 0.5f);
+            errorShadow.effectDistance = new Vector2(0, 8);
+
+            // 创建标题文本
+            GameObject titleObj = new GameObject("Title");
+            titleObj.transform.SetParent(errorPanel.transform, false);
+            RectTransform titleRect = titleObj.AddComponent<RectTransform>();
+            titleRect.anchorMin = new Vector2(0, 0.7f);
+            titleRect.anchorMax = new Vector2(1, 0.9f);
+            titleRect.offsetMin = new Vector2(20, 0);
+            titleRect.offsetMax = new Vector2(-20, -10);
+
+            TMP_Text titleText = titleObj.AddComponent<TextMeshProUGUI>();
+            titleText.text = "生成演讲稿失败";
+            titleText.fontSize = 24;
+            titleText.color = new Color(0.85f, 0.25f, 0.25f, 1f);
+            titleText.alignment = TextAlignmentOptions.Center;
+            titleText.fontStyle = FontStyles.Bold;
+            FontManager.ApplyFont(titleText);
+
+            // 创建错误信息文本
+            GameObject messageObj = new GameObject("Message");
+            messageObj.transform.SetParent(errorPanel.transform, false);
+            RectTransform messageRect = messageObj.AddComponent<RectTransform>();
+            messageRect.anchorMin = new Vector2(0, 0.3f);
+            messageRect.anchorMax = new Vector2(1, 0.7f);
+            messageRect.offsetMin = new Vector2(20, 0);
+            messageRect.offsetMax = new Vector2(-20, 0);
+
+            TMP_Text messageText = messageObj.AddComponent<TextMeshProUGUI>();
+            messageText.text = errorMessage;
+            messageText.fontSize = 18;
+            messageText.color = new Color(0.90f, 0.92f, 0.96f, 1f);
+            messageText.alignment = TextAlignmentOptions.Center;
+            messageText.enableWordWrapping = true;
+            FontManager.ApplyFont(messageText);
+
+            // 创建确定按钮
+            GameObject buttonContainer = new GameObject("ButtonContainer");
+            buttonContainer.transform.SetParent(errorPanel.transform, false);
+            RectTransform buttonContainerRect = buttonContainer.AddComponent<RectTransform>();
+            buttonContainerRect.anchorMin = new Vector2(0, 0);
+            buttonContainerRect.anchorMax = new Vector2(1, 0.3f);
+            buttonContainerRect.offsetMin = new Vector2(20, 20);
+            buttonContainerRect.offsetMax = new Vector2(-20, 0);
+
+            Button okBtn = CreateButton(buttonContainer.transform, "确定", new Vector2(100, 40));
+            RectTransform okBtnRect = okBtn.GetComponent<RectTransform>();
+            okBtnRect.anchorMin = new Vector2(0.5f, 0);
+            okBtnRect.anchorMax = new Vector2(0.5f, 1);
+            okBtnRect.pivot = new Vector2(0.5f, 0.5f);
+            okBtnRect.anchoredPosition = Vector2.zero;
+
+            Image okBtnBg = okBtn.GetComponent<Image>();
+            if (okBtnBg != null)
+            {
+                okBtnBg.color = new Color(0.85f, 0.25f, 0.25f, 1f);
+            }
+            ColorBlock okColors = okBtn.colors;
+            okColors.normalColor = new Color(0.85f, 0.25f, 0.25f, 1f);
+            okColors.highlightedColor = new Color(0.95f, 0.35f, 0.35f, 1f);
+            okColors.pressedColor = new Color(0.75f, 0.15f, 0.15f, 1f);
+            okBtn.colors = okColors;
+            okBtn.onClick.AddListener(() => {
+                Destroy(errorOverlay);
+            });
+
+            // 确保对话框在最上层
+            errorOverlay.transform.SetAsLastSibling();
+        }
+
+        /// <summary>
         /// 确认删除后执行删除操作
         /// </summary>
         IEnumerator OnDeleteConfirmedCoroutine()
@@ -2588,7 +2696,8 @@ namespace MATE_ENGINE___Scripts.Tools
         /// 演讲稿生成完成的回调方法
         /// </summary>
         /// <param name="generatedContent">生成的演讲稿内容</param>
-        private void OnSpeechContentGenerated(string[] generatedContent)
+        /// <param name="errorMessage">错误信息，如果生成成功则为null</param>
+        private void OnSpeechContentGenerated(string[] generatedContent, string errorMessage)
         {
             // 恢复生成演讲稿按钮、确认按钮和输入框的可用状态
             if (generateSpeechButton != null)
@@ -2640,6 +2749,16 @@ namespace MATE_ENGINE___Scripts.Tools
                     // 生成失败，设置状态为失败
                     selectedPPTItem.pptInfo.configStatus = 3; // 失败
                     Debug.LogError("PPT演讲稿生成失败");
+
+                    // 显示错误提示弹窗
+                    if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        ShowErrorDialog(errorMessage);
+                    }
+                    else
+                    {
+                        ShowErrorDialog("演讲稿生成失败，请稍后重试");
+                    }
                 }
 
                 // 保存到对应的JSON文件

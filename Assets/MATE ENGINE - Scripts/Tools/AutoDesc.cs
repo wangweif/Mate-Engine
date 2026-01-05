@@ -22,7 +22,7 @@ namespace MATE_ENGINE___Scripts.Tools
         private UnityWebRequest currentRequest = null;
         
         // 演讲稿生成完成的回调事件
-        public System.Action<string[]> OnSpeechGenerated;
+        public System.Action<string[], string> OnSpeechGenerated;
         
         // 定义返回数据的结构
         [System.Serializable]
@@ -75,7 +75,7 @@ namespace MATE_ENGINE___Scripts.Tools
             if (!File.Exists(filePath))
             {
                 Debug.LogError($"文件不存在: {filePath}");
-                OnSpeechGenerated?.Invoke(new string[] { "" });
+                OnSpeechGenerated?.Invoke(new string[] { "" }, $"文件不存在: {filePath}");
                 yield break;
             }           
             string url = $"{baseUrl}/ppt"; 
@@ -90,7 +90,7 @@ namespace MATE_ENGINE___Scripts.Tools
             catch
             {
                 Debug.LogError($"文件读取失败: {filePath}");
-                OnSpeechGenerated?.Invoke(new string[] { "" });
+                OnSpeechGenerated?.Invoke(new string[] { "" }, $"文件读取失败: {filePath}");
                 yield break;
             }
             
@@ -105,7 +105,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 检查GameObject是否仍然存在（可能在请求过程中被销毁）
             if (this == null || currentRequest == null)
             {
-                OnSpeechGenerated?.Invoke(new string[] { "" });
+                OnSpeechGenerated?.Invoke(new string[] { "" }, "请求被中断");
                 yield break;
             }
 
@@ -115,14 +115,15 @@ namespace MATE_ENGINE___Scripts.Tools
                 string descText = currentRequest.downloadHandler.text;
                 string[] descArray = toStringArray(descText);
                 // string desc = string.Join(Environment.NewLine, descArray);
-                
+
                 // 触发回调事件
-                OnSpeechGenerated?.Invoke(descArray);
+                OnSpeechGenerated?.Invoke(descArray, null);
             }
             else
             {
-                Debug.LogError($"演讲稿生成失败: {currentRequest.error}");
-                OnSpeechGenerated?.Invoke(new string[] { "" });
+                string errorMsg = $"演讲稿生成失败: {currentRequest.error}";
+                Debug.LogError(errorMsg);
+                OnSpeechGenerated?.Invoke(new string[] { "" }, errorMsg);
             }
 
             // 清理请求对象
