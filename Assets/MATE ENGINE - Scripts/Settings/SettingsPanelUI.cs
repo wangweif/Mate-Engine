@@ -1080,7 +1080,6 @@ namespace MATE_ENGINE___Scripts.Tools
             configInputField.scrollSensitivity = 5f;
             configInputField.onFocusSelectAll = false;
             configInputField.caretWidth = 2;
-            configInputField.textComponent.enableWordWrapping = false;
 
             configInputField.onValueChanged.AddListener(OnConfigInputFieldValueChanged);
 
@@ -2801,24 +2800,42 @@ namespace MATE_ENGINE___Scripts.Tools
 
             contentText.ForceMeshUpdate();
 
-            int lineCount = 1;
-
-            foreach  (char c in configInputField.text)
-            {
-                if (c == '\n')
-                    lineCount++;
-            }
-            if (lineCount <= 0)
+            TMP_TextInfo textInfo = contentText.textInfo;
+            if (textInfo == null || textInfo.lineCount == 0)
             {
                 configParagraphNumberText.text = "";
                 return;
             }
 
+            string text = configInputField.text;
             StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < lineCount; i++)
+            
+            int paragraphNumber = 1;
+            int currentLineInNumberText = 0;
+            
+            for (int lineIndex = 0; lineIndex < textInfo.lineCount; lineIndex++)
             {
-                sb.Append(i + 1);
-                sb.Append('\n');
+                TMP_LineInfo lineInfo = textInfo.lineInfo[lineIndex];
+                int firstCharIndex = lineInfo.firstCharacterIndex;
+                
+                if (firstCharIndex >= 0 && firstCharIndex < text.Length)
+                {
+                    bool isParagraphStart = (firstCharIndex == 0) || (firstCharIndex > 0 && text[firstCharIndex - 1] == '\n');
+                    
+                    if (isParagraphStart)
+                    {
+                        while (currentLineInNumberText < lineIndex)
+                        {
+                            sb.Append('\n');
+                            currentLineInNumberText++;
+                        }
+                        
+                        sb.Append(paragraphNumber);
+                        sb.Append('\n');
+                        currentLineInNumberText++;
+                        paragraphNumber++;
+                    }
+                }
             }
 
             configParagraphNumberText.text = sb.ToString();
