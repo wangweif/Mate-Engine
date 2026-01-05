@@ -1043,12 +1043,10 @@ namespace MATE_ENGINE___Scripts.Tools
             configTextComp.fontSize = 20;
             configTextComp.color = new Color(0.90f, 0.92f, 0.96f, 1f);
             configTextComp.alignment = TextAlignmentOptions.TopLeft;
-            configTextComp.enableWordWrapping = false;
             configTextComp.overflowMode = TextOverflowModes.Overflow;
             configTextComp.margin = new Vector4(25, 5, 5, 5);  
             configTextComp.lineSpacing = 60;
             FontManager.ApplyFont(configTextComp);
-            ForceNoWrap(configTextComp);
 
             GameObject placeholderObj = new GameObject("Placeholder");
             placeholderObj.transform.SetParent(contentContainerObj.transform, false);
@@ -1069,11 +1067,9 @@ namespace MATE_ENGINE___Scripts.Tools
             configPlaceholderComp.fontSize = 20;
             configPlaceholderComp.color = new Color(0.45f, 0.48f, 0.55f, 0.6f);
             configPlaceholderComp.alignment = TextAlignmentOptions.TopLeft;
-            configPlaceholderComp.enableWordWrapping = false;
             configPlaceholderComp.margin = new Vector4(25, 5, 5, 5);  
             configPlaceholderComp.lineSpacing = 60;
             FontManager.ApplyFont(configPlaceholderComp);
-            ForceNoWrap(configPlaceholderComp);
             
             // 配置输入框
             configInputField.textComponent = configTextComp;
@@ -1084,6 +1080,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configInputField.scrollSensitivity = 5f;
             configInputField.onFocusSelectAll = false;
             configInputField.caretWidth = 2;
+            configInputField.textComponent.enableWordWrapping = false;
 
             configInputField.onValueChanged.AddListener(OnConfigInputFieldValueChanged);
 
@@ -2779,35 +2776,7 @@ namespace MATE_ENGINE___Scripts.Tools
 
         private void OnConfigInputFieldValueChanged(string _)
         {
-            if (configInputField != null)
-            {
-                ForceNoWrap(configInputField.textComponent);
-                ForceNoWrap(configInputField.placeholder as TMP_Text);
-            }
             RefreshConfigParagraphNumbers();
-        }
-
-        private static void ForceNoWrap(TMP_Text text)
-        {
-            if (text == null)
-            {
-                return;
-            }
-
-            text.enableWordWrapping = false;
-
-            try
-            {
-                PropertyInfo prop = typeof(TMP_Text).GetProperty("textWrappingMode", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (prop != null)
-                {
-                    object noWrap = Enum.Parse(prop.PropertyType, "NoWrap");
-                    prop.SetValue(text, noWrap);
-                }
-            }
-            catch
-            {
-            }
         }
 
         private void RefreshConfigParagraphNumbers()
