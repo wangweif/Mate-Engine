@@ -153,6 +153,19 @@ public class AdvancedChatManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 聚焦输入框
+    /// </summary>
+    void FocusInputField()
+    {
+        if (inputField != null && inputField.interactable)
+        {
+            inputField.ActivateInputField();
+            inputField.Select();
+            Debug.Log("输入框已聚焦");
+        }
+    }
+
+    /// <summary>
     /// 语音输入按钮点击事件
     /// </summary>
     void OnVoiceInputButtonClicked()
@@ -316,6 +329,12 @@ public class AdvancedChatManager : MonoBehaviour
         chatInProgress = false;
         ScrollToBottom();
 
+        // 先启用输入框
+        inputField.interactable = true;
+
+        // AI回复完成后立即聚焦输入框
+        FocusInputField();
+
         // 如果没有被打断,播放TTS
         if (!chatCancelledByVoice && !string.IsNullOrEmpty(fullResponse))
         {
@@ -327,7 +346,6 @@ public class AdvancedChatManager : MonoBehaviour
                 }
             }));
         }
-        inputField.interactable = true;
     }
 
     // 创建AI气泡
