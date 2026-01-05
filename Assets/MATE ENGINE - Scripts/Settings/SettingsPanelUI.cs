@@ -67,6 +67,9 @@ namespace MATE_ENGINE___Scripts.Tools
         private RectTransform configContentTextRect;
         private RectTransform configPlaceholderRect;
 
+        // 全屏按钮引用
+        private Button configFullscreenButton;
+
         [Header("Model Panel Reference")]
         public ModelPanelUI modelPanelUI;
 
@@ -86,6 +89,17 @@ namespace MATE_ENGINE___Scripts.Tools
         [SerializeField] private PPTController pptController;
         [SerializeField] private PPTControlUI pptControlUI;
         
+        // 全屏功能相关字段
+        private bool isFullscreen = false;
+
+        // 备份原始状态
+        private Vector2 originalAnchorMin;
+        private Vector2 originalAnchorMax;
+        private Vector2 originalOffsetMin;
+        private Vector2 originalOffsetMax;
+        private Transform originalParent;
+        private int originalSiblingIndex;
+
         // PPT列表项数据结构
         private class PPTListItem
         {
@@ -878,6 +892,20 @@ namespace MATE_ENGINE___Scripts.Tools
 
             // AI生成演讲稿按钮（放在标签右侧）
             generateSpeechButton = CreateButton(labelContainer.transform, "AI生成演讲稿", new Vector2(200, 40));
+
+            // 全屏按钮（放在最右侧）
+            configFullscreenButton = CreateButton(labelContainer.transform, "⛶", new Vector2(40, 40));
+            // 设置全屏按钮样式
+            TMP_Text fullscreenButtonText = configFullscreenButton.GetComponentInChildren<TMP_Text>();
+            if (fullscreenButtonText != null)
+            {
+                fullscreenButtonText.fontSize = 20;
+                fullscreenButtonText.alignment = TextAlignmentOptions.Center;
+            }
+            // 添加全屏按钮点击事件
+            configFullscreenButton.onClick.AddListener(() => {
+                ToggleFullscreen();
+            });
 
             // 演讲稿输入框（使用TMP_InputField自带滚动）
             GameObject configInputObj = new GameObject("ConfigInputField");
@@ -2438,9 +2466,19 @@ namespace MATE_ENGINE___Scripts.Tools
                 UpdateButtonStates();
 
                 // 隐藏配置面板
-                if (configOverlay != null)
+                if (isFullscreen)
                 {
-                    configOverlay.SetActive(false);
+                    ToggleFullscreen();
+                    // 等待一帧确保全屏退出完成
+                    StartCoroutine(WaitAndCloseConfig());
+                }
+                else
+                {
+                    // 直接关闭配置面板，不保存任何更改
+                    if (configOverlay != null)
+                    {
+                        configOverlay.SetActive(false);
+                    }
                 }
             }
         }
@@ -2450,7 +2488,29 @@ namespace MATE_ENGINE___Scripts.Tools
         /// </summary>
         void OnCancelConfig()
         {
-            // 直接关闭配置面板，不保存任何更改
+            // 如果处于全屏模式，先退出全屏
+            if (isFullscreen)
+            {
+                ToggleFullscreen();
+                // 等待一帧确保全屏退出完成
+                StartCoroutine(WaitAndCloseConfig());
+            }
+            else
+            {
+                // 直接关闭配置面板，不保存任何更改
+                if (configOverlay != null)
+                {
+                    configOverlay.SetActive(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 等待一帧后关闭配置面板
+        /// </summary>
+        System.Collections.IEnumerator WaitAndCloseConfig()
+        {
+            yield return null;
             if (configOverlay != null)
             {
                 configOverlay.SetActive(false);
@@ -2667,6 +2727,97 @@ namespace MATE_ENGINE___Scripts.Tools
             }
 
             configParagraphNumberText.text = sb.ToString();
+        }
+
+        /// <summary>
+        /// 切换全屏模式
+        /// </summary>
+        void ToggleFullscreen()
+        {
+            isFullscreen = !isFullscreen;
+
+            if (isFullscreen)
+                EnterFullscreen();
+            else
+                ExitFullscreen();
+        }
+
+        /// <summary>
+        /// 进入全屏模式
+        /// </summary>
+        void EnterFullscreen()
+        {
+            if (configPanel == null) return;
+
+            RectTransform panelRect = configPanel.GetComponent<RectTransform>();
+            if (panelRect == null) return;
+
+            try
+            {
+                // 保存原始状态（在第一次进入全屏时）
+                if (originalParent == null)
+                {
+                    originalParent = panelRect.parent;
+                }
+                originalSiblingIndex = panelRect.GetSiblingIndex();
+                originalAnchorMin = panelRect.anchorMin;
+                originalAnchorMax = panelRect.anchorMax;
+                originalOffsetMin = panelRect.offsetMin;
+                originalOffsetMax = panelRect.offsetMax;
+
+                // 设置为全屏 - 占满整个Canvas
+                panelRect.SetParent(parentCanvas.transform, true);
+                panelRect.anchorMin = Vector2.zero;
+                panelRect.anchorMax = Vector2.one;
+                panelRect.offsetMin = Vector2.zero;
+                panelRect.offsetMax = Vector2.zero;
+                panelRect.pivot = new Vector2(0.5f, 0.5f);
+                panelRect.anchoredPosition = Vector2.zero;
+                panelRect.sizeDelta = Vector2.zero;
+                panelRect.localScale = Vector3.one;
+
+                // 将面板置于最上层
+                panelRect.SetAsLastSibling();
+
+                Debug.Log("进入全屏模式 - 配置窗口");
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"进入全屏模式失败: {ex.Message}");
+                isFullscreen = false;
+            }
+        }
+
+        /// <summary>
+        /// 退出全屏模式
+        /// </summary>
+        void ExitFullscreen()
+        {
+            if (configPanel == null || originalParent == null) return;
+
+            RectTransform panelRect = configPanel.GetComponent<RectTransform>();
+            if (panelRect == null) return;
+
+            try
+            {
+                // 恢复原始状态
+                panelRect.SetParent(originalParent, true);
+                panelRect.anchorMin = originalAnchorMin;
+                panelRect.anchorMax = originalAnchorMax;
+                panelRect.offsetMin = originalOffsetMin;
+                panelRect.offsetMax = originalOffsetMax;
+
+                // 确保设置正确的位置
+                panelRect.pivot = new Vector2(0.5f, 0.5f);
+                panelRect.anchoredPosition = Vector2.zero;
+                panelRect.localScale = Vector3.one;
+
+                Debug.Log("退出全屏模式 - 配置窗口");
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"退出全屏模式失败: {ex.Message}");
+            }
         }
 
         private void SyncConfigParagraphNumberScroll()
