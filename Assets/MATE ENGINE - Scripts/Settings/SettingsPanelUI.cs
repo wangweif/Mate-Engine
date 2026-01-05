@@ -1070,6 +1070,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configPlaceholderComp.color = new Color(0.45f, 0.48f, 0.55f, 0.6f);
             configPlaceholderComp.alignment = TextAlignmentOptions.TopLeft;
             configPlaceholderComp.enableWordWrapping = false;
+            configPlaceholderComp.margin = new Vector4(25, 5, 5, 5);  
             configPlaceholderComp.lineSpacing = 60;
             FontManager.ApplyFont(configPlaceholderComp);
             ForceNoWrap(configPlaceholderComp);
@@ -2712,7 +2713,13 @@ namespace MATE_ENGINE___Scripts.Tools
 
             contentText.ForceMeshUpdate();
 
-            int lineCount = contentText.textInfo != null ? contentText.textInfo.lineCount : 0;
+            int lineCount = 1;
+
+            foreach  (char c in configInputField.text)
+            {
+                if (c == '\n')
+                    lineCount++;
+            }
             if (lineCount <= 0)
             {
                 configParagraphNumberText.text = "";
