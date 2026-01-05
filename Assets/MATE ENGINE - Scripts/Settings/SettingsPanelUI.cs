@@ -2775,6 +2775,13 @@ namespace MATE_ENGINE___Scripts.Tools
 
         private void OnConfigInputFieldValueChanged(string _)
         {
+            StartCoroutine(RefreshConfigParagraphNumbersDelayed());
+        }
+        
+        private IEnumerator RefreshConfigParagraphNumbersDelayed()
+        {
+            yield return null;
+            yield return null;
             RefreshConfigParagraphNumbers();
         }
 
