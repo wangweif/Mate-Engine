@@ -24,7 +24,10 @@ public class VRMLoader : MonoBehaviour
     private GameObject currentModel;
     private RuntimeGltfInstance currentGltf;
     [SerializeField] private string modelName = "";
-    private const string SelectedModelPrefsKey = "MATE_ENGINE_SELECTED_VRM";    
+    private const string SelectedModelPrefsKey = "MATE_ENGINE_SELECTED_VRM";
+
+    // 动画设置
+    private float targetIdleIndex = 3f; // 控制Idle的具体变体 (0-21)    
 
     void Start()
     {
@@ -341,8 +344,8 @@ public class VRMLoader : MonoBehaviour
             // 立即强制播放Idle状态，并从动画开始位置播放（避免入场动画）
             animator.Play("Idle", 0, 0f);
 
-            // 设置动画速度为0，冻结Idle动画
-            animator.speed = 0f;
+            // 设置动画速度为1，正常播放Idle动画（包含呼吸效果）
+            animator.speed = 1f;
 
             // 使用协程持续保持在Idle状态
             StartCoroutine(KeepInIdleState(animator));
@@ -422,8 +425,8 @@ public class VRMLoader : MonoBehaviour
         animator.SetBool("isWindowSit", false);
         animator.SetBool("isSitting", false);
 
-        // 设置IdleIndex为0，确保使用第一个站立姿势
-        animator.SetFloat("IdleIndex", 0f);
+        // 设置IdleIndex为targetIdleIndex，使用指定的站立姿势
+        animator.SetFloat("IdleIndex", targetIdleIndex);
         animator.SetFloat("DanceIndex", 0f);
 
         // 设置性别（可选）
