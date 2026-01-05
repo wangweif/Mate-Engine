@@ -1047,7 +1047,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configTextComp.margin = new Vector4(25, 5, 5, 5);  
             configTextComp.lineSpacing = 60;
             FontManager.ApplyFont(configTextComp);
-
+            
             GameObject placeholderObj = new GameObject("Placeholder");
             placeholderObj.transform.SetParent(contentContainerObj.transform, false);
             RectTransform placeholderRect = placeholderObj.GetComponent<RectTransform>();
@@ -2785,20 +2785,29 @@ namespace MATE_ENGINE___Scripts.Tools
                 return;
             }
 
-            if (string.IsNullOrEmpty(configInputField.text))
+            TextMeshProUGUI contentText = configInputField.textComponent as TextMeshProUGUI;
+            if (contentText == null)
             {
-                configParagraphNumberText.text = "";
                 return;
             }
 
-            TextMeshProUGUI contentText = configInputField.textComponent as TextMeshProUGUI;
-            if (contentText == null)
+            string text = configInputField.text;
+            if (string.IsNullOrEmpty(text))
             {
                 configParagraphNumberText.text = "";
                 return;
             }
 
             contentText.ForceMeshUpdate();
+
+            string[] paragraphs = text.Split('\n');
+            int paragraphCount = paragraphs.Length;
+
+            if (paragraphCount == 0)
+            {
+                configParagraphNumberText.text = "";
+                return;
+            }
 
             TMP_TextInfo textInfo = contentText.textInfo;
             if (textInfo == null || textInfo.lineCount == 0)
@@ -2807,38 +2816,60 @@ namespace MATE_ENGINE___Scripts.Tools
                 return;
             }
 
-            string text = configInputField.text;
-            StringBuilder sb = new StringBuilder();
-            
-            int paragraphNumber = 1;
-            int currentLineInNumberText = 0;
-            
-            for (int lineIndex = 0; lineIndex < textInfo.lineCount; lineIndex++)
+            StringBuilder numberBuilder = new StringBuilder();
+            int currentCharIndex = 0;
+
+            for (int i = 0; i < paragraphCount; i++)
             {
-                TMP_LineInfo lineInfo = textInfo.lineInfo[lineIndex];
-                int firstCharIndex = lineInfo.firstCharacterIndex;
+                string paragraph = paragraphs[i];
                 
-                if (firstCharIndex >= 0 && firstCharIndex < text.Length)
+                if (currentCharIndex < textInfo.characterCount)
                 {
-                    bool isParagraphStart = (firstCharIndex == 0) || (firstCharIndex > 0 && text[firstCharIndex - 1] == '\n');
+                    TMP_CharacterInfo charInfo = textInfo.characterInfo[currentCharIndex];
+                    int lineIndex = charInfo.lineNumber;
                     
-                    if (isParagraphStart)
+                    if (lineIndex >= 0 && lineIndex < textInfo.lineCount)
                     {
-                        while (currentLineInNumberText < lineIndex)
-                        {
-                            sb.Append('\n');
-                            currentLineInNumberText++;
-                        }
+                        TMP_LineInfo lineInfo = textInfo.lineInfo[lineIndex];
+                        float lineHeight = lineInfo.lineHeight;
                         
-                        sb.Append(paragraphNumber);
-                        sb.Append('\n');
-                        currentLineInNumberText++;
-                        paragraphNumber++;
+                        numberBuilder.Append((i + 1).ToString());
+                        
+                        if (i < paragraphCount - 1)
+                        {
+                            int paragraphLength = paragraph.Length;
+                            int lineCount = 0;
+                            
+                            for (int charIdx = currentCharIndex; charIdx < currentCharIndex + paragraphLength && charIdx < textInfo.characterCount; charIdx++)
+                            {
+                                if (charIdx > currentCharIndex && textInfo.characterInfo[charIdx].lineNumber != textInfo.characterInfo[charIdx - 1].lineNumber)
+                                {
+                                    lineCount++;
+                                }
+                            }
+                            
+                            for (int j = 0; j < lineCount; j++)
+                            {
+                                numberBuilder.Append("\n");
+                            }
+                            
+                            numberBuilder.Append("\n");
+                        }
                     }
                 }
+                else
+                {
+                    numberBuilder.Append((i + 1).ToString());
+                    if (i < paragraphCount - 1)
+                    {
+                        numberBuilder.Append("\n");
+                    }
+                }
+                
+                currentCharIndex += paragraph.Length + 1;
             }
 
-            configParagraphNumberText.text = sb.ToString();
+            configParagraphNumberText.text = numberBuilder.ToString();
         }
 
         /// <summary>
