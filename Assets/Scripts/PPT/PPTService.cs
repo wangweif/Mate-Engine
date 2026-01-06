@@ -28,6 +28,7 @@ namespace MateEngine.PPT
         // 事件
         public event Action<int> OnSlideChanged;
         public event Action OnPresentationClosed;
+        public event Action OnPresentationOpened;
         public event Action<string> OnError;
         public event Action OnConnected;
         public event Action OnDisconnected;
@@ -194,6 +195,8 @@ namespace MateEngine.PPT
                         totalSlides = int.Parse(parts[2]);
                         currentSlide = 1;
                         OnSlideChanged?.Invoke(currentSlide);
+                        OnPresentationOpened?.Invoke();
+                        UnityEngine.Debug.Log($"[PPT] 演示文稿已打开,总页数: {totalSlides}");
                     }
                     // 处理翻页命令返回的页码 (OK|页码)
                     else if (parts.Length > 1 && int.TryParse(parts[1], out int newSlide))

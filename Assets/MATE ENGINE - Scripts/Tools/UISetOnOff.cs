@@ -34,8 +34,8 @@ public class UISetOnOff : MonoBehaviour
     // 新增：标记是否为自动翻页(用于区分自动翻页和手动翻页)
     private bool isAutoPageChange = false;
     
-    // 新增：标记是否正在等待PPT打开(用于忽略打开过程中的关闭事件)
-    private bool isWaitingForPPTOpen = false;
+    // 新增：标记PPT是否已打开完成(用于事件驱动的等待)
+    private bool isPPTOpenCompleted = false;
     
     public Sprite playImage;
     public Sprite displayImage;
@@ -60,8 +60,10 @@ public class UISetOnOff : MonoBehaviour
         {
             pptService.OnSlideChanged += OnPPTSlideChanged;
             pptService.OnPresentationClosed += OnPPTPresentationClosed;
+            pptService.OnPresentationOpened += OnPPTOpenCompleted;
             Debug.Log("✅ 已注册PPT页面变化监听器");
             Debug.Log("✅ 已注册PPT关闭监听器");
+            Debug.Log("✅ 已注册PPT打开完成监听器");
         }
     }
 
@@ -193,7 +195,7 @@ public class UISetOnOff : MonoBehaviour
 
         // 如果当前正在等待PPT打开,忽略此事件
         // (PPT打开过程中会触发关闭事件,这是正常的)
-        if (isWaitingForPPTOpen)
+        if (!isPPTOpenCompleted)
         {
             Debug.Log("ℹ️ 正在等待PPT打开,忽略关闭事件");
             return;
@@ -215,6 +217,15 @@ public class UISetOnOff : MonoBehaviour
         }
 
         Debug.Log("✅ PPT关闭事件处理完成");
+    }
+
+    /// <summary>
+    /// PPT打开完成事件处理
+    /// </summary>
+    private void OnPPTOpenCompleted()
+    {
+        isPPTOpenCompleted = true;
+        Debug.Log("✅ 收到PPT打开完成事件");
     }
 
     /// <summary>
@@ -358,6 +369,7 @@ public class UISetOnOff : MonoBehaviour
                     if (pptService != null)
                     {
                         Debug.Log("开始打开 PPT...");
+                        isPPTOpenCompleted = false;
                         pptService.OpenPresentation(currentPPTPath);
                         currentPageIndex = 0; // 重置页面索引
                         presentationCoroutine = StartCoroutine(PlayPresentationSequence());
@@ -579,14 +591,27 @@ public class UISetOnOff : MonoBehaviour
     private IEnumerator PlayPresentationSequence()
     {
         isPlayingSequence = true;
-        isWaitingForPPTOpen = true; // 设置等待标志
         Debug.Log("🎬 开始播放演示序列");
 
-        // 等待PPT打开（5秒）
-        yield return new WaitForSeconds(5f);
+        // 等待PPT打开完成(基于事件触发,最多等待15秒)
+        isPPTOpenCompleted = false;
+        float waitStartTime = Time.time;
+        float maxWaitTime = 15f;
         
-        // 清除等待标志
-        isWaitingForPPTOpen = false;
+        while (!isPPTOpenCompleted && (Time.time - waitStartTime) < maxWaitTime)
+        {
+            yield return null;
+        }
+        
+        if (!isPPTOpenCompleted)
+        {
+            Debug.LogWarning("⚠️ 等待PPT打开超时(15秒),继续播报");
+        }
+        else
+        {
+            Debug.Log($"✅ PPT打开完成,耗时: {Time.time - waitStartTime:F2}秒");
+        }
+        
         Debug.Log("✅ PPT打开等待结束");
 
         // 确定要播放的描述数组
@@ -1101,6 +1126,7 @@ public class UISetOnOff : MonoBehaviour
         if (pptService != null)
         {
             pptService.OnSlideChanged -= OnPPTSlideChanged;
+            pptService.OnPresentationClosed -= OnPPTPresentationClosed;
             pptService.OnPresentationClosed -= OnPPTPresentationClosed;
         }
     }
