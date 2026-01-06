@@ -353,21 +353,13 @@ public class SmartWindowsTTS : MonoBehaviour
     }
 
     /// <summary>
-    /// 生成音频键值（包含音色参数，支持音色切换）
+    /// 生成音频键值
     /// </summary>
-    public string GenerateAudioKey(string text, string voice = null)
+    public string GenerateAudioKey(string text)
     {
-        // 如果没有指定音色，从PlayerPrefs获取当前音色
-        if (string.IsNullOrEmpty(voice))
-        {
-            voice = PlayerPrefs.GetString("MATE_ENGINE_TTS_VOICE", "x4_yezi");
-        }
-
-        // 将音色和文本组合生成唯一键值
-        string input = $"{voice}|{text}";
         using (MD5 md5 = MD5.Create())
         {
-            byte[] inputBytes = Encoding.UTF8.GetBytes(input);
+            byte[] inputBytes = Encoding.UTF8.GetBytes(text);
             byte[] hashBytes = md5.ComputeHash(inputBytes);
 
             StringBuilder sb = new StringBuilder();
