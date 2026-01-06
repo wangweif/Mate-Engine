@@ -201,9 +201,17 @@ namespace MateEngine.PPT
                     // 处理翻页命令返回的页码 (OK|页码)
                     else if (parts.Length > 1 && int.TryParse(parts[1], out int newSlide))
                     {
-                        currentSlide = newSlide;
-                        OnSlideChanged?.Invoke(currentSlide);
-                        UnityEngine.Debug.Log($"[PPT] 翻页成功,当前页: {currentSlide}/{totalSlides}");
+                        // 忽略无效的页码(PowerPoint 页码从 1 开始)
+                        if (newSlide > 0)
+                        {
+                            currentSlide = newSlide;
+                            OnSlideChanged?.Invoke(currentSlide);
+                            UnityEngine.Debug.Log($"[PPT] 翻页成功,当前页: {currentSlide}/{totalSlides}");
+                        }
+                        else
+                        {
+                            UnityEngine.Debug.LogWarning($"[PPT] 收到无效页码: {newSlide},已忽略");
+                        }
                     }
                     break;
 
@@ -222,8 +230,16 @@ namespace MateEngine.PPT
                             case "SLIDE_CHANGED":
                                 if (parts.Length > 2 && int.TryParse(parts[2], out int slideNum))
                                 {
-                                    currentSlide = slideNum;
-                                    OnSlideChanged?.Invoke(currentSlide);
+                                    // 忽略无效的页码(PowerPoint 页码从 1 开始)
+                                    if (slideNum > 0)
+                                    {
+                                        currentSlide = slideNum;
+                                        OnSlideChanged?.Invoke(currentSlide);
+                                    }
+                                    else
+                                    {
+                                        UnityEngine.Debug.LogWarning($"[PPT] 收到无效页码事件: {slideNum},已忽略");
+                                    }
                                 }
                                 break;
 
