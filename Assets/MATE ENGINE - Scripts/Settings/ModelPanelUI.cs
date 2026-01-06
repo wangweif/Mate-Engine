@@ -530,6 +530,13 @@ namespace MATE_ENGINE___Scripts.Tools
                 return;
             }
 
+            // 检查是否正在播放PPT，如果是则禁止切换角色
+            if (IsPPTPlaying())
+            {
+                ShowWarningMessage("PPT正在播放中\n请先停止播放后再切换角色");
+                return;
+            }
+
             // 获取旧的音色配置（用于清理缓存）
             string oldVoice = PlayerPrefs.GetString(TtsVoicePrefsKey, "x4_yezi");
 
@@ -557,6 +564,78 @@ namespace MATE_ENGINE___Scripts.Tools
             }
 
             Debug.Log($"[ModelPanelUI] 选中模型: {modelFileName}, 音色: {newVoice}");
+        }
+
+        /// <summary>
+        /// 显示警告消息
+        /// </summary>
+        void ShowWarningMessage(string message)
+        {
+            // 查找Canvas
+            Canvas canvas = FindObjectOfType<Canvas>();
+            if (canvas == null)
+            {
+                Debug.LogWarning("[ModelPanelUI] 未找到Canvas，无法显示警告消息");
+                return;
+            }
+
+            // 创建警告面板GameObject
+            GameObject warningPanel = new GameObject("WarningPanel");
+            warningPanel.transform.SetParent(canvas.transform, false);
+
+            // 添加RectTransform组件
+            RectTransform rectTransform = warningPanel.AddComponent<RectTransform>();
+            rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            rectTransform.anchoredPosition = Vector2.zero;
+            rectTransform.sizeDelta = new Vector2(400, 150);
+
+            // 添加背景Image
+            Image background = warningPanel.AddComponent<Image>();
+            background.color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
+
+            // 添加文本
+            GameObject textObj = new GameObject("MessageText");
+            textObj.transform.SetParent(warningPanel.transform, false);
+
+            RectTransform textRect = textObj.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = new Vector2(20, 20);
+            textRect.offsetMax = new Vector2(-20, -20);
+
+            TextMeshProUGUI textComponent = textObj.AddComponent<TextMeshProUGUI>();
+            textComponent.text = $"{message}";
+            textComponent.fontSize = 24;
+            textComponent.color = Color.yellow;
+            textComponent.alignment = TextAlignmentOptions.Center;
+            FontManager.ApplyFont(textComponent);
+
+            // 2秒后自动销毁
+            Destroy(warningPanel, 2f);
+
+            Debug.Log($"[ModelPanelUI] 显示警告消息: {message}");
+        }
+
+        /// <summary>
+        /// 检查PPT是否正在播放
+        /// </summary>
+        bool IsPPTPlaying()
+        {
+            UISetOnOff uiSetOnOff = FindObjectOfType<UISetOnOff>();
+            if (uiSetOnOff != null)
+            {
+                // 通过反射获取isPlayingSequence字段
+                var field = typeof(UISetOnOff).GetField("isPlayingSequence",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                if (field != null)
+                {
+                    return (bool)field.GetValue(uiSetOnOff);
+                }
+            }
+            return false;
         }
 
         /// <summary>
