@@ -530,23 +530,50 @@ namespace MATE_ENGINE___Scripts.Tools
                 return;
             }
 
+            // 获取旧的音色配置（用于清理缓存）
+            string oldVoice = PlayerPrefs.GetString(TtsVoicePrefsKey, "x4_yezi");
+
             // 更新当前选中的模型
             currentSelectedModel = Path.GetFileName(modelFileName);
             PlayerPrefs.SetString(SelectedModelPrefsKey, currentSelectedModel);
             PlayerPrefs.Save();
-            
+
             // 更新所有列表项的选中状态
             UpdateAllItemSelections();
-            
+
             // 切换模型
             vrmLoader.SwitchModel(modelFileName);
 
             // 根据模型名称设置对应的TTS语音
-            string voice = GetVoiceForModel(currentSelectedModel);
-            PlayerPrefs.SetString(TtsVoicePrefsKey, voice);
+            string newVoice = GetVoiceForModel(currentSelectedModel);
+            PlayerPrefs.SetString(TtsVoicePrefsKey, newVoice);
             PlayerPrefs.Save();
-                
-            Debug.Log($"[ModelPanelUI] 选中模型: {modelFileName}");
+
+            // 如果音色发生变化，清理音频缓存
+            if (oldVoice != newVoice)
+            {
+                Debug.Log($"[ModelPanelUI] 音色已切换: {oldVoice} -> {newVoice}，清理旧缓存");
+                ClearAudioCache();
+            }
+
+            Debug.Log($"[ModelPanelUI] 选中模型: {modelFileName}, 音色: {newVoice}");
+        }
+
+        /// <summary>
+        /// 清理音频缓存
+        /// </summary>
+        void ClearAudioCache()
+        {
+            SmartWindowsTTS tts = FindObjectOfType<SmartWindowsTTS>();
+            if (tts != null)
+            {
+                tts.ClearAudioCache();
+                Debug.Log($"[ModelPanelUI] 已清理音频缓存");
+            }
+            else
+            {
+                Debug.LogWarning("[ModelPanelUI] 未找到SmartWindowsTTS组件，无法清理缓存");
+            }
         }
 
         /// <summary>
