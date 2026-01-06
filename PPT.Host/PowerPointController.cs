@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -25,6 +26,8 @@ namespace PPT.Host
         public event Action PresentationClosed;
 
         private bool _isDisposed = false;
+        private bool _isClosing = false;
+        private readonly object _closeLock = new object();
 
         /// <summary>
         /// 构造函数
@@ -44,6 +47,12 @@ namespace PPT.Host
         public void OpenPresentation(string filePath)
         {
             if (_isDisposed) throw new ObjectDisposedException(nameof(PowerPointController));
+
+            // 重置清理标志,允许新的打开操作
+            lock (_closeLock)
+            {
+                _isClosing = false;
+            }
 
             try
             {
@@ -81,15 +90,65 @@ namespace PPT.Host
                         }
                         else
                         {
-                            // 通过 ProgID 创建新实例
+                            // 通过 ProgID 创建新实例,带重试机制
                             Type appType = Type.GetTypeFromProgID(progId);
                             if (appType == null)
                             {
                                 throw new InvalidOperationException($"无法获取 ProgID '{progId}' 对应的类型,请确认应用已正确安装");
                             }
                             
-                            _app = (PowerPoint.Application)Activator.CreateInstance(appType);
-                            Console.WriteLine($"[PPT] 已创建新的应用实例");
+                            // 重试参数
+                            const int maxRetries = 3;
+                            const int retryDelayMs = 2000;
+                            Exception lastException = null;
+                            
+                            for (int i = 0; i < maxRetries; i++)
+                            {
+                                try
+                                {
+                                    Console.WriteLine($"[PPT] 尝试创建应用程序实例 (第 {i + 1}/{maxRetries} 次)...");
+                                    _app = (PowerPoint.Application)Activator.CreateInstance(appType);
+                                    Console.WriteLine($"[PPT] 已创建新的应用实例");
+                                    break; // 创建成功,跳出重试循环
+                                }
+                                catch (COMException ex) when (ex.HResult == unchecked((int)0x80080005))
+                                {
+                                    lastException = ex;
+                                    Console.WriteLine($"[PPT] 创建失败 (CO_E_SERVER_EXEC_FAILURE),PowerPoint 进程可能正在启动中...");
+                                    
+                                    if (i < maxRetries - 1)
+                                    {
+                                        Console.WriteLine($"[PPT] 等待 {retryDelayMs}ms 后重试...");
+                                        Thread.Sleep(retryDelayMs);
+                                        
+                                        // 重试前再次尝试获取已运行的实例
+                                        try
+                                        {
+                                            existing = Marshal.GetActiveObject(progId);
+                                            if (existing != null)
+                                            {
+                                                Console.WriteLine($"[PPT] 检测到 PowerPoint 已启动,复用现有实例");
+                                                _app = (PowerPoint.Application)existing;
+                                                break;
+                                            }
+                                        }
+                                        catch (COMException)
+                                        {
+                                            // 继续重试创建
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // 最后一次重试也失败了
+                                        throw new Exception($"创建应用程序实例失败,已重试 {maxRetries} 次", lastException);
+                                    }
+                                }
+                            }
+                            
+                            if (_app == null)
+                            {
+                                throw new Exception($"创建应用程序实例失败,已重试 {maxRetries} 次", lastException);
+                            }
                         }
 
                         _app.Visible = Office.MsoTriState.msoTrue;
@@ -271,37 +330,88 @@ namespace PPT.Host
         {
             if (_isDisposed) return;
 
+            // 使用锁防止并发清理
+            lock (_closeLock)
+            {
+                if (_isClosing)
+                {
+                    Console.WriteLine("[PPT] 清理操作已在进行中,跳过重复调用");
+                    return;
+                }
+                _isClosing = true;
+            }
+
+            Console.WriteLine("[PPT] 开始清理资源...");
+
             try
             {
                 _sta.Invoke(() =>
                 {
                     try
                     {
-                        if (_presentation != null)
-                        {
-                            _presentation.Close();
-                            Console.WriteLine("[PPT] 演示文稿已关闭");
-                        }
-
+                        // 先取消事件订阅
                         if (_app != null)
                         {
-                            _app.Quit();
-                            Console.WriteLine("[PPT] PowerPoint 已退出");
+                            try
+                            {
+                                _app.SlideShowNextSlide -= OnSlideShowNextSlide;
+                                _app.SlideShowEnd -= OnSlideShowEnd;
+                                Console.WriteLine("[PPT] 事件订阅已取消");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[PPT] 取消事件订阅时出错: {ex.Message}");
+                            }
                         }
-                    }
-                    catch (Exception exInner)
-                    {
-                        Console.WriteLine($"[PPT] ClosePresentation 内部错误: {exInner.Message}");
+
+                        // 关闭演示文稿
+                        if (_presentation != null)
+                        {
+                            try
+                            {
+                                _presentation.Close();
+                                Console.WriteLine("[PPT] 演示文稿已关闭");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[PPT] 关闭演示文稿时出错: {ex.Message}");
+                            }
+                        }
+
+                        // 退出 PowerPoint
+                        if (_app != null)
+                        {
+                            try
+                            {
+                                _app.Quit();
+                                Console.WriteLine("[PPT] PowerPoint 已退出");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[PPT] 退出 PowerPoint 时出错: {ex.Message}");
+                            }
+                        }
                     }
                     finally
                     {
+                        // 释放 COM 对象
                         ReleaseComObjects();
                     }
                 });
+
+                Console.WriteLine("[PPT] 资源清理完成");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[PPT] 关闭失败: {ex.Message}");
+                Console.WriteLine($"[PPT] 清理失败: {ex.Message}");
+            }
+            finally
+            {
+                // 清理完成后重置标志,允许下次清理
+                lock (_closeLock)
+                {
+                    _isClosing = false;
+                }
             }
         }
 
@@ -327,90 +437,23 @@ namespace PPT.Host
         /// </summary>
         private void OnSlideShowEnd(PowerPoint.Presentation Pres)
         {
-            Console.WriteLine("[PPT] 放映结束");
+            Console.WriteLine("[PPT] 放映结束事件触发");
+            
+            // 通知外部放映已结束
             PresentationClosed?.Invoke();
             
-            // 放映结束后自动清理资源
-            // 注意：PowerPoint 不允许在事件处理程序中调用 Quit()
-            // 需要延迟到事件处理完成后执行
-            Console.WriteLine("[PPT] 放映结束,准备延迟清理资源...");
-            
-            // 先取消事件订阅（这个可以在事件处理程序中执行）
-            if (_app != null)
-            {
-                try
-                {
-                    _app.SlideShowNextSlide -= OnSlideShowNextSlide;
-                    _app.SlideShowEnd -= OnSlideShowEnd;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[PPT] 取消事件订阅时出错: {ex.Message}");
-                }
-            }
-            
-            // 异步延迟执行清理操作（在事件处理程序完成后）
-            ThreadPool.QueueUserWorkItem(_ =>
-            {
-                // 等待一小段时间确保事件处理完成
-                Thread.Sleep(200);
-                
-                Console.WriteLine("[PPT] 开始执行延迟清理...");
-                try
-                {
-                    _sta.Invoke(() =>
-                    {
-                        try
-                        {
-                            // 关闭演示文稿
-                            if (_presentation != null)
-                            {
-                                try
-                                {
-                                    _presentation.Close();
-                                    Console.WriteLine("[PPT] 演示文稿已关闭");
-                                }
-                                catch (Exception ex)
-                                {
-                                    Console.WriteLine($"[PPT] 关闭演示文稿时出错: {ex.Message}");
-                                }
-                            }
-
-                            // 退出PowerPoint
-                            if (_app != null)
-                            {
-                                try
-                                {
-                                    _app.Quit();
-                                    Console.WriteLine("[PPT] PowerPoint 已退出");
-                                }
-                                catch (Exception ex)
-                                {
-                                    Console.WriteLine($"[PPT] 退出PowerPoint时出错: {ex.Message}");
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            // 释放COM对象
-                            ReleaseComObjects();
-                        }
-                    });
-                    Console.WriteLine("[PPT] 延迟清理完成");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[PPT] 延迟清理失败: {ex.Message}");
-                }
-            });
+            // 注意：不在此处执行清理操作
+            // 清理将由外部调用 ClosePresentation() 统一处理
+            // 这样可以避免事件处理器中的操作限制和重复清理问题
+            Console.WriteLine("[PPT] 放映结束事件处理完成,等待外部调用 ClosePresentation 进行清理");
         }
 
         /// <summary>
-        /// 释放 COM 对象（必须在 STA 线程上释放）
+        /// 释放 COM 对象(必须在 STA 线程上释放)
         /// </summary>
         private void ReleaseComObjects()
         {
-            // 该方法仅在 STA 线程调用（已由调用方保证）
+            // 该方法仅在 STA 线程调用(已由调用方保证)
             try
             {
                 if (_slideShowWindow != null)
@@ -435,6 +478,9 @@ namespace PPT.Host
             {
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
+                GC.Collect();
+                
+                Console.WriteLine("[PPT] COM 对象已释放,等待进程退出...");
             }
         }
 
