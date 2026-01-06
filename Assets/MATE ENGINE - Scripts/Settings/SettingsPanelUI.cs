@@ -66,6 +66,7 @@ namespace MATE_ENGINE___Scripts.Tools
         private RectTransform configViewportRect;
         private RectTransform configContentTextRect;
         private RectTransform configPlaceholderRect;
+        private int lastConfigTextLength = 0;
 
         // 全屏按钮引用
         private Button configFullscreenButton;
@@ -937,7 +938,7 @@ namespace MATE_ENGINE___Scripts.Tools
             // 创建视口用于裁剪文本
             GameObject configViewportObj = new GameObject("Viewport");
             configViewportObj.transform.SetParent(configInputObj.transform, false);
-            RectTransform configViewportRect = configViewportObj.GetComponent<RectTransform>();
+            configViewportRect = configViewportObj.GetComponent<RectTransform>();
             if (configViewportRect == null)
             {
                 configViewportRect = configViewportObj.AddComponent<RectTransform>();
@@ -2773,9 +2774,40 @@ namespace MATE_ENGINE___Scripts.Tools
                 pptLoadingIndicator.SetActive(false);
         }
 
-        private void OnConfigInputFieldValueChanged(string _)
+        private void OnConfigInputFieldValueChanged(string newText)
         {
             StartCoroutine(RefreshConfigParagraphNumbersDelayed());
+            
+            bool isDeleting = newText.Length < lastConfigTextLength;
+            lastConfigTextLength = newText.Length;
+            
+            if (isDeleting)
+            {
+                StartCoroutine(AutoScrollToTopIfNeeded());
+            }
+        }
+        
+        private IEnumerator AutoScrollToTopIfNeeded()
+        {
+            if (configInputField == null || configInputField.textComponent == null || configViewportRect == null)
+            {
+                yield break;
+            }
+            TextMeshProUGUI contentText = configInputField.textComponent as TextMeshProUGUI;
+            if (contentText == null)
+            {
+                yield break;
+            }            
+            float contentHeight = contentText.preferredHeight;
+            float viewportHeight = configViewportRect.rect.height;
+            Debug.LogWarning("contentHeight: " + contentHeight + ", viewportHeight: " + viewportHeight);
+            if (contentHeight < viewportHeight)
+            {
+                int caretPosition = configInputField.caretPosition;
+                configInputField.MoveTextStart(false);      
+                Canvas.ForceUpdateCanvases();      
+                configInputField.caretPosition = caretPosition;
+            }
         }
         
         private IEnumerator RefreshConfigParagraphNumbersDelayed()
