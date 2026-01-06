@@ -2961,6 +2961,10 @@ namespace MATE_ENGINE___Scripts.Tools
                 // 将面板置于最上层
                 panelRect.SetAsLastSibling();
 
+                // 刷新行号和自动滚动
+                StartCoroutine(RefreshConfigParagraphNumbersDelayed());
+                StartCoroutine(AutoScrollToTopIfNeeded());
+
                 Debug.Log("进入全屏模式 - 配置窗口");
             }
             catch (System.Exception ex)
@@ -2993,6 +2997,10 @@ namespace MATE_ENGINE___Scripts.Tools
                 panelRect.pivot = new Vector2(0.5f, 0.5f);
                 panelRect.anchoredPosition = Vector2.zero;
                 panelRect.localScale = Vector3.one;
+
+                // 刷新行号和自动滚动
+                StartCoroutine(RefreshConfigParagraphNumbersDelayed());
+                StartCoroutine(AutoScrollToTopIfNeeded());
 
                 Debug.Log("退出全屏模式 - 配置窗口");
             }
