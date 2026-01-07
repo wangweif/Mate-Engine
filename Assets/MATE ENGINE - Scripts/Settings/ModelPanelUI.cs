@@ -534,10 +534,10 @@ namespace MATE_ENGINE___Scripts.Tools
             currentSelectedModel = Path.GetFileName(modelFileName);
             PlayerPrefs.SetString(SelectedModelPrefsKey, currentSelectedModel);
             PlayerPrefs.Save();
-            
+
             // 更新所有列表项的选中状态
             UpdateAllItemSelections();
-            
+
             // 切换模型
             vrmLoader.SwitchModel(modelFileName);
 
@@ -545,8 +545,28 @@ namespace MATE_ENGINE___Scripts.Tools
             string voice = GetVoiceForModel(currentSelectedModel);
             PlayerPrefs.SetString(TtsVoicePrefsKey, voice);
             PlayerPrefs.Save();
-                
+
+            // 清理PPT演讲稿音频缓存
+            ClearPPTAudioCache();
+
             Debug.Log($"[ModelPanelUI] 选中模型: {modelFileName}");
+        }
+
+        /// <summary>
+        /// 清理PPT演讲稿音频缓存
+        /// </summary>
+        private void ClearPPTAudioCache()
+        {
+            var audioCacheManager = FindFirstObjectByType<AudioCacheManager>();
+            if (audioCacheManager != null)
+            {
+                audioCacheManager.ClearCache();
+                Debug.Log("🗑️ 模型切换: 已清理PPT演讲稿音频缓存");
+            }
+            else
+            {
+                Debug.LogWarning("[ModelPanelUI] AudioCacheManager not found in scene!");
+            }
         }
 
         /// <summary>
