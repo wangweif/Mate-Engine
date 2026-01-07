@@ -345,7 +345,7 @@ public class VRMLoader : MonoBehaviour
             animator.Play("Idle", 0, 0f);
 
             // 设置动画速度为1，正常播放Idle动画（包含呼吸效果）
-            animator.speed = 1f;
+            animator.speed = 1.2f;
 
             // 使用协程持续保持在Idle状态
             StartCoroutine(KeepInIdleState(animator));
