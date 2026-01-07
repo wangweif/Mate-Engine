@@ -105,7 +105,8 @@ namespace MATE_ENGINE___Scripts.Tools
 
         private void OnEnable()
         {
-            if (enableLogUpload)
+            // 只有在打包后的应用程序中才启用日志上传,编辑器模式下不上传
+            if (enableLogUpload && !Application.isEditor)
             {
                 // 注册Unity日志回调
                 Application.logMessageReceived += HandleLog;
