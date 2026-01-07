@@ -114,7 +114,7 @@ namespace PPT.Host
                                 catch (COMException ex) when (ex.HResult == unchecked((int)0x80080005))
                                 {
                                     lastException = ex;
-                                    Console.WriteLine($"[PPT] 创建失败 (CO_E_SERVER_EXEC_FAILURE),PowerPoint 进程可能正在启动中...");
+                                    Console.WriteLine(lastException);
                                     
                                     if (i < maxRetries - 1)
                                     {
