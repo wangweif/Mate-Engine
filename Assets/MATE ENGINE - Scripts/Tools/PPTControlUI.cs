@@ -21,6 +21,7 @@ public class PPTControlUI : MonoBehaviour
 
     [Header("UI元素")]
     private GameObject controlBar;
+    private GameObject topDecoration;
     private Button playPauseButton;
     private Button closeButton;
     private Button previousButton;
@@ -55,7 +56,7 @@ public class PPTControlUI : MonoBehaviour
     private bool isMuted = false;
     
     [Header("UI 风格配置")]
-    public Color panelBackgroundColor = new Color(0.12f, 0.13f, 0.16f, 0.98f);
+    public Color panelBackgroundColor = new Color(16f / 255f, 38f / 255f, 77f / 255f, 0.98f);
     public Color accentColor = new Color(1f, 1f, 1f, 1f);
 
     void Start()
@@ -181,15 +182,18 @@ public class PPTControlUI : MonoBehaviour
 
         // 1. 背景处理：使用深色半透明（毛玻璃感）
         Image bgImage = controlBar.AddComponent<Image>();
-        // bgImage.sprite = Resources.Load<Sprite>("PPTIcons/RoundedRect");
+        // bgImage.sprite = Resources.Load<Sprite>("PPTIcons/边框");
         // bgImage.type = Image.Type.Sliced;
         bgImage.color = panelBackgroundColor;
         bgImage.raycastTarget = true;
         
-        // 2. 添加外边框 (描边) 增加精致感
-        Outline outline = controlBar.AddComponent<Outline>();
-        outline.effectColor = new Color(1, 1, 1, 0.15f);
-        outline.effectDistance = new Vector2(1, -1);
+        // // 2. 添加外边框 (描边) 增加精致感
+        // Outline outline = controlBar.AddComponent<Outline>();
+        // outline.effectColor = new Color(1, 1, 1, 0.15f);
+        // outline.effectDistance = new Vector2(1, -1);
+
+        // 2. 添加上边装饰图片(在布局组件之前创建)
+        CreateTopDecoration(controlBar.transform);
 
         // 3. 布局微调
         HorizontalLayoutGroup layout = controlBar.AddComponent<HorizontalLayoutGroup>();
@@ -323,6 +327,47 @@ public class PPTControlUI : MonoBehaviour
         FontManager.ApplyFont(displayText);
 
         return displayText;
+    }
+
+    /// <summary>
+    /// 创建顶部装饰图片
+    /// </summary>
+    void CreateTopDecoration(Transform parent)
+    {
+        topDecoration = new GameObject("TopDecoration");
+        topDecoration.transform.SetParent(parent, false);
+
+        RectTransform decoRect = topDecoration.AddComponent<RectTransform>();
+        decoRect.anchorMin = new Vector2(0f, 1f);
+        decoRect.anchorMax = new Vector2(1f, 1f);
+        decoRect.pivot = new Vector2(0.5f, 1f);
+        decoRect.anchoredPosition = new Vector2(0, 0);
+        
+        // 添加LayoutElement并设置ignoreLayout,使其不受HorizontalLayoutGroup影响
+        LayoutElement layoutElement = topDecoration.AddComponent<LayoutElement>();
+        layoutElement.ignoreLayout = true;
+        
+        // 加载上边图片
+        Sprite topSprite = Resources.Load<Sprite>("PPTIcons/上边");
+        if (topSprite != null)
+        {
+            // 增加高度使其更明显
+            float displayHeight = 4f;
+            decoRect.sizeDelta = new Vector2(0, displayHeight);
+            
+            Image decoImage = topDecoration.AddComponent<Image>();
+            decoImage.sprite = topSprite;
+            decoImage.raycastTarget = false;
+            // 使用Simple模式,按比例缩放
+            decoImage.type = Image.Type.Simple;
+            decoImage.preserveAspect = false; // 不保持宽高比,拉伸填充
+            
+            Debug.Log($"[PPTControlUI] 上边装饰图片已加载,原始尺寸: {topSprite.rect.width}x{topSprite.rect.height}, 显示高度: {displayHeight}px");
+        }
+        else
+        {
+            Debug.LogWarning("[PPTControlUI] 未能加载上边装饰图片");
+        }
     }
 
     /// <summary>
