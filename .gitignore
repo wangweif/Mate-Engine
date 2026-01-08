@@ -60,6 +60,12 @@ ExportedObj/
 !PPT.Host/*.csproj
 !PPT.Host/*.sln
 
+# PPT.HOST.Python
+PPT.Host.Python/build/
+PPT.Host.Python/**/__pycache__/
+PPT.Host.Python/*.spec
+
+
 # Unity3D generated meta files
 *.pidb.meta
 *.pdb.meta
