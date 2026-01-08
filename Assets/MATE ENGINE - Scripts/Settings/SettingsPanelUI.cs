@@ -98,6 +98,9 @@ namespace MATE_ENGINE___Scripts.Tools
         private Vector2 originalAnchorMax;
         private Vector2 originalOffsetMin;
         private Vector2 originalOffsetMax;
+
+        // 备份演讲稿内容，用于生成失败时恢复
+        private string[] backupSpeechContent;
         private Transform originalParent;
         private int originalSiblingIndex;
 
@@ -2552,7 +2555,10 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 string[] descLines = configInputField.text.Split('\n');
                 selectedPPTItem.pptInfo.desc = descLines;
-                selectedPPTItem.pptInfo.configStatus = 2; // 已配置
+
+                // 根据演讲稿内容是否为空来设置状态
+                bool hasContent = !string.IsNullOrWhiteSpace(configInputField.text);
+                selectedPPTItem.pptInfo.configStatus = hasContent ? 2 : 3; // 2=已配置, 3=失败
 
                 // 保存到JSON
                 string jsonName = Path.ChangeExtension(selectedPPTItem.pptInfo.filename, ".json");
@@ -2664,6 +2670,16 @@ namespace MATE_ENGINE___Scripts.Tools
             if (configInputField != null)
             {
                 configInputField.interactable = false;
+
+                // 备份当前的演讲稿内容
+                if (selectedPPTItem != null && selectedPPTItem.pptInfo != null)
+                {
+                    backupSpeechContent = selectedPPTItem.pptInfo.desc;
+                }
+
+                // 清空输入框
+                configInputField.text = "";
+                RefreshConfigParagraphNumbers();
             }
 
             // 设置配置状态为进行中
@@ -2723,29 +2739,53 @@ namespace MATE_ENGINE___Scripts.Tools
                 configInputField.interactable = true;
             }
 
-            // 更新UI输入框
-            if (configInputField != null)
-            {
-                configInputField.text = string.Join("\n", generatedContent);
-                RefreshConfigParagraphNumbers();
-                configNumberScrollOffsetInitialized = false;
-            }
-
             // 更新配置状态并保存到JSON
             if (selectedPPTItem != null)
             {
                 // 检查生成是否成功
                 if (generatedContent != null && generatedContent.Length > 0 && !string.IsNullOrEmpty(generatedContent[0]))
                 {
-                    // 生成成功，更新PPTInfo中的desc字段
+                    // 生成成功，更新UI输入框
+                    if (configInputField != null)
+                    {
+                        configInputField.text = string.Join("\n", generatedContent);
+                        RefreshConfigParagraphNumbers();
+                        configNumberScrollOffsetInitialized = false;
+                    }
+
+                    // 更新PPTInfo中的desc字段
                     selectedPPTItem.pptInfo.desc = generatedContent;
                     selectedPPTItem.pptInfo.configStatus = 2; // 已配置
+
+                    // 保存到对应的JSON文件
+                    string jsonFileName = Path.ChangeExtension(selectedPPTItem.pptInfo.filename, ".json");
+                    bool saveSuccess = PPTDataManager.SavePPTInfoToJson(selectedPPTItem.pptInfo, jsonFileName);
+
+                    if (selectedPPTItem.statusText != null)
+                    {
+                        selectedPPTItem.statusText.text = GetStatusString(selectedPPTItem.pptInfo.configStatus);
+                        selectedPPTItem.statusText.color = GetStatusColor(selectedPPTItem.pptInfo.configStatus);
+                    }
+                    UpdateButtonStates();
                 }
                 else
                 {
-                    // 生成失败，设置状态为失败
-                    selectedPPTItem.pptInfo.configStatus = 3; // 失败
+                    // 生成失败，恢复之前的演讲稿内容
                     Debug.LogError("PPT演讲稿生成失败");
+
+                    // 恢复UI显示
+                    if (configInputField != null && backupSpeechContent != null)
+                    {
+                        configInputField.text = string.Join("\n", backupSpeechContent);
+                        RefreshConfigParagraphNumbers();
+                        configNumberScrollOffsetInitialized = false;
+                    }
+
+                    // 恢复desc字段
+                    if (backupSpeechContent != null)
+                    {
+                        selectedPPTItem.pptInfo.desc = backupSpeechContent;
+                    }
 
                     // 显示错误提示弹窗
                     if (!string.IsNullOrEmpty(errorMessage))
@@ -2757,17 +2797,6 @@ namespace MATE_ENGINE___Scripts.Tools
                         ShowErrorDialog("演讲稿生成失败，请稍后重试");
                     }
                 }
-
-                // 保存到对应的JSON文件
-                string jsonFileName = Path.ChangeExtension(selectedPPTItem.pptInfo.filename, ".json");
-                bool saveSuccess = PPTDataManager.SavePPTInfoToJson(selectedPPTItem.pptInfo, jsonFileName);
-                
-                if (selectedPPTItem.statusText != null)
-                {
-                    selectedPPTItem.statusText.text = GetStatusString(selectedPPTItem.pptInfo.configStatus);
-                    selectedPPTItem.statusText.color = GetStatusColor(selectedPPTItem.pptInfo.configStatus);
-                }
-                UpdateButtonStates();
             }
 
             if (pptLoadingIndicator != null)
