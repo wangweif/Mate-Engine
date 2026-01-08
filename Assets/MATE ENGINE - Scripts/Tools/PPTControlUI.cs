@@ -239,7 +239,7 @@ public class PPTControlUI : MonoBehaviour
             btn.onClick.AddListener(onClick);
         }
 
-        // 设置按钮过渡颜色：悬停时微亮
+        // 设置按钮过渡颜色:悬停时微亮
         ColorBlock colors = btn.colors;
         colors.normalColor = Color.clear;
         colors.highlightedColor = new Color(1, 1, 1, 0.1f);
@@ -256,10 +256,20 @@ public class PPTControlUI : MonoBehaviour
         iconObj.transform.SetParent(btnObj.transform, false);
 
         RectTransform iconRect = iconObj.AddComponent<RectTransform>();
-        iconRect.anchorMin = Vector2.zero;
-        iconRect.anchorMax = Vector2.one;
-        iconRect.offsetMin = new Vector2(12, 12);
-        iconRect.offsetMax = new Vector2(-12, -12);
+        iconRect.anchorMin = new Vector2(0.5f, 0.5f);
+        iconRect.anchorMax = new Vector2(0.5f, 0.5f);
+        iconRect.pivot = new Vector2(0.5f, 0.5f);
+        
+        // 根据按钮类型设置图标尺寸
+        // 上一页/下一页: 16x28px, 其它: 30x28px
+        if (name == "Previous" || name == "Next")
+        {
+            iconRect.sizeDelta = new Vector2(15, 28);
+        }
+        else
+        {
+            iconRect.sizeDelta = new Vector2(30, 28);
+        }
 
         Image iconImage = iconObj.AddComponent<Image>();
         iconImage.sprite = iconSprite;
