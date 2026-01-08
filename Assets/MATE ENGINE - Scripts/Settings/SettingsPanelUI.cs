@@ -1186,57 +1186,10 @@ namespace MATE_ENGINE___Scripts.Tools
             closeRect.anchoredPosition = new Vector2(-15, 0);
             closeRect.sizeDelta = new Vector2(45, 45);
 
-            Image closeBg = closeBtnObj.AddComponent<Image>();
-            // 关闭按钮背景：与界面风格一致的暗色调
-            closeBg.color = new Color(0.18f, 0.20f, 0.25f, 1f);
-            
-            // 添加关闭按钮外发光阴影
-            Shadow closeShadow = closeBtnObj.AddComponent<Shadow>();
-            closeShadow.effectColor = new Color(0, 0, 0, 0.4f);
-            closeShadow.effectDistance = new Vector2(0, 3);
-            
-            // 添加边框效果
-            Outline closeOutline = closeBtnObj.AddComponent<Outline>();
-            closeOutline.effectColor = new Color(0.3f, 0.35f, 0.45f, 0.5f);
-            closeOutline.effectDistance = new Vector2(1, -1);
-
             closeButton = closeBtnObj.AddComponent<Button>();
-            
-            // 设置关闭按钮的颜色状态：正常时暗色，悬停时红色
-            ColorBlock closeColors = closeButton.colors;
-            closeColors.normalColor = new Color(0.18f, 0.20f, 0.25f, 1f);        // 暗色调（与界面一致）
-            closeColors.highlightedColor = new Color(0.85f, 0.25f, 0.25f, 1f);   // 悬停时红色
-            closeColors.pressedColor = new Color(0.65f, 0.15f, 0.15f, 1f);       // 按下时深红色
-            closeColors.selectedColor = new Color(0.18f, 0.20f, 0.25f, 1f);      // 选中时暗色
-            closeColors.disabledColor = new Color(0.15f, 0.15f, 0.15f, 0.5f);    // 禁用时灰色
-            closeColors.colorMultiplier = 1f;
-            closeColors.fadeDuration = 0.15f;  // 平滑过渡
-            closeButton.colors = closeColors;
-
-            GameObject closeText = new GameObject("Text");
-            closeText.transform.SetParent(closeBtnObj.transform, false);
-            RectTransform closeTextRect = closeText.GetComponent<RectTransform>();
-            if (closeTextRect == null)
-            {
-                closeTextRect = closeText.AddComponent<RectTransform>();
-            }
-            closeTextRect.anchorMin = Vector2.zero;
-            closeTextRect.anchorMax = Vector2.one;
-            closeTextRect.offsetMin = Vector2.zero;
-            closeTextRect.offsetMax = Vector2.zero;
-
-            TMP_Text text = closeText.AddComponent<TextMeshProUGUI>();
-            text.text = "×";
-            text.fontSize = 48;  // 稍微调大字体
-            text.color = new Color(0.85f, 0.87f, 0.9f, 1f);  // 柔和的浅色文字
-            text.alignment = TextAlignmentOptions.Center;
-            text.fontStyle = FontStyles.Bold;
-            FontManager.ApplyFont(text);
-            
-            // 添加文字轻微外发光效果
-            Shadow textGlow = closeText.AddComponent<Shadow>();
-            textGlow.effectColor = new Color(0.4f, 0.5f, 0.7f, 0.2f);
-            textGlow.effectDistance = new Vector2(0, 0);
+            Image closeImage = closeBtnObj.AddComponent<Image>();
+            closeImage.sprite = Resources.Load<Sprite>("close@2x");
+            closeButton.targetGraphic = closeImage;
         }
 
         GameObject CreateLabel(Transform parent, string text, float fontSize)
