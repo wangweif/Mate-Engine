@@ -37,6 +37,10 @@ namespace MATE_ENGINE___Scripts.Tools
         public GameObject modelPanel;
         public GameObject settingsPanel;
 
+        [Header("Styling")]
+        public Sprite roundedListSprite;
+        public Sprite roundedItemSprite;
+
         [Header("PPT Panel Components")]
         public DropdownManager pptDropdown;
         public TMP_Dropdown pptDropdownTMP;
@@ -397,7 +401,15 @@ namespace MATE_ENGINE___Scripts.Tools
 
             Image panelBg = mainPanel.AddComponent<Image>();
             // 主面板背景：暗黑风格深色背景，带有轻微的蓝色调
-            panelBg.color = new Color(0.12f, 0.13f, 0.16f, 0.98f);
+            Sprite settingsBackgroundSprite = Resources.Load<Sprite>("settingsBackground");
+            if (settingsBackgroundSprite != null)
+            {
+                panelBg.sprite = settingsBackgroundSprite;
+            }
+            else
+            {
+                panelBg.color = new Color(0.12f, 0.13f, 0.16f, 0.98f);
+            }
             // 确保使用默认UI材质，避免_MainTex警告
             panelBg.material = null;
             panelBg.raycastTarget = true; // 阻止点击穿透到场景
@@ -705,7 +717,12 @@ namespace MATE_ENGINE___Scripts.Tools
             pptListScrollRect.vertical = true;
 
             Image scrollBg = scrollObj.AddComponent<Image>();
-            scrollBg.color = new Color(0.15f, 0.16f, 0.20f, 1f);
+            if (roundedListSprite != null)
+            {
+                scrollBg.sprite = roundedListSprite;
+                scrollBg.type = Image.Type.Sliced;
+            }
+            scrollBg.color = new Color(0f, 0f, 0f, 0f);
             
             // 添加滚动视图边框
             Outline scrollOutline = scrollObj.AddComponent<Outline>();
@@ -1761,10 +1778,10 @@ namespace MATE_ENGINE___Scripts.Tools
 
             Button itemButton = itemObj.AddComponent<Button>();
             ColorBlock colors = itemButton.colors;
-            colors.normalColor = new Color(0.18f, 0.20f, 0.25f, 1f); // 暗黑风格
-            colors.highlightedColor = new Color(0.22f, 0.24f, 0.30f, 1f); // 悬停时稍亮
-            colors.pressedColor = new Color(0.15f, 0.17f, 0.22f, 1f); // 按下时稍暗
-            colors.selectedColor = new Color(0.25f, 0.47f, 0.87f, 0.4f); // 选中时蓝色
+            colors.normalColor = new Color(0.039f, 0.102f, 0.243f, 1f);
+            colors.highlightedColor = new Color(0.22f, 0.24f, 0.30f, 0.5f);
+            colors.pressedColor = new Color(0.15f, 0.17f, 0.22f, 0.7f);
+            colors.selectedColor = new Color(0.25f, 0.47f, 0.87f, 0.5f);
             itemButton.colors = colors;
 
             HorizontalLayoutGroup itemLayout = itemObj.AddComponent<HorizontalLayoutGroup>();
