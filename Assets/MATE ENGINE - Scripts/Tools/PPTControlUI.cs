@@ -188,9 +188,9 @@ public class PPTControlUI : MonoBehaviour
         bgImage.raycastTarget = true;
         
         // // 2. 添加外边框 (描边) 增加精致感
-        // Outline outline = controlBar.AddComponent<Outline>();
-        // outline.effectColor = new Color(1, 1, 1, 0.15f);
-        // outline.effectDistance = new Vector2(1, -1);
+        Outline outline = controlBar.AddComponent<Outline>();
+        outline.effectColor = new Color(41f/255f, 49f/255f, 95f/255f, 1f);
+        outline.effectDistance = new Vector2(1, -1);
 
         // 2. 添加上边装饰图片(在布局组件之前创建)
         CreateTopDecoration(controlBar.transform);
@@ -317,13 +317,13 @@ public class PPTControlUI : MonoBehaviour
 
         TMP_Text displayText = displayObj.AddComponent<TextMeshProUGUI>();
         displayText.text = "1 / 4";
-        displayText.fontSize = 18;
+        displayText.fontSize = 20;
         displayText.color = Color.white;
         displayText.alignment = TextAlignmentOptions.Center;
         displayText.fontStyle = FontStyles.Normal;
         displayText.enableAutoSizing = true;
-        displayText.fontSizeMin = 14;
-        displayText.fontSizeMax = 18;
+        displayText.fontSizeMin = 18;
+        displayText.fontSizeMax = 20;
         FontManager.ApplyFont(displayText);
 
         return displayText;
@@ -352,7 +352,7 @@ public class PPTControlUI : MonoBehaviour
         if (topSprite != null)
         {
             // 增加高度使其更明显
-            float displayHeight = 4f;
+            float displayHeight = 2f;
             decoRect.sizeDelta = new Vector2(0, displayHeight);
             
             Image decoImage = topDecoration.AddComponent<Image>();
