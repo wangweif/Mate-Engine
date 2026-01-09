@@ -476,8 +476,13 @@ namespace MATE_ENGINE___Scripts.Tools
             titleRect.sizeDelta = new Vector2(0, 60);
 
             Image titleBg = titleBar.AddComponent<Image>();
-            // 标题栏背景：暗黑风格深色，带有紫蓝色调
-            titleBg.color = new Color(0.15f, 0.16f, 0.22f, 1f);
+            Sprite titleBgSprite = Resources.Load<Sprite>("settingsTitle_bg");
+            if (titleBgSprite != null)
+            {
+                titleBg.sprite = titleBgSprite;
+                titleBg.type = Image.Type.Sliced;
+                titleBg.color = Color.white;
+            }
             
             // 添加标题栏底部边框效果
             GameObject titleBorder = new GameObject("TitleBorder");
