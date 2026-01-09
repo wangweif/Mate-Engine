@@ -788,16 +788,12 @@ namespace MATE_ENGINE___Scripts.Tools
             deleteButton = CreateButton(buttonContainer.transform, "删除", new Vector2(100, 40));
             deleteButton.onClick.AddListener(OnDeleteClicked);
             // 设置删除按钮为红色风格
-            Image deleteBtnBg = deleteButton.GetComponent<Image>();
-            if (deleteBtnBg != null)
-            {
-                deleteBtnBg.color = new Color(0.85f, 0.25f, 0.25f, 1f);
-            }
             ColorBlock deleteColors = deleteButton.colors;
-            deleteColors.normalColor = new Color(0.85f, 0.25f, 0.25f, 1f);
-            deleteColors.highlightedColor = new Color(0.95f, 0.35f, 0.35f, 1f);
-            deleteColors.pressedColor = new Color(0.75f, 0.15f, 0.15f, 1f);
-            deleteColors.disabledColor = new Color(0.7f, 0.7f, 0.7f, 0.5f);
+            deleteColors.normalColor = new Color(0.592f, 0.0196f, 0.0196f, 1f);
+            deleteColors.highlightedColor = new Color(0.592f, 0.0196f, 0.0196f, 1f);
+            deleteColors.selectedColor = new Color(0.592f, 0.0196f, 0.0196f, 1f);
+            deleteColors.pressedColor = new Color(0.592f, 0.0196f, 0.0196f, 1f);
+            deleteColors.disabledColor = new Color(0.1804f, 0.2627f, 0.3765f, 1f);
             deleteButton.colors = deleteColors;
             deleteButton.interactable = false; // 默认不可点击，需先选中PPT
 
@@ -1245,6 +1241,7 @@ namespace MATE_ENGINE___Scripts.Tools
             ColorBlock colors = btn.colors;
             colors.normalColor = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
             colors.highlightedColor = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
+            colors.selectedColor = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
             colors.pressedColor = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
             colors.disabledColor = new Color(0.1804f, 0.2627f, 0.3765f, 1f);
             btn.colors = colors;
