@@ -146,7 +146,7 @@ class PPTHost:
         # 检测已安装的演示软件
         from ppt_detector import PPTApplicationDetector
         try:
-            PPTApplicationDetector.print_detection_info()
+            PPTApplicationDetector.print_detection_info(self.app_type)
         except Exception as e:
             logger.error(f"检测失败: {e}")
         

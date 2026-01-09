@@ -45,8 +45,9 @@ class PowerPointController:
         """
         from ppt_detector import PPTApplicationType
         
-        # COM 对象
+        # COM 对象 (分离 app 和 app_events)
         self.app: Optional[object] = None
+        self.app_events: Optional[object] = None  # 事件代理对象
         self.presentation: Optional[object] = None
         self.slideshow_window: Optional[object] = None
         self.ppt_process_id: Optional[int] = None
@@ -57,6 +58,9 @@ class PowerPointController:
         # 事件回调
         self.on_slide_changed: Optional[Callable[[int], None]] = None
         self.on_presentation_closed: Optional[Callable[[], None]] = None
+        
+        # 关闭标志 (用于事件回调中设置标志位)
+        self._need_close = False
     
     def set_event_handlers(self, 
                           on_slide_changed: Optional[Callable[[int], None]] = None,
@@ -150,7 +154,7 @@ class PowerPointController:
                 """PowerPoint 应用程序事件处理器"""
                 
                 def OnSlideShowNextSlide(self, Wn):
-                    """幻灯片切换事件"""
+                    """幻灯片切换事件 - 只设置标志位,不执行 Close/Quit"""
                     try:
                         current = Wn.View.Slide.SlideIndex
                         logger.info(f"幻灯片切换到第 {current} 张")
@@ -160,8 +164,9 @@ class PowerPointController:
                         logger.error(f"处理切换事件失败: {e}")
                 
                 def OnSlideShowEnd(self, Pres):
-                    """演示结束事件"""
+                    """演示结束事件 - 只设置标志位,不执行 Close/Quit"""
                     logger.info("演示已结束")
+                    controller_ref._need_close = True
                     if controller_ref.on_presentation_closed:
                         controller_ref.on_presentation_closed()
             
@@ -169,9 +174,9 @@ class PowerPointController:
             from win32com.client import gencache
             self.app = gencache.EnsureDispatch(prog_id)
             
-            # 包装事件
+            # 包装事件 (保存到 app_events,不覆盖 app)
             try:
-                self.app = win32com.client.DispatchWithEvents(self.app, PPTAppEvents)
+                self.app_events = win32com.client.DispatchWithEvents(self.app, PPTAppEvents)
                 logger.info("PowerPoint 实例已创建并订阅事件")
             except Exception as e:
                 logger.warning(f"事件订阅失败: {e},将继续运行但无事件支持")
@@ -202,6 +207,31 @@ class PowerPointController:
             logger.warning("未安装 psutil,无法记录进程 ID")
         except Exception as e:
             logger.warning(f"无法获取进程 ID: {e}")
+    
+    def unsubscribe_events(self):
+        """取消订阅 PowerPoint 事件"""
+        if self.app_events is None:
+            return
+        
+        try:
+            logger.info("正在取消订阅事件...")
+            
+            # 1) 断开 Python 引用
+            self.app_events = None
+            
+            # 2) 强制垃圾回收,触发 COM 释放
+            gc.collect()
+            
+            # 3) 清理 COM 消息泵里待处理事件
+            try:
+                pythoncom.PumpWaitingMessages()
+            except Exception:
+                pass
+            
+            logger.info("事件订阅已取消")
+            
+        except Exception as e:
+            logger.error(f"取消订阅事件失败: {e}")
     
     def next_slide(self) -> int:
         """
@@ -318,7 +348,10 @@ class PowerPointController:
         logger.info("正在关闭...")
         
         try:
-            # 关闭演示文稿
+            # 1) 先取消事件订阅 (避免 Quit/Close 时又触发事件回调)
+            self.unsubscribe_events()
+            
+            # 2) 关闭演示文稿
             if self.presentation:
                 try:
                     self.presentation.Close()
@@ -326,37 +359,29 @@ class PowerPointController:
                 except Exception as e:
                     logger.error(f"关闭演示文稿时出错: {e}")
             
-            # 延迟退出 PowerPoint (避免在事件处理器中调用)
+            # 3) 退出 PowerPoint (同步执行,确保完成)
             if self.app:
-                self._delayed_quit()
+                try:
+                    self.app.Quit()
+                    logger.info("PowerPoint 已退出")
+                except Exception as e:
+                    logger.error(f"退出 PowerPoint 时出错: {e}")
         
         finally:
-            # 释放 COM 对象
+            # 4) 释放 COM 对象
             self._release_com_objects()
             
-            # 强制垃圾回收
+            # 5) 强制垃圾回收
             self._force_garbage_collection()
             
-            # 强制终止进程
-            self._kill_process_if_needed()
+            # 6) 强制终止进程 (如果需要)
+            # self._kill_process_if_needed()
+            
+            # 7) 重置关闭标志
+            self._need_close = False
             
             logger.info("资源已释放")
     
-    def _delayed_quit(self):
-        """延迟调用 Quit,避免在事件处理器中调用"""
-        try:
-            def quit_task():
-                time.sleep(0.2)
-                try:
-                    if self.app:
-                        self.app.Quit()
-                        logger.info("PowerPoint 已退出")
-                except Exception as e:
-                    logger.error(f"退出 PowerPoint 时出错: {e}")
-            
-            threading.Thread(target=quit_task, daemon=True).start()
-        except Exception as e:
-            logger.error(f"启动延迟退出线程失败: {e}")
     
     def _release_com_objects(self):
         """释放 COM 对象 (参考 C# 的 ReleaseComObjects 方法)"""
@@ -375,6 +400,14 @@ class PowerPointController:
                 except:
                     pass
                 self.presentation = None
+            
+            # 释放事件代理对象
+            if self.app_events:
+                try:
+                    del self.app_events
+                except:
+                    pass
+                self.app_events = None
             
             if self.app:
                 try:

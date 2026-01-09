@@ -143,8 +143,13 @@ class PPTApplicationDetector:
             return "未知"
     
     @classmethod
-    def print_detection_info(cls):
-        """打印检测信息"""
+    def print_detection_info(cls, app_type: PPTApplicationType = PPTApplicationType.AUTO):
+        """
+        打印检测信息
+        
+        Args:
+            app_type: 应用类型 (默认: AUTO)
+        """
         logger.info("正在检测已安装的演示软件...")
         
         office_installed = cls.is_office_installed()
@@ -154,7 +159,12 @@ class PPTApplicationDetector:
         logger.info(f"WPS 演示: {'已安装 ✓' if wps_installed else '未安装 ✗'}")
         
         if office_installed or wps_installed:
-            best = cls.detect_best_available()
-            logger.info(f"将使用: {cls.get_display_name(best)}")
+            # 根据 app_type 确定实际使用的应用
+            if app_type == PPTApplicationType.AUTO:
+                actual_type = cls.detect_best_available()
+            else:
+                actual_type = app_type
+            
+            logger.info(f"将使用: {cls.get_display_name(actual_type)}")
         else:
             logger.error("错误: 未检测到任何可用的演示软件")
