@@ -11,6 +11,10 @@ import pythoncom
 from ppt_controller import PowerPointController
 from tcp_server import TCPServer
 from ppt_detector import PPTApplicationType
+from logger_config import setup_logger
+
+# 初始化日志
+logger = setup_logger("PPTHost.Main")
 
 
 class PPTHost:
@@ -35,12 +39,12 @@ class PPTHost:
     
     def _on_slide_changed(self, slide_number: int):
         """幻灯片切换事件处理"""
-        print(f"[事件] 幻灯片切换到第 {slide_number} 张")
+        logger.info(f"幻灯片切换到第 {slide_number} 张")
         self.tcp_server.send_event(f"SLIDE_CHANGED|{slide_number}")
     
     def _on_presentation_closed(self):
         """演示结束事件处理"""
-        print("[事件] 演示已结束")
+        logger.info("演示已结束")
         self.tcp_server.send_event("PRESENTATION_CLOSED")
     
     def process_command(self, command: str) -> str:
@@ -82,9 +86,7 @@ class PPTHost:
                 return f"ERROR|Unknown command: {cmd}"
         
         except Exception as e:
-            print(f"[错误] {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"处理命令失败: {e}", exc_info=True)
             return f"ERROR|{e}"
     
     def _handle_open(self, parts: list) -> str:
@@ -130,46 +132,41 @@ class PPTHost:
         """运行主程序"""
         # 设置信号处理器
         def signal_handler(sig, frame):
-            print("\n[主程序] 收到中断信号,正在退出...")
+            logger.info("收到中断信号,正在退出...")
             self.tcp_server.is_running = False
             sys.exit(0)
         
         signal.signal(signal.SIGINT, signal_handler)
         
-        print("=" * 50)
-        print("  PPT Host - Python 版本")
-        print("  监听端口: 45678")
-        print("=" * 50)
-        print()
+        logger.info("=" * 50)
+        logger.info("  PPT Host - Python 版本")
+        logger.info("  监听端口: 45678")
+        logger.info("=" * 50)
         
         # 检测已安装的演示软件
         from ppt_detector import PPTApplicationDetector
         try:
             PPTApplicationDetector.print_detection_info()
-            print()
         except Exception as e:
-            print(f"[检测] 检测失败: {e}")
-            print()
+            logger.error(f"检测失败: {e}")
         
         # 初始化 COM
         pythoncom.CoInitialize()
-        print("[主程序] COM 已初始化")
+        logger.info("COM 已初始化")
         
         try:
             # 启动 TCP 服务器
             self.tcp_server.start(self.process_command)
         
         except KeyboardInterrupt:
-            print("\n[主程序] 收到中断信号")
+            logger.info("收到中断信号")
         
         except Exception as e:
-            print(f"[主程序] 运行出错: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"运行出错: {e}", exc_info=True)
         
         finally:
             # 清理资源
-            print("[主程序] 正在清理资源...")
+            logger.info("正在清理资源...")
             
             try:
                 self.ppt_controller.close_presentation()
@@ -184,11 +181,11 @@ class PPTHost:
             # 清理 COM
             try:
                 pythoncom.CoUninitialize()
-                print("[主程序] COM 已清理")
+                logger.info("COM 已清理")
             except:
                 pass
             
-            print("[主程序] 已退出")
+            logger.info("已退出")
 
 
 def parse_arguments():

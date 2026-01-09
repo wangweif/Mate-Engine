@@ -22,6 +22,10 @@ if not hasattr(win32com, '__path__'):
 
 import win32com.client
 import pythoncom
+from logger_config import setup_logger
+
+# 初始化日志
+logger = setup_logger("PPTHost.Controller")
 
 
 class PowerPointController:
@@ -85,7 +89,7 @@ class PowerPointController:
             raise FileNotFoundError(f"文件不存在: {file_path}")
         
         try:
-            print(f"[PPT] 正在打开: {file_path}")
+            logger.info(f"正在打开: {file_path}")
             
             # 创建 PowerPoint 实例并订阅事件
             self._create_powerpoint_instance()
@@ -100,28 +104,28 @@ class PowerPointController:
                 Untitled=0,
                 WithWindow=True
             )
-            print(f"[PPT] 文件已打开,共 {self.presentation.Slides.Count} 张幻灯片")
+            logger.info(f"文件已打开,共 {self.presentation.Slides.Count} 张幻灯片")
             
             # 开始放映
             self.presentation.SlideShowSettings.Run()
-            print("[PPT] 幻灯片放映已启动")
+            logger.info("幻灯片放映已启动")
             
             # 获取放映窗口
             if self.app.SlideShowWindows.Count > 0:
                 self.slideshow_window = self.app.SlideShowWindows(1)
-                print("[PPT] 放映窗口已获取")
+                logger.info("放映窗口已获取")
                 
                 # 验证 View 对象
                 try:
                     _ = self.slideshow_window.View
-                    print("[PPT] View 对象验证成功")
+                    logger.debug("View 对象验证成功")
                 except Exception as e:
-                    print(f"[PPT] 警告: View 对象访问失败: {e}")
+                    logger.warning(f"View 对象访问失败: {e}")
             
             return self.presentation.Slides.Count
             
         except Exception as e:
-            print(f"[PPT] 打开失败: {e}")
+            logger.error(f"打开失败: {e}")
             self.close_presentation()
             raise
     
@@ -133,9 +137,9 @@ class PowerPointController:
         try:
             prog_id = PPTApplicationDetector.get_prog_id(self.app_type)
             app_name = PPTApplicationDetector.get_display_name(self.app_type)
-            print(f"[PPT] 使用 {app_name} ({prog_id})")
+            logger.info(f"使用 {app_name} ({prog_id})")
         except RuntimeError as e:
-            print(f"[PPT] 检测失败: {e}")
+            logger.error(f"检测失败: {e}")
             raise
         
         try:
@@ -149,15 +153,15 @@ class PowerPointController:
                     """幻灯片切换事件"""
                     try:
                         current = Wn.View.Slide.SlideIndex
-                        print(f"[PPT事件] 幻灯片切换到第 {current} 张")
+                        logger.info(f"幻灯片切换到第 {current} 张")
                         if controller_ref.on_slide_changed:
                             controller_ref.on_slide_changed(current)
                     except Exception as e:
-                        print(f"[PPT事件] 处理切换事件失败: {e}")
+                        logger.error(f"处理切换事件失败: {e}")
                 
                 def OnSlideShowEnd(self, Pres):
                     """演示结束事件"""
-                    print("[PPT事件] 演示已结束")
+                    logger.info("演示已结束")
                     if controller_ref.on_presentation_closed:
                         controller_ref.on_presentation_closed()
             
@@ -168,14 +172,14 @@ class PowerPointController:
             # 包装事件
             try:
                 self.app = win32com.client.DispatchWithEvents(self.app, PPTAppEvents)
-                print("[PPT] PowerPoint 实例已创建并订阅事件")
+                logger.info("PowerPoint 实例已创建并订阅事件")
             except Exception as e:
-                print(f"[PPT] 事件订阅失败: {e},将继续运行但无事件支持")
+                logger.warning(f"事件订阅失败: {e},将继续运行但无事件支持")
             
         except Exception as e:
             # 降级到普通 Dispatch
             self.app = win32com.client.Dispatch(prog_id)
-            print(f"[PPT] PowerPoint 实例已创建 (无事件): {e}")
+            logger.warning(f"PowerPoint 实例已创建 (无事件): {e}")
         
         self.app.Visible = True
     
@@ -189,15 +193,15 @@ class PowerPointController:
                 try:
                     if 'POWERPNT.EXE' in proc.info['name'].upper():
                         self.ppt_process_id = proc.info['pid']
-                        print(f"[PPT] 记录进程 ID: {self.ppt_process_id}")
+                        logger.info(f"记录进程 ID: {self.ppt_process_id}")
                         break
                 except:
                     continue
                     
         except ImportError:
-            print("[PPT] 未安装 psutil,无法记录进程 ID")
+            logger.warning("未安装 psutil,无法记录进程 ID")
         except Exception as e:
-            print(f"[PPT] 无法获取进程 ID: {e}")
+            logger.warning(f"无法获取进程 ID: {e}")
     
     def next_slide(self) -> int:
         """
@@ -212,10 +216,10 @@ class PowerPointController:
         try:
             self.slideshow_window.View.Next()
             current = self._get_current_slide_index()
-            print(f"[PPT] 下一张 -> {current}")
+            logger.info(f"下一张 -> {current}")
             return current
         except Exception as e:
-            print(f"[PPT] 下一张失败: {e}")
+            logger.error(f"下一张失败: {e}")
             raise
     
     def previous_slide(self) -> int:
@@ -231,10 +235,10 @@ class PowerPointController:
         try:
             self.slideshow_window.View.Previous()
             current = self._get_current_slide_index()
-            print(f"[PPT] 上一张 -> {current}")
+            logger.info(f"上一张 -> {current}")
             return current
         except Exception as e:
-            print(f"[PPT] 上一张失败: {e}")
+            logger.error(f"上一张失败: {e}")
             raise
     
     def goto_slide(self, slide_number: int) -> int:
@@ -252,10 +256,10 @@ class PowerPointController:
         
         try:
             self.slideshow_window.View.GotoSlide(slide_number)
-            print(f"[PPT] 跳转到第 {slide_number} 张")
+            logger.info(f"跳转到第 {slide_number} 张")
             return slide_number
         except Exception as e:
-            print(f"[PPT] 跳转失败: {e}")
+            logger.error(f"跳转失败: {e}")
             raise
     
     def get_current_slide(self) -> int:
@@ -301,7 +305,7 @@ class PowerPointController:
             if current == 0:
                 try:
                     current = self.slideshow_window.View.Slide.SlideIndex
-                    print(f"[PPT] 使用 Slide.SlideIndex 获取页码: {current}")
+                    logger.debug(f"使用 Slide.SlideIndex 获取页码: {current}")
                 except:
                     pass
             
@@ -311,16 +315,16 @@ class PowerPointController:
     
     def close_presentation(self):
         """关闭演示文稿并释放所有资源"""
-        print("[PPT] 正在关闭...")
+        logger.info("正在关闭...")
         
         try:
             # 关闭演示文稿
             if self.presentation:
                 try:
                     self.presentation.Close()
-                    print("[PPT] 演示文稿已关闭")
+                    logger.info("演示文稿已关闭")
                 except Exception as e:
-                    print(f"[PPT] 关闭演示文稿时出错: {e}")
+                    logger.error(f"关闭演示文稿时出错: {e}")
             
             # 延迟退出 PowerPoint (避免在事件处理器中调用)
             if self.app:
@@ -336,7 +340,7 @@ class PowerPointController:
             # 强制终止进程
             self._kill_process_if_needed()
             
-            print("[PPT] 资源已释放")
+            logger.info("资源已释放")
     
     def _delayed_quit(self):
         """延迟调用 Quit,避免在事件处理器中调用"""
@@ -346,13 +350,13 @@ class PowerPointController:
                 try:
                     if self.app:
                         self.app.Quit()
-                        print("[PPT] PowerPoint 已退出")
+                        logger.info("PowerPoint 已退出")
                 except Exception as e:
-                    print(f"[PPT] 退出 PowerPoint 时出错: {e}")
+                    logger.error(f"退出 PowerPoint 时出错: {e}")
             
             threading.Thread(target=quit_task, daemon=True).start()
         except Exception as e:
-            print(f"[PPT] 启动延迟退出线程失败: {e}")
+            logger.error(f"启动延迟退出线程失败: {e}")
     
     def _release_com_objects(self):
         """释放 COM 对象 (参考 C# 的 ReleaseComObjects 方法)"""
@@ -380,14 +384,14 @@ class PowerPointController:
                 self.app = None
                 
         except Exception as e:
-            print(f"[PPT] 释放 COM 对象时出错: {e}")
+            logger.error(f"释放 COM 对象时出错: {e}")
     
     def _force_garbage_collection(self):
         """强制垃圾回收 (参考 C# 的双重 GC.Collect)"""
         gc.collect()
         time.sleep(0.1)
         gc.collect()
-        print("[PPT] COM 对象已释放,等待进程退出...")
+        logger.debug("COM 对象已释放,等待进程退出...")
     
     def _kill_process_if_needed(self):
         """检查并强制终止 PowerPoint 进程"""
@@ -405,11 +409,11 @@ class PowerPointController:
                     proc = psutil.Process(self.ppt_process_id)
                     if 'POWERPNT.EXE' in proc.name().upper():
                         proc.kill()
-                        print(f"[PPT] 强制终止进程 {self.ppt_process_id}")
+                        logger.info(f"强制终止进程 {self.ppt_process_id}")
                     else:
-                        print(f"[PPT] 进程 {self.ppt_process_id} 已被其他程序占用")
+                        logger.warning(f"进程 {self.ppt_process_id} 已被其他程序占用")
                 else:
-                    print(f"[PPT] 进程 {self.ppt_process_id} 已自然退出")
+                    logger.info(f"进程 {self.ppt_process_id} 已自然退出")
             except ImportError:
                 # 降级使用 win32api
                 self._kill_process_with_win32api()
@@ -417,7 +421,7 @@ class PowerPointController:
             self.ppt_process_id = None
             
         except Exception as e:
-            print(f"[PPT] 终止进程时出错: {e}")
+            logger.error(f"终止进程时出错: {e}")
     
     def _kill_process_with_win32api(self):
         """使用 win32api 终止进程"""
@@ -433,6 +437,6 @@ class PowerPointController:
             if handle:
                 win32api.TerminateProcess(handle, 0)
                 win32api.CloseHandle(handle)
-                print(f"[PPT] 强制终止进程 {self.ppt_process_id}")
+                logger.info(f"强制终止进程 {self.ppt_process_id}")
         except:
-            print(f"[PPT] 进程 {self.ppt_process_id} 已自然退出")
+            logger.info(f"进程 {self.ppt_process_id} 已自然退出")

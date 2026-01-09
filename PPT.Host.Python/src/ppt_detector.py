@@ -6,6 +6,10 @@ PowerPoint 应用程序检测器
 import winreg
 from enum import Enum
 from typing import Optional
+from logger_config import setup_logger
+
+# 初始化日志
+logger = setup_logger("PPTHost.Detector")
 
 
 class PPTApplicationType(Enum):
@@ -141,16 +145,16 @@ class PPTApplicationDetector:
     @classmethod
     def print_detection_info(cls):
         """打印检测信息"""
-        print("[检测] 正在检测已安装的演示软件...")
+        logger.info("正在检测已安装的演示软件...")
         
         office_installed = cls.is_office_installed()
         wps_installed = cls.is_wps_installed()
         
-        print(f"[检测] Office PowerPoint: {'已安装 ✓' if office_installed else '未安装 ✗'}")
-        print(f"[检测] WPS 演示: {'已安装 ✓' if wps_installed else '未安装 ✗'}")
+        logger.info(f"Office PowerPoint: {'已安装 ✓' if office_installed else '未安装 ✗'}")
+        logger.info(f"WPS 演示: {'已安装 ✓' if wps_installed else '未安装 ✗'}")
         
         if office_installed or wps_installed:
             best = cls.detect_best_available()
-            print(f"[检测] 将使用: {cls.get_display_name(best)}")
+            logger.info(f"将使用: {cls.get_display_name(best)}")
         else:
-            print("[检测] 错误: 未检测到任何可用的演示软件")
+            logger.error("错误: 未检测到任何可用的演示软件")

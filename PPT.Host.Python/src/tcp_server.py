@@ -7,6 +7,10 @@ import socket
 import threading
 import pythoncom
 from typing import Callable, Optional
+from logger_config import setup_logger
+
+# 初始化日志
+logger = setup_logger("PPTHost.TCPServer")
 
 
 class TCPServer:
@@ -51,14 +55,14 @@ class TCPServer:
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen(1)
             
-            print(f"[服务器] 已启动,监听 {self.host}:{self.port}")
-            print("[服务器] 等待 Unity 连接... (按 Ctrl+C 退出)")
+            logger.info(f"已启动,监听 {self.host}:{self.port}")
+            logger.info("等待 Unity 连接... (按 Ctrl+C 退出)")
             
             # 等待客户端连接 (带超时循环)
             while self.is_running:
                 try:
                     self.client_socket, client_address = self.server_socket.accept()
-                    print(f"[服务器] Unity 已连接: {client_address}")
+                    logger.info(f"Unity 已连接: {client_address}")
                     
                     # 发送就绪消息
                     self.send_response("OK|PPT Host Ready")
@@ -71,11 +75,11 @@ class TCPServer:
                     # 超时是正常的,继续循环
                     continue
                 except KeyboardInterrupt:
-                    print("\n[服务器] 收到中断信号")
+                    logger.info("收到中断信号")
                     break
             
         except Exception as e:
-            print(f"[服务器] 启动失败: {e}")
+            logger.error(f"启动失败: {e}")
         finally:
             self.stop()
     
@@ -111,7 +115,7 @@ class TCPServer:
                 except Exception as e:
                     # 其他错误则退出
                     if self.is_running:
-                        print(f"[服务器] 接收数据异常: {e}")
+                        logger.error(f"接收数据异常: {e}")
                     break
                 
                 # 处理完整的命令行
@@ -120,7 +124,7 @@ class TCPServer:
                     command = line.strip()
                     
                     if command:
-                        print(f"[收到命令] {command}")
+                        logger.info(f"收到命令: {command}")
                         
                         # 调用命令处理函数
                         if self.command_handler:
@@ -134,10 +138,10 @@ class TCPServer:
                             break
             
             except Exception as e:
-                print(f"[服务器] 处理命令时出错: {e}")
+                logger.error(f"处理命令时出错: {e}")
                 break
         
-        print("[服务器] Unity 已断开")
+        logger.info("Unity 已断开")
     
     def send_response(self, message: str):
         """
@@ -149,9 +153,9 @@ class TCPServer:
         if self.client_socket:
             try:
                 self.client_socket.sendall((message + '\n').encode('utf-8'))
-                print(f"[发送响应] {message}")
+                logger.info(f"发送响应: {message}")
             except Exception as e:
-                print(f"[服务器] 发送响应失败: {e}")
+                logger.error(f"发送响应失败: {e}")
     
     def send_event(self, event: str):
         """
@@ -164,7 +168,7 @@ class TCPServer:
     
     def stop(self):
         """停止服务器并关闭连接"""
-        print("[服务器] 正在关闭...")
+        logger.info("正在关闭...")
         self.is_running = False
         
         if self.client_socket:
@@ -181,4 +185,4 @@ class TCPServer:
                 pass
             self.server_socket = None
         
-        print("[服务器] 已关闭")
+        logger.info("已关闭")
