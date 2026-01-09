@@ -548,7 +548,7 @@ namespace MATE_ENGINE___Scripts.Tools
             
             // 添加标签栏背景：深色背景
             Image tabBarBg = tabBar.AddComponent<Image>();
-            tabBarBg.color = new Color(0.10f, 0.11f, 0.14f, 1f);
+            tabBarBg.color = new Color(0.10f, 0.11f, 0.14f, 0f);
 
             // 创建PPT标签按钮
             pptTabButton = CreateTabButton(tabBar.transform, "PPT", 0);
@@ -564,23 +564,8 @@ namespace MATE_ENGINE___Scripts.Tools
             btnObj.transform.SetParent(parent, false);
 
             Image btnBg = btnObj.AddComponent<Image>();
-            // 标签按钮默认背景：暗色调
-            btnBg.color = new Color(0.18f, 0.20f, 0.25f, 1f);
 
             Button btn = btnObj.AddComponent<Button>();
-            ColorBlock colors = btn.colors;
-            // 标签按钮颜色：暗黑风格配色
-            colors.normalColor = new Color(0.18f, 0.20f, 0.25f, 1f);
-            colors.highlightedColor = new Color(0.25f, 0.28f, 0.35f, 1f);
-            colors.pressedColor = new Color(0.15f, 0.17f, 0.22f, 1f);
-            colors.selectedColor = new Color(0.35f, 0.45f, 0.70f, 1f);
-            colors.disabledColor = new Color(0.15f, 0.15f, 0.18f, 0.5f);
-            btn.colors = colors;
-            
-            // 添加按钮边框效果
-            Outline btnOutline = btnObj.AddComponent<Outline>();
-            btnOutline.effectColor = new Color(0.3f, 0.35f, 0.45f, 0.3f);
-            btnOutline.effectDistance = new Vector2(1, -1);
 
             GameObject textObj = new GameObject("Text");
             textObj.transform.SetParent(btnObj.transform, false);
@@ -1253,22 +1238,15 @@ namespace MATE_ENGINE___Scripts.Tools
             btnLayoutElement.preferredHeight = size.y;
 
             Image btnBg = btnObj.AddComponent<Image>();
-            // 通用按钮背景：现代化蓝色
-            btnBg.color = new Color(0.25f, 0.47f, 0.87f, 1f);
-            
-            // 添加按钮阴影
-            Shadow btnShadow = btnObj.AddComponent<Shadow>();
-            btnShadow.effectColor = new Color(0, 0, 0, 0.15f);
-            btnShadow.effectDistance = new Vector2(0, 2);
 
             Button btn = btnObj.AddComponent<Button>();
             
             // 设置按钮颜色状态
             ColorBlock colors = btn.colors;
-            colors.normalColor = new Color(0.25f, 0.47f, 0.87f, 1f);
-            colors.highlightedColor = new Color(0.30f, 0.52f, 0.92f, 1f);
-            colors.pressedColor = new Color(0.20f, 0.42f, 0.77f, 1f);
-            colors.disabledColor = new Color(0.7f, 0.7f, 0.7f, 0.5f);
+            colors.normalColor = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
+            colors.highlightedColor = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
+            colors.pressedColor = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
+            colors.disabledColor = new Color(0.1804f, 0.2627f, 0.3765f, 1f);
             btn.colors = colors;
 
             GameObject btnText = new GameObject("Text");
@@ -1323,125 +1301,30 @@ namespace MATE_ENGINE___Scripts.Tools
         {
             currentTabIndex = tabIndex;
 
-            // 如果面板引用丢失，尝试重新初始化
-            if (pptPanel == null || modelPanel == null || settingsPanel == null)
-            {
-                ReinitializePanelReferences();
-            }
+            pptTabButton.GetComponent<Image>().color = new Color(0.1804f, 0.2627f, 0.3765f, 1f);
+            modelTabButton.GetComponent<Image>().color = new Color(0.1804f, 0.2627f, 0.3765f, 1f);
+            settingsTabButton.GetComponent<Image>().color = new Color(0.1804f, 0.2627f, 0.3765f, 1f);
 
-            // 隐藏所有面板
-            if (pptPanel != null) 
-            {
-                pptPanel.SetActive(false);
-            }
-            else
-            {
-                Debug.LogWarning("ShowTab: pptPanel 为 null");
-            }
-            
-            if (modelPanel != null) 
-            {
-                modelPanel.SetActive(false);
-            }
-            else
-            {
-                Debug.LogWarning("ShowTab: modelPanel 为 null");
-            }
-            
-            if (settingsPanel != null) 
-            {
-                settingsPanel.SetActive(false);
-            }
-            else
-            {
-                Debug.LogWarning("ShowTab: settingsPanel 为 null");
-            }
-
-            // 重置所有按钮颜色
-            ResetTabButtonColors();
+            pptPanel.SetActive(false);
+            modelPanel.SetActive(false);
+            settingsPanel.SetActive(false);
+           
 
             // 显示选中的面板
             switch (tabIndex)
             {
                 case 0: // PPT
-                    if (pptPanel != null)
-                    {
-                        pptPanel.SetActive(true);
-                        Debug.Log("显示PPT面板");
-                    }
-                    else
-                    {
-                        Debug.LogError("无法显示PPT面板：pptPanel 为 null");
-                    }
-                    if (pptTabButton != null)
-                    {
-                        Image img = pptTabButton.GetComponent<Image>();
-                        if (img != null) img.color = new Color(0.25f, 0.47f, 0.87f, 1f);
-                        TMP_Text txt = pptTabButton.GetComponentInChildren<TMP_Text>();
-                        if (txt != null) txt.color = Color.white;
-                    }
+                    pptPanel.SetActive(true);
+                    pptTabButton.GetComponent<Image>().color = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
                     break;
                 case 1: // Model
-                    if (modelPanel != null)
-                    {
-                        modelPanel.SetActive(true);
-                        Debug.Log("显示模型面板");
-                    }
-                    else
-                    {
-                        Debug.LogError("无法显示模型面板：modelPanel 为 null");
-                    }
-                    if (modelTabButton != null)
-                    {
-                        Image img = modelTabButton.GetComponent<Image>();
-                        if (img != null) img.color = new Color(0.25f, 0.47f, 0.87f, 1f);
-                        TMP_Text txt = modelTabButton.GetComponentInChildren<TMP_Text>();
-                        if (txt != null) txt.color = Color.white;
-                    }
+                    modelPanel.SetActive(true);
+                    modelTabButton.GetComponent<Image>().color = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
                     break;
                 case 2: // Settings
-                    if (settingsPanel != null)
-                    {
-                        settingsPanel.SetActive(true);
-                        Debug.Log("显示设置面板");
-                    }
-                    else
-                    {
-                        Debug.LogError("无法显示设置面板：settingsPanel 为 null");
-                    }
-                    if (settingsTabButton != null)
-                    {
-                        Image img = settingsTabButton.GetComponent<Image>();
-                        if (img != null) img.color = new Color(0.25f, 0.47f, 0.87f, 1f);
-                        TMP_Text txt = settingsTabButton.GetComponentInChildren<TMP_Text>();
-                        if (txt != null) txt.color = Color.white;
-                    }
+                    settingsPanel.SetActive(true);
+                    settingsTabButton.GetComponent<Image>().color = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
                     break;
-            }
-        }
-
-        void ResetTabButtonColors()
-        {
-            if (pptTabButton != null)
-            {
-                Image img = pptTabButton.GetComponent<Image>();
-                if (img != null) img.color = new Color(0.18f, 0.20f, 0.25f, 1f); // 暗黑风格未选中背景
-                TMP_Text txt = pptTabButton.GetComponentInChildren<TMP_Text>();
-                if (txt != null) txt.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 浅色文字
-            }
-            if (modelTabButton != null)
-            {
-                Image img = modelTabButton.GetComponent<Image>();
-                if (img != null) img.color = new Color(0.18f, 0.20f, 0.25f, 1f); // 暗黑风格未选中背景
-                TMP_Text txt = modelTabButton.GetComponentInChildren<TMP_Text>();
-                if (txt != null) txt.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 浅色文字
-            }
-            if (settingsTabButton != null)
-            {
-                Image img = settingsTabButton.GetComponent<Image>();
-                if (img != null) img.color = new Color(0.18f, 0.20f, 0.25f, 1f); // 暗黑风格未选中背景
-                TMP_Text txt = settingsTabButton.GetComponentInChildren<TMP_Text>();
-                if (txt != null) txt.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 浅色文字
             }
         }
 
@@ -1491,22 +1374,6 @@ namespace MATE_ENGINE___Scripts.Tools
                     // 恢复原来的状态
                     if (!wasActive)
                         mainPanel.SetActive(false);
-                }
-                else
-                {
-                    // 子组件已存在，但需要确保引用正确
-                    // 尝试重新查找面板引用（如果丢失）
-                    if (pptPanel == null || modelPanel == null || settingsPanel == null)
-                    {
-                        Debug.Log("面板引用丢失，尝试重新查找...");
-                        ReinitializePanelReferences();
-                    }
-                    
-                    // 确保UI事件监听已设置
-                    SetupUI();
-                    
-                    // 应用字体到所有 TextMeshPro 组件
-                    FontManager.ApplyFontToAll(mainPanel);
                 }
 
                 // 确保Canvas存在且正确设置（使用与数字人相同的Canvas）
@@ -1586,87 +1453,8 @@ namespace MATE_ENGINE___Scripts.Tools
                 
                 // 确保默认标签页显示
                 ShowTab(0);
-                
-                // 验证面板状态
-                ValidatePanelState();
-                
-                // 调试信息
-                Debug.Log($"设置面板已打开 - PPT面板: {(pptPanel != null ? "存在" : "null")}, " +
-                         $"模型面板: {(modelPanel != null ? "存在" : "null")}, " +
-                         $"设置面板: {(settingsPanel != null ? "存在" : "null")}");
-            }
-            else
-            {
-                Debug.LogError("无法打开设置面板：mainPanel 为 null");
             }
         }
-        
-        void ReinitializePanelReferences()
-        {
-            // 查找ContentArea
-            Transform contentArea = mainPanel.transform.Find("ContentArea");
-            if (contentArea != null)
-            {
-                // 重新查找各个面板
-                if (pptPanel == null)
-                    pptPanel = contentArea.Find("PPTPanel")?.gameObject;
-                if (modelPanel == null)
-                    modelPanel = contentArea.Find("ModelPanel")?.gameObject;
-                if (settingsPanel == null)
-                    settingsPanel = contentArea.Find("SettingsPanel")?.gameObject;
-                
-                // 重新查找标签按钮
-                Transform tabBar = mainPanel.transform.Find("TabBar");
-                if (tabBar != null)
-                {
-                    if (pptTabButton == null)
-                        pptTabButton = tabBar.Find("TabButton_PPT")?.GetComponent<Button>();
-                    if (modelTabButton == null)
-                        modelTabButton = tabBar.Find("TabButton_模型")?.GetComponent<Button>();
-                    if (settingsTabButton == null)
-                        settingsTabButton = tabBar.Find("TabButton_设置")?.GetComponent<Button>();
-                }
-                
-                // 重新查找关闭按钮
-                if (closeButton == null)
-                    closeButton = mainPanel.transform.Find("CloseButton")?.GetComponent<Button>();
-            }
-        }
-        
-        void ValidatePanelState()
-        {
-            if (mainPanel == null)
-            {
-                Debug.LogError("ValidatePanelState: mainPanel 为 null");
-                return;
-            }
-            
-            Debug.Log($"面板验证 - 主面板激活: {mainPanel.activeSelf}, " +
-                     $"子对象数量: {mainPanel.transform.childCount}, " +
-                     $"Canvas: {(parentCanvas != null ? parentCanvas.name : "null")}");
-            
-            // 检查各个子组件
-            Transform titleBar = mainPanel.transform.Find("TitleBar");
-            Transform tabBar = mainPanel.transform.Find("TabBar");
-            Transform contentArea = mainPanel.transform.Find("ContentArea");
-            Transform closeBtn = mainPanel.transform.Find("CloseButton");
-            
-            Debug.Log($"子组件检查 - 标题栏: {(titleBar != null ? "存在" : "缺失")}, " +
-                     $"标签栏: {(tabBar != null ? "存在" : "缺失")}, " +
-                     $"内容区域: {(contentArea != null ? "存在" : "缺失")}, " +
-                     $"关闭按钮: {(closeBtn != null ? "存在" : "缺失")}");
-            
-            if (contentArea != null)
-            {
-                Debug.Log($"内容区域子对象数量: {contentArea.childCount}");
-                for (int i = 0; i < contentArea.childCount; i++)
-                {
-                    Transform child = contentArea.GetChild(i);
-                    Debug.Log($"  - {child.name}: 激活={child.gameObject.activeSelf}");
-                }
-            }
-        }
-
 
         public void ClosePanel()
         {
