@@ -914,6 +914,20 @@ namespace MATE_ENGINE___Scripts.Tools
                 ToggleFullscreen();
             });
 
+            // 关闭按钮
+            GameObject configCloseButtonObj = new GameObject("ConfigCloseButton"); 
+            configCloseButtonObj.transform.SetParent(labelContainer.transform, false); 
+            RectTransform configCloseButtonRect = configCloseButtonObj.AddComponent<RectTransform>(); 
+            configCloseButtonRect.sizeDelta = new Vector2(45, 45); 
+            Button configCloseButton = configCloseButtonObj.AddComponent<Button>(); 
+            Image configCloseButtonImage = configCloseButtonObj.AddComponent<Image>(); 
+            configCloseButtonImage.sprite = Resources.Load<Sprite>("close@2x"); 
+            configCloseButtonImage.preserveAspect = true;
+
+            configCloseButton.targetGraphic = configCloseButtonImage; 
+            // 添加关闭按钮点击事件 
+            configCloseButton.onClick.AddListener(() => { OnCancelConfig(); });
+
             // 演讲稿输入框（使用TMP_InputField自带滚动）
             GameObject configInputObj = new GameObject("ConfigInputField");
             configInputObj.transform.SetParent(configPanel.transform, false);
