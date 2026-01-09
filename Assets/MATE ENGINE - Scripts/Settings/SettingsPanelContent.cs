@@ -249,13 +249,15 @@ namespace MATE_ENGINE___Scripts.Tools
             changelogScrollRect.scrollSensitivity = 10f;
 
             Image scrollBg = scrollObj.AddComponent<Image>();
-            // 更新日志滚动区域背景：暗黑风格
-            scrollBg.color = new Color(0.15f, 0.16f, 0.20f, 1f);
+            // 更新日志滚动区域背景：暗黑氛围（半透明但非完全透明以支持描边）
+            scrollBg.color = new Color(0.15f, 0.16f, 0.20f, 0.01f);
+            scrollBg.raycastTarget = false;
             
-            // 添加滚动视图边框
+            // 添加更明显的滚动视图边框
             Outline scrollOutline = scrollObj.AddComponent<Outline>();
-            scrollOutline.effectColor = new Color(0.25f, 0.30f, 0.40f, 0.5f);
-            scrollOutline.effectDistance = new Vector2(1, -1);
+            scrollOutline.effectColor = new Color(0.35f, 0.42f, 0.55f, 0.01f);
+            scrollOutline.effectDistance = new Vector2(2, -2);
+            scrollOutline.useGraphicAlpha = false;
 
             // 创建视口
             GameObject changelogViewport = new GameObject("Viewport");
