@@ -31,8 +31,8 @@ public class AdvancedChatManager : MonoBehaviour
     [SerializeField] private float maxBubbleWidth = 400f;     // 气泡最大宽度
     [SerializeField] private float minBubbleWidth = 80f;      // 气泡最小宽度
     [SerializeField] private float bubblePadding = 20f;       // 气泡内边距
-    [SerializeField] private float userMessageRightMargin = 0f;  // 用户消息右边距
-    [SerializeField] private float aiMessageLeftMargin = 0f;     // AI消息左边距
+    [SerializeField] private float userMessageRightMargin = 20f;  // 用户消息右边距（距离容器右边缘的距离）
+    [SerializeField] private float aiMessageLeftMargin = 20f;     // AI消息左边距（距离容器左边缘的距离）
     [SerializeField] private float messageSpacing = 12f;          // 消息垂直间距
 
     [Header("Visual Settings")]
@@ -116,6 +116,12 @@ public class AdvancedChatManager : MonoBehaviour
         // 输入框回车发送事件
         inputField.onSubmit.AddListener((text) => SendMessage());
 
+        // 移除messageContainer上的Layout组件，避免干扰手动定位
+        if (messageContainer != null)
+        {
+            RemoveLayoutComponents(messageContainer.gameObject);
+        }
+
         // 计算容器宽度
         CalculateContainerWidth();
 
@@ -127,6 +133,42 @@ public class AdvancedChatManager : MonoBehaviour
 
         // 可选：添加一些初始消息
         //StartCoroutine(InitializeChat());
+    }
+
+    /// <summary>
+    /// 移除GameObject及其子对象上的Layout组件
+    /// </summary>
+    void RemoveLayoutComponents(GameObject obj)
+    {
+        if (obj == null) return;
+
+        // 移除自身上的Layout组件
+        var verticalLayout = obj.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+        if (verticalLayout != null)
+        {
+            Destroy(verticalLayout);
+            Debug.Log($"[RemoveLayoutComponents] 已移除 {obj.name} 上的 VerticalLayoutGroup");
+        }
+
+        var horizontalLayout = obj.GetComponent<UnityEngine.UI.HorizontalLayoutGroup>();
+        if (horizontalLayout != null)
+        {
+            Destroy(horizontalLayout);
+            Debug.Log($"[RemoveLayoutComponents] 已移除 {obj.name} 上的 HorizontalLayoutGroup");
+        }
+
+        var contentSizeFitter = obj.GetComponent<UnityEngine.UI.ContentSizeFitter>();
+        if (contentSizeFitter != null)
+        {
+            Destroy(contentSizeFitter);
+            Debug.Log($"[RemoveLayoutComponents] 已移除 {obj.name} 上的 ContentSizeFitter");
+        }
+
+        // 递归处理所有子对象
+        foreach (Transform child in obj.transform)
+        {
+            RemoveLayoutComponents(child.gameObject);
+        }
     }
 
     void OnEnable()
@@ -432,6 +474,71 @@ public class AdvancedChatManager : MonoBehaviour
         GameObject prefab = isUserMessage ? userMessagePrefab : aiMessagePrefab;
         GameObject messageObj = Instantiate(prefab, messageContainer);
 
+        // 立即移除可能干扰布局的组件（在任何其他设置之前）
+        var layoutGroup = messageObj.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+        if (layoutGroup != null) Destroy(layoutGroup);
+
+        var contentSizeFitter = messageObj.GetComponent<UnityEngine.UI.ContentSizeFitter>();
+        if (contentSizeFitter != null) Destroy(contentSizeFitter);
+
+        // 获取文本对象
+        var textObj = messageObj.transform.GetChild(0);
+        if (textObj != null)
+        {
+            var textFitter = textObj.GetComponent<UnityEngine.UI.ContentSizeFitter>();
+            if (textFitter != null) Destroy(textFitter);
+        }
+
+        // 立即强制设置RectTransform，覆盖预制件的默认值
+        RectTransform rect = messageObj.GetComponent<RectTransform>();
+
+        if (isUserMessage)
+        {
+            // 用户消息：右侧
+            rect.anchorMin = new Vector2(1, 1);
+            rect.anchorMax = new Vector2(1, 1);
+            rect.pivot = new Vector2(1, 1);
+            rect.anchoredPosition = new Vector2(-userMessageRightMargin, 0);
+        }
+        else
+        {
+            // AI消息：左侧
+            rect.anchorMin = new Vector2(0, 1);
+            rect.anchorMax = new Vector2(0, 1);
+            rect.pivot = new Vector2(0, 1);
+            rect.anchoredPosition = new Vector2(aiMessageLeftMargin, 0);
+        }
+        rect.sizeDelta = new Vector2(minBubbleWidth, 40);
+
+        // 正确设置文本的布局（让文本在气泡中显示）
+        if (textObj != null)
+        {
+            RectTransform textRect = textObj.GetComponent<RectTransform>();
+            if (textRect != null)
+            {
+                // 设置文本的锚点为左上角，这样可以控制宽度
+                textRect.anchorMin = new Vector2(0, 1);
+                textRect.anchorMax = new Vector2(0, 1);
+                textRect.pivot = new Vector2(0, 1);
+
+                // 设置左右边距15px，上下边距各15px
+                // 使用anchoredPosition来设置位置
+                textRect.anchoredPosition = new Vector2(15, -15);
+
+                // 设置初始大小（宽度会根据气泡大小动态调整）
+                textRect.sizeDelta = new Vector2(100, 30);
+
+                // 确保文本能自动换行
+                TMP_Text tmpText = textObj.GetComponent<TMP_Text>();
+                if (tmpText != null)
+                {
+                    tmpText.enableWordWrapping = true;
+                    tmpText.horizontalAlignment = TMPro.HorizontalAlignmentOptions.Left;
+                    tmpText.verticalAlignment = TMPro.VerticalAlignmentOptions.Top;
+                }
+            }
+        }
+
         // 设置文本内容
         TMP_Text textComponent = messageObj.GetComponentInChildren<TMP_Text>();
         if (textComponent != null)
@@ -442,7 +549,7 @@ public class AdvancedChatManager : MonoBehaviour
         // 设置基础样式
         SetupBubbleStyle(messageObj, isUserMessage);
 
-        // 设置左右位置
+        // 设置左右位置（会再次确认设置）
         SetupBubblePosition(messageObj, isUserMessage);
 
         // 立即调整气泡大小
@@ -522,6 +629,35 @@ public class AdvancedChatManager : MonoBehaviour
 
         // 设置初始大小
         rect.sizeDelta = new Vector2(minBubbleWidth, 40);
+
+        // 正确设置子对象（文本）的布局
+        var textObj = bubble.transform.GetChild(0);
+        if (textObj != null)
+        {
+            RectTransform textRect = textObj.GetComponent<RectTransform>();
+            if (textRect != null)
+            {
+                // 设置文本的锚点为左上角，这样可以控制宽度
+                textRect.anchorMin = new Vector2(0, 1);
+                textRect.anchorMax = new Vector2(0, 1);
+                textRect.pivot = new Vector2(0, 1);
+
+                // 设置左右边距15px，上下边距各15px
+                textRect.anchoredPosition = new Vector2(15, -15);
+
+                // 设置初始大小（宽度会根据气泡大小动态调整）
+                textRect.sizeDelta = new Vector2(100, 30);
+
+                // 确保文本能自动换行
+                TMP_Text tmpText = textObj.GetComponent<TMP_Text>();
+                if (tmpText != null)
+                {
+                    tmpText.enableWordWrapping = true;
+                    tmpText.horizontalAlignment = TMPro.HorizontalAlignmentOptions.Left;
+                    tmpText.verticalAlignment = TMPro.VerticalAlignmentOptions.Top;
+                }
+            }
+        }
     }
 
     private IEnumerator UpdateBubbleSizeCoroutine(GameObject bubble)
@@ -534,24 +670,71 @@ public class AdvancedChatManager : MonoBehaviour
 
         if (textComponent == null || bubbleRect == null) yield break;
 
-        // 强制文本重新计算
+        // 改进的判断方法：通过锚点位置判断是否是用户消息
+        // 用户消息的锚点设置为右侧(anchorMin.x = 1)，AI消息在左侧(anchorMin.x = 0)
+        bool isUserMessage = bubbleRect.anchorMin.x > 0.5f;
+
+        // 强制确保锚点设置正确（防止被其他组件修改）
+        if (isUserMessage)
+        {
+            bubbleRect.anchorMin = new Vector2(1, 1);
+            bubbleRect.anchorMax = new Vector2(1, 1);
+            bubbleRect.pivot = new Vector2(1, 1);
+        }
+        else
+        {
+            bubbleRect.anchorMin = new Vector2(0, 1);
+            bubbleRect.anchorMax = new Vector2(0, 1);
+            bubbleRect.pivot = new Vector2(0, 1);
+        }
+
+        // 先计算气泡宽度（不考虑文本高度）
+        float textWidth = textComponent.preferredWidth;
+        float bubbleWidth = Mathf.Clamp(textWidth + bubblePadding * 2, minBubbleWidth, maxBubbleWidth);
+
+        // 设置气泡的宽度，这样文本组件才能正确计算换行
+        bubbleRect.sizeDelta = new Vector2(bubbleWidth, bubbleRect.sizeDelta.y);
+
+        // 同时设置文本的RectTransform宽度，确保文本在正确的宽度范围内换行
+        RectTransform textRect = textComponent.GetComponent<RectTransform>();
+        if (textRect != null)
+        {
+            // 文本宽度 = 气泡宽度 - 左右边距(30)
+            float textWidthLimit = bubbleWidth - 30f;
+
+            // 设置文本宽度（锚点已经是左上角，所以可以直接设置sizeDelta）
+            textRect.sizeDelta = new Vector2(textWidthLimit, textRect.sizeDelta.y);
+        }
+
+        // 强制文本重新计算（现在气泡和文本宽度都已设置，文本能正确换行）
         textComponent.ForceMeshUpdate();
 
-        // 获取文本的实际宽度（考虑自动换行）
-        float textWidth = textComponent.preferredWidth;
+        // 获取文本的实际高度（现在文本已经根据气泡宽度正确换行）
         float textHeight = textComponent.preferredHeight;
 
         // 计算气泡宽度（考虑最大最小限制）
-        float bubbleWidth = Mathf.Clamp(textWidth + bubblePadding * 2, minBubbleWidth, maxBubbleWidth);
+        bubbleWidth = Mathf.Clamp(textWidth + bubblePadding * 2, minBubbleWidth, maxBubbleWidth);
 
-        // 计算气泡高度（文本高度 + 上下边距）
-        float bubbleHeight = textHeight + 20f; // 上下各10像素边距
+        // 计算气泡高度
+        float fontSize = textComponent.fontSize;
+        float textPadding = 30f; // 文本上下边距总和（15+15）
+        float singleLineHeight = fontSize + textPadding; // 单行高度
+
+        // 直接使用文本的preferredHeight，它已经考虑了当前的宽度限制和换行
+        // 如果文本只有一行，preferredHeight ≈ fontSize
+        // 如果文本有多行，preferredHeight 会包含所有行的高度
+        float bubbleHeight = textHeight + textPadding;
+
+        // 确保气泡高度至少能容纳单行文本
+        if (bubbleHeight < singleLineHeight)
+        {
+            bubbleHeight = singleLineHeight;
+        }
 
         // 更新气泡大小
         bubbleRect.sizeDelta = new Vector2(bubbleWidth, bubbleHeight);
 
-        // 更新位置（保持左右偏移）
-        bool isUserMessage = bubble.GetComponent<Image>().color == userBubbleColor;
+        // 设置水平位置
         float xPos = isUserMessage ? -userMessageRightMargin : aiMessageLeftMargin;
         bubbleRect.anchoredPosition = new Vector2(xPos, bubbleRect.anchoredPosition.y);
 

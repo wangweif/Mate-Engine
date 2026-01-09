@@ -28577,7 +28577,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 1, g: 0.26999998, b: 0.96203995, a: 1}
-  m_Intensity: 2.0265089e-34
+  m_Intensity: 1.7715546e-34
   m_Range: 0.5
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -53032,6 +53032,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1530606337}
     m_Modifications:
+    - target: {fileID: 1910187630259726977, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
+      propertyPath: m_HorizontalFit
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 2314915504312090790, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
       propertyPath: m_AnchorMax.y
       value: 1
@@ -53042,7 +53046,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2314915504312090790, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 560
+      value: 96.01
       objectReference: {fileID: 0}
     - target: {fileID: 2314915504312090790, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
       propertyPath: m_SizeDelta.y
@@ -53050,7 +53054,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2314915504312090790, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 295
+      value: 63.005
       objectReference: {fileID: 0}
     - target: {fileID: 2314915504312090790, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
       propertyPath: m_AnchoredPosition.y
@@ -53137,6 +53141,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4875087459663057150, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4875087459663057150, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
       propertyPath: m_Padding.m_Top
       value: 15
       objectReference: {fileID: 0}
@@ -53150,7 +53158,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4875087459663057150, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
       propertyPath: m_ChildScaleWidth
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4875087459663057150, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
       propertyPath: m_Padding.m_Right
@@ -53163,6 +53171,10 @@ PrefabInstance:
     - target: {fileID: 4875087459663057150, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
       propertyPath: m_Padding.m_Bottom
       value: 15
+      objectReference: {fileID: 0}
+    - target: {fileID: 4875087459663057150, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
+      propertyPath: m_ChildForceExpandWidth
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4981972166015820281, guid: 3eb65a4e854d23c4f916803bd34aa56e, type: 3}
       propertyPath: m_HorizontalFit
@@ -69501,7 +69513,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0, g: 0.44799995, b: 1, a: 1}
-  m_Intensity: 4.0530177e-34
+  m_Intensity: 3.5431092e-34
   m_Range: 1
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -83634,11 +83646,11 @@ MonoBehaviour:
   keyboardIcon: {fileID: 21300000, guid: 98a2380393e66774fb457162c08db3a3, type: 3}
   userMessagePrefab: {fileID: 396262480}
   aiMessagePrefab: {fileID: 733686283}
-  maxBubbleWidth: 400
-  minBubbleWidth: 80
+  maxBubbleWidth: 580
+  minBubbleWidth: 0
   bubblePadding: 20
-  userMessageRightMargin: 0
-  aiMessageLeftMargin: 0
+  userMessageRightMargin: 20
+  aiMessageLeftMargin: 20
   messageSpacing: 12
   userBubbleColor: {r: 1, g: 1, b: 1, a: 1}
   aiBubbleColor: {r: 0, g: 0, b: 0, a: 0}
@@ -91058,7 +91070,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0, g: 0.44799995, b: 1, a: 1}
-  m_Intensity: 3.0397632e-34
+  m_Intensity: 2.657332e-34
   m_Range: 1
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -216813,7 +216825,7 @@ MonoBehaviour:
     groupID: ambi_lights
     exclusiveTags:
     - lights
-    fadeCurrentValue: 1.0132544e-34
+    fadeCurrentValue: 8.857773e-35
     fadeTarget: 0
     isFading: 1
     hasYSet: 0
@@ -216837,7 +216849,7 @@ MonoBehaviour:
     groupID: ambi_lights
     exclusiveTags:
     - lights
-    fadeCurrentValue: 1.0132544e-34
+    fadeCurrentValue: 8.857773e-35
     fadeTarget: 0
     isFading: 1
     hasYSet: 0
@@ -216861,7 +216873,7 @@ MonoBehaviour:
     groupID: ambi_lights
     exclusiveTags:
     - lights
-    fadeCurrentValue: 1.0132544e-34
+    fadeCurrentValue: 8.857773e-35
     fadeTarget: 0
     isFading: 1
     hasYSet: 0
