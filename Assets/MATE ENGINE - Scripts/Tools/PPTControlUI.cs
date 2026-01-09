@@ -180,17 +180,37 @@ public class PPTControlUI : MonoBehaviour
         barRect.anchoredPosition = new Vector2(0, 50); // 稍微抬高一点，不贴边
         barRect.sizeDelta = new Vector2(520, 75); // 增加尺寸以容纳所有按钮
 
-        // 1. 背景处理：使用深色半透明（毛玻璃感）
+        // 1. 背景处理:使用深色半透明(毛玻璃感) + 圆角边框
+        Sprite borderSprite = Resources.Load<Sprite>("PPTIcons/边框");
+        
         Image bgImage = controlBar.AddComponent<Image>();
-        // bgImage.sprite = Resources.Load<Sprite>("PPTIcons/边框");
-        // bgImage.type = Image.Type.Sliced;
+        bgImage.sprite = borderSprite;
+        bgImage.type = Image.Type.Sliced;
         bgImage.color = panelBackgroundColor;
         bgImage.raycastTarget = true;
         
-        // // 2. 添加外边框 (描边) 增加精致感
-        Outline outline = controlBar.AddComponent<Outline>();
-        outline.effectColor = new Color(41f/255f, 49f/255f, 95f/255f, 1f);
-        outline.effectDistance = new Vector2(1, -1);
+        GameObject borderObj = new GameObject("Border");
+        borderObj.transform.SetParent(controlBar.transform, false);
+        
+        RectTransform borderRect = borderObj.AddComponent<RectTransform>();
+        borderRect.anchorMin = Vector2.zero;
+        borderRect.anchorMax = Vector2.one;
+        borderRect.sizeDelta = Vector2.zero;
+        borderRect.anchoredPosition = Vector2.zero;
+        
+        LayoutElement borderLayoutElement = borderObj.AddComponent<LayoutElement>();
+        borderLayoutElement.ignoreLayout = true;
+        
+        Image borderImage = borderObj.AddComponent<Image>();
+        borderImage.sprite = borderSprite;
+        borderImage.type = Image.Type.Sliced;
+        borderImage.color = Color.white;
+        borderImage.raycastTarget = false;
+        
+        // 2. 添加外边框 (描边) 增加精致感
+        // Outline outline = controlBar.AddComponent<Outline>();
+        // outline.effectColor = new Color(41f/255f, 49f/255f, 95f/255f, 1f);
+        // outline.effectDistance = new Vector2(1, -1);
 
         // 2. 添加上边装饰图片(在布局组件之前创建)
         CreateTopDecoration(controlBar.transform);
