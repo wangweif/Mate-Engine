@@ -64,6 +64,7 @@ ExportedObj/
 PPT.Host.Python/build/
 PPT.Host.Python/**/__pycache__/
 PPT.Host.Python/*.spec
+Assets/StreamingAssets/PPTHost/logs*
 
 
 # Unity3D generated meta files
