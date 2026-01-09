@@ -900,15 +900,18 @@ namespace MATE_ENGINE___Scripts.Tools
             // AI生成演讲稿按钮（放在标签右侧）
             generateSpeechButton = CreateButton(labelContainer.transform, "AI生成演讲稿", new Vector2(200, 40));
 
+            GameObject configFullscreenButtonObj = new GameObject("configFullscreenButtonObj");
+            configFullscreenButtonObj.transform.SetParent(labelContainer.transform, false);
+            RectTransform configFullscreenButtonRect = configFullscreenButtonObj.AddComponent<RectTransform>();
+            configFullscreenButtonRect.sizeDelta = new Vector2(40, 40);
+            configFullscreenButtonRect.anchoredPosition = new Vector2(0, 0);
             // 全屏按钮（放在最右侧）
-            configFullscreenButton = CreateButton(labelContainer.transform, "⛶", new Vector2(40, 40));
-            // 设置全屏按钮样式
-            TMP_Text fullscreenButtonText = configFullscreenButton.GetComponentInChildren<TMP_Text>();
-            if (fullscreenButtonText != null)
-            {
-                fullscreenButtonText.fontSize = 20;
-                fullscreenButtonText.alignment = TextAlignmentOptions.Center;
-            }
+            configFullscreenButton = configFullscreenButtonObj.AddComponent<Button>();
+            Image configFullscreenButtonImage = configFullscreenButtonObj.AddComponent<Image>();
+            configFullscreenButtonImage.sprite = Resources.Load<Sprite>("fullscreen");
+            configFullscreenButtonImage.preserveAspect = true;
+            configFullscreenButton.targetGraphic = configFullscreenButtonImage;
+
             // 添加全屏按钮点击事件
             configFullscreenButton.onClick.AddListener(() => {
                 ToggleFullscreen();
@@ -2722,9 +2725,23 @@ namespace MATE_ENGINE___Scripts.Tools
             isFullscreen = !isFullscreen;
 
             if (isFullscreen)
+            {
                 EnterFullscreen();
+                // 更改按钮图标为shrink
+                if (configFullscreenButton != null)
+                {
+                    configFullscreenButton.GetComponent<Image>().sprite = Resources.Load<Sprite>("shrink");
+                }
+            }
             else
+            {
                 ExitFullscreen();
+                // 恢复按钮图标为全屏
+                if (configFullscreenButton != null)
+                {
+                    configFullscreenButton.GetComponent<Image>().sprite = Resources.Load<Sprite>("fullscreen");
+                }
+            }
         }
 
         /// <summary>
