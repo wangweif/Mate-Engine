@@ -1595,7 +1595,17 @@ namespace MATE_ENGINE___Scripts.Tools
             itemLayout.childForceExpandWidth = false;
             itemLayout.childForceExpandHeight = true;
             itemLayout.spacing = 10;
-            itemLayout.padding = new RectOffset(10, 10, 5, 5);
+            itemLayout.padding = new RectOffset(40, 10, 5, 5);
+
+            // 添加PPTicon
+            GameObject pptIconObj = new GameObject("PPTiconObj");
+            pptIconObj.transform.SetParent(itemObj.transform, false);
+            LayoutElement pptIconLayout = pptIconObj.AddComponent<LayoutElement>();
+            pptIconLayout.minWidth = 64;
+            pptIconLayout.preferredWidth = 64;
+            Image pptIconImage = pptIconObj.AddComponent<Image>();
+            pptIconImage.sprite = Resources.Load<Sprite>("ppt");
+            pptIconImage.preserveAspect = true;
 
             // 文件名
             GameObject fileNameObj = new GameObject("FileName");
@@ -1614,12 +1624,9 @@ namespace MATE_ENGINE___Scripts.Tools
             fileNameText.enableWordWrapping = false;
             fileNameText.overflowMode = TextOverflowModes.Ellipsis;
             fileNameText.extraPadding = true;
-            fileNameText.margin = new Vector4(50, 0, 0, 0);
             FontManager.ApplyFont(fileNameText);
 
             LayoutElement fileNameLayout = fileNameObj.AddComponent<LayoutElement>();
-            fileNameLayout.minWidth = 0;
-            fileNameLayout.preferredWidth = -1;
             fileNameLayout.flexibleWidth = 1;
 
             // 页数
