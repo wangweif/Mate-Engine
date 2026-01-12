@@ -862,7 +862,6 @@ namespace MATE_ENGINE___Scripts.Tools
             GameObject spacer = new GameObject("Spacer");
             spacer.transform.SetParent(labelContainer.transform, false);
             RectTransform spacerRect = spacer.AddComponent<RectTransform>();
-            spacerRect.sizeDelta = new Vector2(0, 40);
             LayoutElement spacerElement = spacer.AddComponent<LayoutElement>();
             spacerElement.flexibleWidth = 1;
 
@@ -871,9 +870,10 @@ namespace MATE_ENGINE___Scripts.Tools
 
             GameObject configFullscreenButtonObj = new GameObject("configFullscreenButtonObj");
             configFullscreenButtonObj.transform.SetParent(labelContainer.transform, false);
-            RectTransform configFullscreenButtonRect = configFullscreenButtonObj.AddComponent<RectTransform>();
-            configFullscreenButtonRect.sizeDelta = new Vector2(40, 40);
-            configFullscreenButtonRect.anchoredPosition = new Vector2(0, 0);
+            LayoutElement le = configFullscreenButtonObj.AddComponent<LayoutElement>();
+            le.minWidth = 40;
+            le.preferredWidth = 40;
+            le.preferredHeight = 40;
             // 全屏按钮（放在最右侧）
             configFullscreenButton = configFullscreenButtonObj.AddComponent<Button>();
             Image configFullscreenButtonImage = configFullscreenButtonObj.AddComponent<Image>();
@@ -889,12 +889,14 @@ namespace MATE_ENGINE___Scripts.Tools
             // 关闭按钮
             GameObject configCloseButtonObj = new GameObject("ConfigCloseButton"); 
             configCloseButtonObj.transform.SetParent(labelContainer.transform, false); 
-            RectTransform configCloseButtonRect = configCloseButtonObj.AddComponent<RectTransform>(); 
-            configCloseButtonRect.sizeDelta = new Vector2(45, 45); 
             Button configCloseButton = configCloseButtonObj.AddComponent<Button>(); 
             Image configCloseButtonImage = configCloseButtonObj.AddComponent<Image>(); 
             configCloseButtonImage.sprite = Resources.Load<Sprite>("close@2x"); 
             configCloseButtonImage.preserveAspect = true;
+            LayoutElement lle = configCloseButtonObj.AddComponent<LayoutElement>();
+            lle.minWidth = 40;
+            lle.preferredWidth = 40;
+            lle.preferredHeight = 40;
 
             configCloseButton.targetGraphic = configCloseButtonImage; 
             // 添加关闭按钮点击事件 
