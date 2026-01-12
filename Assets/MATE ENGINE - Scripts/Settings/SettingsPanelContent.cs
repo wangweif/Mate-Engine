@@ -47,6 +47,47 @@ namespace MATE_ENGINE___Scripts.Tools
             layout.childForceExpandHeight = false;
             layout.childControlHeight = true;
 
+            // 设备ID行
+            GameObject deviceIdRow = new GameObject("DeviceIdRow");
+            deviceIdRow.transform.SetParent(settingsPanel.transform, false);
+            RectTransform deviceIdRowRect = deviceIdRow.GetComponent<RectTransform>();
+            if (deviceIdRowRect == null)
+            {
+                deviceIdRowRect = deviceIdRow.AddComponent<RectTransform>();
+            }
+            HorizontalLayoutGroup deviceIdLayout = deviceIdRow.AddComponent<HorizontalLayoutGroup>();
+            deviceIdLayout.spacing = 1;
+            deviceIdLayout.padding = new RectOffset(10, 0, 0, 0); // 左边距10像素
+            deviceIdLayout.childForceExpandHeight = false;
+            deviceIdLayout.childControlHeight = true;
+            deviceIdLayout.childAlignment = TextAnchor.MiddleLeft;
+            deviceIdLayout.childForceExpandWidth = false;
+            deviceIdLayout.childControlWidth = true;
+            deviceIdRowRect.anchorMin = new Vector2(0, 0);
+            deviceIdRowRect.anchorMax = new Vector2(1, 0);
+            deviceIdRowRect.sizeDelta = new Vector2(0, 40);
+            LayoutElement deviceIdLayoutElem = deviceIdRow.AddComponent<LayoutElement>();
+            deviceIdLayoutElem.preferredHeight = 40;
+            deviceIdLayoutElem.flexibleWidth = 1;
+
+            // 设备ID标签
+            GameObject deviceIdLabel = createLabelFunc(deviceIdRow.transform, $"设备ID:{SystemInfo.deviceUniqueIdentifier}", 16);
+            RectTransform deviceIdLabelRect = deviceIdLabel.GetComponent<RectTransform>();
+            if (deviceIdLabelRect != null)
+            {
+                LayoutElement labelLayout = deviceIdLabel.AddComponent<LayoutElement>();
+                labelLayout.flexibleWidth = 0;
+                labelLayout.minWidth = 100;
+                labelLayout.preferredHeight = 40;
+                labelLayout.flexibleHeight = 0;
+
+                var labelTmp = deviceIdLabel.GetComponentInChildren<TextMeshProUGUI>();
+                if (labelTmp != null)
+                {
+                    labelTmp.alignment = TextAlignmentOptions.MidlineLeft;
+                }
+            }
+
             // 更新日志标题和下拉框放在同一行（标题在左，下拉框在右）
             GameObject changelogHeader = new GameObject("ChangelogHeader");
             changelogHeader.transform.SetParent(settingsPanel.transform, false);
@@ -57,6 +98,7 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             HorizontalLayoutGroup headerLayout = changelogHeader.AddComponent<HorizontalLayoutGroup>();
             headerLayout.spacing = 10;
+            headerLayout.padding = new RectOffset(10, 10, 0, 0); // 左右各10像素边距
             headerLayout.childForceExpandHeight = false;
             headerLayout.childControlHeight = true;
             // 垂直居中子项
@@ -99,22 +141,24 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 dropdownRect = dropdownObj.AddComponent<RectTransform>();
             }
-            dropdownRect.sizeDelta = new Vector2(120, 40);
+            dropdownRect.sizeDelta = new Vector2(180, 40);
             LayoutElement dropdownLayout = dropdownObj.AddComponent<LayoutElement>();
             // 固定宽度并不拉伸，固定高度与标题一致
-            dropdownLayout.preferredWidth = 120;
+            dropdownLayout.preferredWidth = 180;
             dropdownLayout.flexibleWidth = 0;
             dropdownLayout.preferredHeight = 40;
             dropdownLayout.flexibleHeight = 0;
 
-            // 添加背景图片 - 暗黑风格
+            // 添加背景图片 - 使用圆角矩形
             Image dropdownBg = dropdownObj.AddComponent<Image>();
+            Sprite dropdownRoundedSprite = Resources.Load<Sprite>("圆角矩形");
+            if (dropdownRoundedSprite != null)
+            {
+                dropdownBg.sprite = dropdownRoundedSprite;
+                dropdownBg.type = Image.Type.Sliced;
+                dropdownBg.pixelsPerUnitMultiplier = 2f;
+            }
             dropdownBg.color = new Color(0.18f, 0.20f, 0.25f, 1f);
-            
-            // 添加下拉框边框效果
-            Outline dropdownOutline = dropdownObj.AddComponent<Outline>();
-            dropdownOutline.effectColor = new Color(0.25f, 0.30f, 0.40f, 0.5f);
-            dropdownOutline.effectDistance = new Vector2(1, -1);
 
             // 添加下拉框组件
             versionDropdown = dropdownObj.AddComponent<TMP_Dropdown>();
@@ -249,15 +293,16 @@ namespace MATE_ENGINE___Scripts.Tools
             changelogScrollRect.scrollSensitivity = 10f;
 
             Image scrollBg = scrollObj.AddComponent<Image>();
-            // 更新日志滚动区域背景：暗黑氛围（半透明但非完全透明以支持描边）
-            scrollBg.color = new Color(0.15f, 0.16f, 0.20f, 0.01f);
+            // 使用圆角矩形图片作为背景
+            Sprite roundedCornerSprite = Resources.Load<Sprite>("圆角矩形");
+            if (roundedCornerSprite != null)
+            {
+                scrollBg.sprite = roundedCornerSprite;
+                scrollBg.type = Image.Type.Sliced;
+            }
+            // 更新日志滚动区域背景：RGB(41, 58, 108)
+            scrollBg.color = new Color(41f/255f, 58f/255f, 108f/255f, 1f);
             scrollBg.raycastTarget = false;
-            
-            // 添加更明显的滚动视图边框
-            Outline scrollOutline = scrollObj.AddComponent<Outline>();
-            scrollOutline.effectColor = new Color(0.35f, 0.42f, 0.55f, 0.01f);
-            scrollOutline.effectDistance = new Vector2(2, -2);
-            scrollOutline.useGraphicAlpha = false;
 
             // 创建视口
             GameObject changelogViewport = new GameObject("Viewport");
@@ -269,8 +314,8 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             changelogViewportRect.anchorMin = Vector2.zero;
             changelogViewportRect.anchorMax = Vector2.one;
-            changelogViewportRect.offsetMin = Vector2.zero;
-            changelogViewportRect.offsetMax = Vector2.zero;
+            changelogViewportRect.offsetMin = new Vector2(10, 10);
+            changelogViewportRect.offsetMax = new Vector2(-10, -10);
 
             Image changelogViewportMask = changelogViewport.AddComponent<Image>();
             changelogViewportMask.color = new Color(1f, 1f, 1f, 1f);
@@ -301,7 +346,7 @@ namespace MATE_ENGINE___Scripts.Tools
             changelogContentLayout.childForceExpandWidth = true;
             changelogContentLayout.childControlHeight = false;
             changelogContentLayout.childControlHeight = true;
-            changelogContentLayout.padding = new RectOffset(60, 10, 10, 10);
+            changelogContentLayout.padding = new RectOffset(60, 20, 20, 20);
 
             changelogScrollRect.content = changelogContentRect;
 
@@ -319,7 +364,16 @@ namespace MATE_ENGINE___Scripts.Tools
             changelogText.fontSize = 20; // 调大字体 (16 -> 20)
             changelogText.color = new Color(0.90f, 0.92f, 0.96f, 1f); // 白色文字（暗黑风格）
             changelogText.alignment = TextAlignmentOptions.TopLeft;
+            // 启用自动换行
+            changelogText.enableAutoSizing = false;
+            changelogText.enableWordWrapping = true;
+            changelogText.overflowMode = TextOverflowModes.Overflow;
             FontManager.ApplyFont(changelogText);
+
+            // 设置文本宽度限制，确保不会超出显示区域
+            LayoutElement textLayoutElement = changelogTextObj.AddComponent<LayoutElement>();
+            textLayoutElement.preferredWidth = -1;
+            textLayoutElement.flexibleWidth = 1;
 
             ContentSizeFitter fitter = changelogTextObj.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -357,11 +411,11 @@ namespace MATE_ENGINE___Scripts.Tools
                     List<string> versionOptions = new List<string>();
                     foreach (var versionInfo in versionInfos)
                     {
-                        versionOptions.Add(versionInfo.version);
+                        versionOptions.Add("版本: " +versionInfo.version);
                     }
                     versionDropdown.AddOptions(versionOptions);
                     versionDropdown.value = 0; // 默认选择第一个（最新版本）
-                    
+
                     // 添加值改变事件监听
                     versionDropdown.onValueChanged.RemoveAllListeners();
                     versionDropdown.onValueChanged.AddListener(OnVersionDropdownChanged);
