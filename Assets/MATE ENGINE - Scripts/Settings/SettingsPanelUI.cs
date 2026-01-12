@@ -40,6 +40,7 @@ namespace MATE_ENGINE___Scripts.Tools
         [Header("Styling")]
         public Sprite roundedListSprite;
         public Sprite roundedItemSprite;
+        public Color textColor = Color.white;
 
         [Header("PPT Panel Components")]
         public DropdownManager pptDropdown;
@@ -417,27 +418,8 @@ namespace MATE_ENGINE___Scripts.Tools
             Image panelBg = mainPanel.AddComponent<Image>();
             // 主面板背景：暗黑风格深色背景，带有轻微的蓝色调
             Sprite settingsBackgroundSprite = Resources.Load<Sprite>("settingsBackground");
-            if (settingsBackgroundSprite != null)
-            {
-                panelBg.sprite = settingsBackgroundSprite;
-            }
-            else
-            {
-                panelBg.color = new Color(0.12f, 0.13f, 0.16f, 0.98f);
-            }
-            // 确保使用默认UI材质，避免_MainTex警告
-            panelBg.material = null;
+            panelBg.sprite = settingsBackgroundSprite;
             panelBg.raycastTarget = true; // 阻止点击穿透到场景
-            
-            // 添加外发光效果的阴影
-            Shadow shadow = mainPanel.AddComponent<Shadow>();
-            shadow.effectColor = new Color(0.1f, 0.15f, 0.25f, 0.8f);
-            shadow.effectDistance = new Vector2(0, 10);
-            
-            // 添加内阴影效果（通过Outline模拟）
-            Outline innerGlow = mainPanel.AddComponent<Outline>();
-            innerGlow.effectColor = new Color(0.2f, 0.25f, 0.35f, 0.3f);
-            innerGlow.effectDistance = new Vector2(0, -2);
 
             // 确保主面板阻塞射线
             CanvasGroup panelCanvasGroup = mainPanel.AddComponent<CanvasGroup>();
@@ -491,13 +473,7 @@ namespace MATE_ENGINE___Scripts.Tools
             titleRect.sizeDelta = new Vector2(0, 60);
 
             Image titleBg = titleBar.AddComponent<Image>();
-            Sprite titleBgSprite = Resources.Load<Sprite>("settingsTitle_bg");
-            if (titleBgSprite != null)
-            {
-                titleBg.sprite = titleBgSprite;
-                titleBg.type = Image.Type.Sliced;
-                titleBg.color = Color.white;
-            }
+            titleBg.sprite = Resources.Load<Sprite>("settingsTitle_bg");
             
             // 添加标题栏底部边框效果
             GameObject titleBorder = new GameObject("TitleBorder");
@@ -528,7 +504,7 @@ namespace MATE_ENGINE___Scripts.Tools
             title.text = "设置";
             title.fontSize = 36;
             // 标题文字使用明亮的白色，带有轻微发光效果
-            title.color = new Color(0.95f, 0.97f, 1f, 1f);
+            title.color = textColor;
             title.alignment = TextAlignmentOptions.Center;
             title.fontStyle = FontStyles.Bold;
             FontManager.ApplyFont(title);
@@ -600,7 +576,7 @@ namespace MATE_ENGINE___Scripts.Tools
             btnText.text = text;
             btnText.fontSize = 24;
             // 标签按钮文字颜色：明亮的浅色
-            btnText.color = new Color(0.85f, 0.88f, 0.95f, 1f);
+            btnText.color = textColor;
             btnText.alignment = TextAlignmentOptions.Center;
             btnText.fontStyle = FontStyles.Bold;
             FontManager.ApplyFont(btnText);
@@ -881,7 +857,7 @@ namespace MATE_ENGINE___Scripts.Tools
             pageCountRect.sizeDelta = new Vector2(80, 40);
             // 设置文字颜色为浅灰色
             pptPageCountLabel = pageCountLabelObj.GetComponent<TMP_Text>();
-            pptPageCountLabel.color = new Color(0.7f, 0.7f, 0.7f, 1f);
+            pptPageCountLabel.color = textColor;
 
             GameObject spacer = new GameObject("Spacer");
             spacer.transform.SetParent(labelContainer.transform, false);
@@ -1018,7 +994,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configParagraphNumberText = numberTextObj.AddComponent<TextMeshProUGUI>();
             configParagraphNumberText.text = "";
             configParagraphNumberText.fontSize = 20;
-            configParagraphNumberText.color = new Color(0.65f, 0.68f, 0.75f, 1f);
+            configParagraphNumberText.color = textColor;
             configParagraphNumberText.alignment = TextAlignmentOptions.TopRight;
             configParagraphNumberText.enableWordWrapping = false;
             configParagraphNumberText.overflowMode = TextOverflowModes.Overflow;
@@ -1058,7 +1034,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text configTextComp = textObj.AddComponent<TextMeshProUGUI>();
             configTextComp.text = "";
             configTextComp.fontSize = 20;
-            configTextComp.color = new Color(0.90f, 0.92f, 0.96f, 1f);
+            configTextComp.color = textColor;
             configTextComp.alignment = TextAlignmentOptions.TopLeft;
             configTextComp.overflowMode = TextOverflowModes.Overflow;
             configTextComp.margin = new Vector4(25, 5, 5, 5);  
@@ -1215,8 +1191,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text labelText = label.AddComponent<TextMeshProUGUI>();
             labelText.text = text;
             labelText.fontSize = fontSize;
-            // 标签文字：浅色（暗黑风格）
-            labelText.color = new Color(0.85f, 0.88f, 0.95f, 1f);
+            labelText.color = textColor;
             labelText.alignment = TextAlignmentOptions.Left;
             FontManager.ApplyFont(labelText);
             return label;
@@ -1263,7 +1238,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text textComp = btnText.AddComponent<TextMeshProUGUI>();
             textComp.text = text;
             textComp.fontSize = 20; // 调整字体大小
-            textComp.color = Color.white;
+            textComp.color = textColor;
             textComp.alignment = TextAlignmentOptions.Center;
             textComp.fontStyle = FontStyles.Bold;
             FontManager.ApplyFont(textComp);
@@ -1287,9 +1262,8 @@ namespace MATE_ENGINE___Scripts.Tools
 
             TMP_Text textComp = textObj.AddComponent<TextMeshProUGUI>();
             textComp.text = text;
-            textComp.fontSize = 20; // 调大字体 (16 -> 20)
-            // 输入内容文字：浅色（暗黑风格）
-            textComp.color = new Color(0.85f, 0.88f, 0.95f, 1f);
+            textComp.fontSize = 20;
+            textComp.color = textColor;
             textComp.alignment = TextAlignmentOptions.TopLeft;
             FontManager.ApplyFont(textComp);
 
@@ -1601,7 +1575,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text fileNameText = fileNameObj.AddComponent<TextMeshProUGUI>();
             fileNameText.text = pptInfo.filename;
             fileNameText.fontSize = 20;
-            fileNameText.color = new Color(0.85f, 0.88f, 0.95f, 1f); // 浅色文字（暗黑风格）
+            fileNameText.color = textColor;
             fileNameText.alignment = TextAlignmentOptions.Left;
             fileNameText.enableWordWrapping = false;
             fileNameText.overflowMode = TextOverflowModes.Ellipsis;
@@ -1627,7 +1601,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text pageCountText = pageCountObj.AddComponent<TextMeshProUGUI>();
             pageCountText.text = $"页数: {pptInfo.pageCount}";
             pageCountText.fontSize = 18;
-            pageCountText.color = new Color(0.65f, 0.68f, 0.75f, 1f); // 中等亮度浅色（暗黑风格）
+            pageCountText.color = textColor;
             pageCountText.alignment = TextAlignmentOptions.Center;
             FontManager.ApplyFont(pageCountText);
 
@@ -1691,11 +1665,11 @@ namespace MATE_ENGINE___Scripts.Tools
         {
             switch (status)
             {
-                case 0: return new Color(0.65f, 0.68f, 0.75f, 1f); // 浅灰色（暗黑风格）
+                case 0: return textColor;
                 case 1: return new Color(1f, 0.75f, 0.2f, 1f); // 亮橙色
-                case 2: return new Color(0.7f, 0.7f, 0.7f, 1f); // 灰色
+                case 2: return textColor;
                 case 3: return new Color(1f, 0.3f, 0.3f, 1f); // 亮红色
-                default: return new Color(0.85f, 0.88f, 0.95f, 1f); // 默认浅色
+                default: return textColor;
             }
         }
 
@@ -2000,7 +1974,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text messageText = messageObj.AddComponent<TextMeshProUGUI>();
             messageText.text = $"确定要删除 \"{selectedPPTItem.pptInfo.filename}\" 吗？";
             messageText.fontSize = 20;
-            messageText.color = new Color(0.90f, 0.92f, 0.96f, 1f);
+            messageText.color = textColor;
             messageText.alignment = TextAlignmentOptions.Center;
             messageText.enableWordWrapping = true;
             FontManager.ApplyFont(messageText);
@@ -2107,7 +2081,7 @@ namespace MATE_ENGINE___Scripts.Tools
             TMP_Text messageText = messageObj.AddComponent<TextMeshProUGUI>();
             messageText.text = errorMessage;
             messageText.fontSize = 18;
-            messageText.color = new Color(0.90f, 0.92f, 0.96f, 1f);
+            messageText.color = textColor;
             messageText.alignment = TextAlignmentOptions.Center;
             messageText.enableWordWrapping = true;
             FontManager.ApplyFont(messageText);
@@ -2127,17 +2101,6 @@ namespace MATE_ENGINE___Scripts.Tools
             okBtnRect.anchorMax = new Vector2(0.5f, 1);
             okBtnRect.pivot = new Vector2(0.5f, 0.5f);
             okBtnRect.anchoredPosition = Vector2.zero;
-
-            Image okBtnBg = okBtn.GetComponent<Image>();
-            if (okBtnBg != null)
-            {
-                okBtnBg.color = new Color(0.85f, 0.25f, 0.25f, 1f);
-            }
-            ColorBlock okColors = okBtn.colors;
-            okColors.normalColor = new Color(0.85f, 0.25f, 0.25f, 1f);
-            okColors.highlightedColor = new Color(0.95f, 0.35f, 0.35f, 1f);
-            okColors.pressedColor = new Color(0.75f, 0.15f, 0.15f, 1f);
-            okBtn.colors = okColors;
             okBtn.onClick.AddListener(() => {
                 Destroy(errorOverlay);
             });
