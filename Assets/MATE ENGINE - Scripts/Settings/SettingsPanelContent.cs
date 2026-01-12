@@ -34,10 +34,9 @@ namespace MATE_ENGINE___Scripts.Tools
         /// 创建设置面板内容
         /// </summary>
         /// <param name="createLabelFunc">创建标签的函数</param>
-        /// <param name="createButtonFunc">创建按钮的函数</param>
         public void CreateSettingsPanelContent(
-            System.Func<Transform, string, float, GameObject> createLabelFunc,
-            System.Func<Transform, string, Vector2, Button> createButtonFunc)
+            System.Func<Transform, string, float, GameObject> createLabelFunc
+        )
         {
             if (settingsPanel == null) return;
 

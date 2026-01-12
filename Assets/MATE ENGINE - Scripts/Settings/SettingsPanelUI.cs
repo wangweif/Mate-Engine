@@ -47,6 +47,14 @@ namespace MATE_ENGINE___Scripts.Tools
         public Button generateSpeechButton;
         public TMP_InputField speechInputField;
         public GameObject pptLoadingIndicator;
+
+        [Header("Button Backgrounds")]
+        public Sprite buttonBackgroundBlue;
+        public Sprite buttonBackgroundGrey;
+        public Sprite buttonBackgroundRed;
+        public Sprite longButtonBackgroundBlue;
+        public Sprite tabBackgroundBlue;
+        public Sprite tabBackgroundGrey;
         
         // 新的PPT面板组件
         public Button addPPTButton;
@@ -170,6 +178,13 @@ namespace MATE_ENGINE___Scripts.Tools
 
         void Awake()
         {
+            buttonBackgroundBlue = Resources.Load<Sprite>("buttonBackgroundBlue");
+            buttonBackgroundGrey = Resources.Load<Sprite>("buttonBackgroundGrey");
+            buttonBackgroundRed = Resources.Load<Sprite>("buttonBackgroundRed");
+            longButtonBackgroundBlue = Resources.Load<Sprite>("longButtonBackgroundBlue");
+            tabBackgroundBlue = Resources.Load<Sprite>("tabBackgroundBlue");
+            tabBackgroundGrey = Resources.Load<Sprite>("tabBackgroundGrey");
+            
             // 确保组件在 Awake 时也能初始化
             if (mainPanel == null)
             {
@@ -564,6 +579,7 @@ namespace MATE_ENGINE___Scripts.Tools
             btnObj.transform.SetParent(parent, false);
 
             Image btnBg = btnObj.AddComponent<Image>();
+            btnBg.sprite = tabBackgroundGrey;
 
             Button btn = btnObj.AddComponent<Button>();
 
@@ -656,7 +672,6 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 headerRect = headerContainer.AddComponent<RectTransform>();
             }
-            headerRect.sizeDelta = new Vector2(0, 40);
             // 固定标题高度，不随布局伸缩
             LayoutElement headerLayoutElement = headerContainer.AddComponent<LayoutElement>();
             headerLayoutElement.preferredHeight = 40;
@@ -670,19 +685,12 @@ namespace MATE_ENGINE___Scripts.Tools
 
             // PPT列表标题
             GameObject pptListLabel = CreateLabel(headerContainer.transform, "PPT列表：", 16);
-            RectTransform labelRect = pptListLabel.GetComponent<RectTransform>();
-            labelRect.sizeDelta = new Vector2(0, 40);
-            labelRect.anchorMin = new Vector2(0, 0);
-            labelRect.anchorMax = new Vector2(0, 1);
-            labelRect.pivot = new Vector2(0, 0.5f);
+
+            GameObject marginBlank = new GameObject("marginBlank", typeof(RectTransform));
+            marginBlank.transform.SetParent(headerContainer.transform, false);
 
             // 添加PPT按钮
-            addPPTButton = CreateButton(headerContainer.transform, "+ 添加PPT", new Vector2(120, 40));
-            RectTransform btnRect = addPPTButton.GetComponent<RectTransform>();
-            btnRect.anchorMin = new Vector2(1, 0);
-            btnRect.anchorMax = new Vector2(1, 1);
-            btnRect.pivot = new Vector2(1, 0.5f);
-            btnRect.anchoredPosition = Vector2.zero;
+            addPPTButton = CreateButton(headerContainer.transform, "+ 添加PPT", new Vector2(120, 40), "longButtonBackgroundBlue");
             addPPTButton.onClick.AddListener(OnAddPPTClicked);
 
             // 创建PPT列表滚动视图
@@ -785,25 +793,17 @@ namespace MATE_ENGINE___Scripts.Tools
             buttonLayout.childAlignment = TextAnchor.MiddleRight;
 
             // 删除按钮
-            deleteButton = CreateButton(buttonContainer.transform, "删除", new Vector2(100, 40));
+            deleteButton = CreateButton(buttonContainer.transform, "删除", new Vector2(100, 40), "buttonBackgroundRed");
             deleteButton.onClick.AddListener(OnDeleteClicked);
-            // 设置删除按钮为红色风格
-            ColorBlock deleteColors = deleteButton.colors;
-            deleteColors.normalColor = new Color(0.592f, 0.0196f, 0.0196f, 1f);
-            deleteColors.highlightedColor = new Color(0.592f, 0.0196f, 0.0196f, 1f);
-            deleteColors.selectedColor = new Color(0.592f, 0.0196f, 0.0196f, 1f);
-            deleteColors.pressedColor = new Color(0.592f, 0.0196f, 0.0196f, 1f);
-            deleteColors.disabledColor = new Color(0.1804f, 0.2627f, 0.3765f, 1f);
-            deleteButton.colors = deleteColors;
             deleteButton.interactable = false; // 默认不可点击，需先选中PPT
 
             // 配置按钮
-            configButton = CreateButton(buttonContainer.transform, "配置", new Vector2(100, 40));
+            configButton = CreateButton(buttonContainer.transform, "配置", new Vector2(100, 40), "buttonBackgroundBlue");
             configButton.onClick.AddListener(OnConfigClicked);
             configButton.interactable = false; // 默认不可点击，需先选中PPT
 
             // 播放按钮
-            playButton = CreateButton(buttonContainer.transform, "播放", new Vector2(100, 40));
+            playButton = CreateButton(buttonContainer.transform, "播放", new Vector2(100, 40), "buttonBackgroundBlue");
             playButton.onClick.AddListener(OnPlayClicked);
             playButton.interactable = false; // 默认不可点击
 
@@ -848,13 +848,6 @@ namespace MATE_ENGINE___Scripts.Tools
             configShadow.effectColor = new Color(0, 0, 0, 0.5f);
             configShadow.effectDistance = new Vector2(0, 8);
 
-            // 不使用VerticalLayoutGroup，改用手动定位以确保按钮在底部
-            // VerticalLayoutGroup configLayout = configPanel.AddComponent<VerticalLayoutGroup>();
-            // configLayout.spacing = 18;
-            // configLayout.padding = new RectOffset(20, 20, 20, 20);
-            // configLayout.childForceExpandHeight = false;
-            // configLayout.childControlHeight = false;
-
             // 演讲稿输入框标签和AI生成按钮容器
             GameObject labelContainer = new GameObject("LabelContainer");
             labelContainer.transform.SetParent(configPanel.transform, false);
@@ -898,7 +891,7 @@ namespace MATE_ENGINE___Scripts.Tools
             spacerElement.flexibleWidth = 1;
 
             // AI生成演讲稿按钮（放在标签右侧）
-            generateSpeechButton = CreateButton(labelContainer.transform, "AI生成演讲稿", new Vector2(200, 40));
+            generateSpeechButton = CreateButton(labelContainer.transform, "AI生成演讲稿", new Vector2(200, 40), "longButtonBackgroundBlue");
 
             GameObject configFullscreenButtonObj = new GameObject("configFullscreenButtonObj");
             configFullscreenButtonObj.transform.SetParent(labelContainer.transform, false);
@@ -1133,7 +1126,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configButtonLayout.childAlignment = TextAnchor.MiddleRight;
 
             // 确认按钮
-            confirmConfigButton = CreateButton(configButtonContainer.transform, "确认", new Vector2(100, 40));
+            confirmConfigButton = CreateButton(configButtonContainer.transform, "确认", new Vector2(100, 40), "buttonBackgroundBlue");
             confirmConfigButton.onClick.AddListener(OnConfirmConfig);
 
             configOverlay.SetActive(false);
@@ -1175,7 +1168,7 @@ namespace MATE_ENGINE___Scripts.Tools
             if (settingsPanelContent != null)
             {
                 settingsPanelContent.SetSettingsPanel(settingsPanel);
-                settingsPanelContent.CreateSettingsPanelContent(CreateLabel, CreateButton);
+                settingsPanelContent.CreateSettingsPanelContent(CreateLabel);
             }
             else
             {
@@ -1229,7 +1222,7 @@ namespace MATE_ENGINE___Scripts.Tools
             return label;
         }
 
-        Button CreateButton(Transform parent, string text, Vector2 size)
+        Button CreateButton(Transform parent, string text, Vector2 size, string bg = "buttonBackgroundBlue")
         {
             GameObject btnObj = new GameObject($"Button_{text}");
             btnObj.transform.SetParent(parent, false);
@@ -1247,17 +1240,13 @@ namespace MATE_ENGINE___Scripts.Tools
             btnLayoutElement.preferredHeight = size.y;
 
             Image btnBg = btnObj.AddComponent<Image>();
+            if(bg == "buttonBackgroundBlue") btnBg.sprite = buttonBackgroundBlue;
+            else if(bg == "buttonBackgroundGrey") btnBg.sprite = buttonBackgroundGrey;
+            else if(bg == "buttonBackgroundRed") btnBg.sprite = buttonBackgroundRed;
+            else if(bg == "longButtonBackgroundBlue") btnBg.sprite = longButtonBackgroundBlue;
+            else btnBg.sprite = buttonBackgroundBlue;
 
             Button btn = btnObj.AddComponent<Button>();
-            
-            // 设置按钮颜色状态
-            ColorBlock colors = btn.colors;
-            colors.normalColor = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
-            colors.highlightedColor = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
-            colors.selectedColor = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
-            colors.pressedColor = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
-            colors.disabledColor = new Color(0.1804f, 0.2627f, 0.3765f, 1f);
-            btn.colors = colors;
 
             GameObject btnText = new GameObject("Text");
             btnText.transform.SetParent(btnObj.transform, false);
@@ -1310,30 +1299,27 @@ namespace MATE_ENGINE___Scripts.Tools
         public void ShowTab(int tabIndex)
         {
             currentTabIndex = tabIndex;
-
-            pptTabButton.GetComponent<Image>().color = new Color(0.1804f, 0.2627f, 0.3765f, 1f);
-            modelTabButton.GetComponent<Image>().color = new Color(0.1804f, 0.2627f, 0.3765f, 1f);
-            settingsTabButton.GetComponent<Image>().color = new Color(0.1804f, 0.2627f, 0.3765f, 1f);
-
+            pptTabButton.GetComponent<Image>().sprite = tabBackgroundGrey;
+            modelTabButton.GetComponent<Image>().sprite = tabBackgroundGrey;
+            settingsTabButton.GetComponent<Image>().sprite = tabBackgroundGrey;
             pptPanel.SetActive(false);
             modelPanel.SetActive(false);
             settingsPanel.SetActive(false);
            
-
             // 显示选中的面板
             switch (tabIndex)
             {
                 case 0: // PPT
                     pptPanel.SetActive(true);
-                    pptTabButton.GetComponent<Image>().color = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
+                    pptTabButton.GetComponent<Image>().sprite = tabBackgroundBlue;
                     break;
                 case 1: // Model
                     modelPanel.SetActive(true);
-                    modelTabButton.GetComponent<Image>().color = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
+                    modelTabButton.GetComponent<Image>().sprite = tabBackgroundBlue;
                     break;
                 case 2: // Settings
                     settingsPanel.SetActive(true);
-                    settingsTabButton.GetComponent<Image>().color = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
+                    settingsTabButton.GetComponent<Image>().sprite = tabBackgroundBlue;
                     break;
             }
         }
@@ -1707,7 +1693,7 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 case 0: return new Color(0.65f, 0.68f, 0.75f, 1f); // 浅灰色（暗黑风格）
                 case 1: return new Color(1f, 0.75f, 0.2f, 1f); // 亮橙色
-                case 2: return new Color(0.3f, 0.9f, 0.3f, 1f); // 亮绿色
+                case 2: return new Color(0.7f, 0.7f, 0.7f, 1f); // 灰色
                 case 3: return new Color(1f, 0.3f, 0.3f, 1f); // 亮红色
                 default: return new Color(0.85f, 0.88f, 0.95f, 1f); // 默认浅色
             }
@@ -1814,24 +1800,36 @@ namespace MATE_ENGINE___Scripts.Tools
         /// </summary>
         void UpdateButtonStates()
         {
-            if (playButton == null) return;
-
             // 更新删除按钮状态
-            if (deleteButton != null)
+            if (selectedPPTItem == null)
             {
-                deleteButton.interactable = (selectedPPTItem != null);
-            }
+                deleteButton.interactable = false;
+                deleteButton.GetComponent<Image>().sprite = buttonBackgroundGrey;
 
-            if (configButton != null) configButton.interactable = (selectedPPTItem != null);
+                configButton.interactable = false;
+                configButton.GetComponent<Image>().sprite = buttonBackgroundGrey;
 
-            // 如果选中的PPT未配置或配置中，播放按钮不可点击
-            if (selectedPPTItem == null || selectedPPTItem.pptInfo.configStatus != 2)
-            {
                 playButton.interactable = false;
+                playButton.GetComponent<Image>().sprite = buttonBackgroundGrey;
             }
             else
             {
-                playButton.interactable = true;
+                deleteButton.interactable = true;
+                deleteButton.GetComponent<Image>().sprite = buttonBackgroundRed;
+
+                configButton.interactable = true;
+                configButton.GetComponent<Image>().sprite = buttonBackgroundBlue;
+
+                if (selectedPPTItem.pptInfo.configStatus == 2)
+                {
+                    playButton.interactable = true;
+                    playButton.GetComponent<Image>().sprite = buttonBackgroundBlue;
+                }
+                else
+                {
+                    playButton.interactable = false;
+                    playButton.GetComponent<Image>().sprite = buttonBackgroundGrey;
+                }
             }
         }
 
@@ -1988,16 +1986,7 @@ namespace MATE_ENGINE___Scripts.Tools
             confirmPanelRect.sizeDelta = new Vector2(400, 200);
 
             Image confirmPanelBg = confirmPanel.AddComponent<Image>();
-            confirmPanelBg.color = new Color(0.16f, 0.17f, 0.22f, 1f);
-
-            // 添加边框和阴影
-            Outline confirmOutline = confirmPanel.AddComponent<Outline>();
-            confirmOutline.effectColor = new Color(0.35f, 0.45f, 0.65f, 0.6f);
-            confirmOutline.effectDistance = new Vector2(2, -2);
-
-            Shadow confirmShadow = confirmPanel.AddComponent<Shadow>();
-            confirmShadow.effectColor = new Color(0, 0, 0, 0.5f);
-            confirmShadow.effectDistance = new Vector2(0, 8);
+            confirmPanelBg.sprite = Resources.Load<Sprite>("settingsBackground");
 
             // 创建提示文本
             GameObject messageObj = new GameObject("Message");
@@ -2026,30 +2015,21 @@ namespace MATE_ENGINE___Scripts.Tools
             buttonContainerRect.offsetMax = new Vector2(-20, 0);
 
             HorizontalLayoutGroup buttonLayout = buttonContainer.AddComponent<HorizontalLayoutGroup>();
-            buttonLayout.childForceExpandWidth = true;
-            buttonLayout.childForceExpandHeight = true;
+            buttonLayout.childForceExpandWidth = false;
+            buttonLayout.childForceExpandHeight = false;
             buttonLayout.spacing = 20;
             buttonLayout.padding = new RectOffset(0, 0, 0, 0);
+            buttonLayout.childAlignment = TextAnchor.MiddleCenter;
 
             // 创建确认按钮
-            Button confirmBtn = CreateButton(buttonContainer.transform, "确认删除", new Vector2(150, 50));
-            Image confirmBtnBg = confirmBtn.GetComponent<Image>();
-            if (confirmBtnBg != null)
-            {
-                confirmBtnBg.color = new Color(0.85f, 0.25f, 0.25f, 1f);
-            }
-            ColorBlock confirmColors = confirmBtn.colors;
-            confirmColors.normalColor = new Color(0.85f, 0.25f, 0.25f, 1f);
-            confirmColors.highlightedColor = new Color(0.95f, 0.35f, 0.35f, 1f);
-            confirmColors.pressedColor = new Color(0.75f, 0.15f, 0.15f, 1f);
-            confirmBtn.colors = confirmColors;
+            Button confirmBtn = CreateButton(buttonContainer.transform, "确认删除", new Vector2(100, 50), "buttonBackgroundRed");
             confirmBtn.onClick.AddListener(() => {
                 StartCoroutine(OnDeleteConfirmedCoroutine());
                 Destroy(confirmOverlay);
             });
 
             // 创建取消按钮
-            Button cancelBtn = CreateButton(buttonContainer.transform, "取消", new Vector2(150, 50));
+            Button cancelBtn = CreateButton(buttonContainer.transform, "取消", new Vector2(100, 50), "buttonBackgroundBlue");
             cancelBtn.onClick.AddListener(() => {
                 Destroy(confirmOverlay);
             });
@@ -2141,7 +2121,7 @@ namespace MATE_ENGINE___Scripts.Tools
             buttonContainerRect.offsetMin = new Vector2(20, 20);
             buttonContainerRect.offsetMax = new Vector2(-20, 0);
 
-            Button okBtn = CreateButton(buttonContainer.transform, "确定", new Vector2(100, 40));
+            Button okBtn = CreateButton(buttonContainer.transform, "确定", new Vector2(100, 40), "buttonBackgroundBlue");
             RectTransform okBtnRect = okBtn.GetComponent<RectTransform>();
             okBtnRect.anchorMin = new Vector2(0.5f, 0);
             okBtnRect.anchorMax = new Vector2(0.5f, 1);
