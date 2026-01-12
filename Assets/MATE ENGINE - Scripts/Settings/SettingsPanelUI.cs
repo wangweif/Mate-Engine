@@ -135,6 +135,10 @@ namespace MATE_ENGINE___Scripts.Tools
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
+        int prevWidth;
+        int prevHeight;
+        FullScreenMode prevMode;
+
         void Start()
         {
             InitializeComponents();
@@ -2713,7 +2717,6 @@ namespace MATE_ENGINE___Scripts.Tools
                 originalOffsetMin = panelRect.offsetMin;
                 originalOffsetMax = panelRect.offsetMax;
 
-                // 设置为全屏 - 占满整个Canvas
                 panelRect.SetParent(parentCanvas.transform, true);
                 panelRect.anchorMin = Vector2.zero;
                 panelRect.anchorMax = Vector2.one;
@@ -2723,6 +2726,17 @@ namespace MATE_ENGINE___Scripts.Tools
                 panelRect.anchoredPosition = Vector2.zero;
                 panelRect.sizeDelta = Vector2.zero;
                 panelRect.localScale = Vector3.one;
+
+                // 记录当前Screen状态并设置为全屏
+                prevWidth = Screen.width;
+                prevHeight = Screen.height;
+                prevMode = Screen.fullScreenMode;
+
+                Screen.SetResolution(
+                    Display.main.systemWidth,
+                    Display.main.systemHeight,
+                    FullScreenMode.FullScreenWindow
+                );
 
                 // 将面板置于最上层
                 panelRect.SetAsLastSibling();
@@ -2764,6 +2778,11 @@ namespace MATE_ENGINE___Scripts.Tools
                 panelRect.anchoredPosition = Vector2.zero;
                 panelRect.localScale = Vector3.one;
 
+                Screen.SetResolution(
+                    prevWidth,
+                    prevHeight,
+                    prevMode
+                );
                 // 刷新行号和自动滚动
                 StartCoroutine(RefreshConfigParagraphNumbersDelayed());
                 StartCoroutine(AutoScrollToTopIfNeeded());
