@@ -473,7 +473,7 @@ namespace MATE_ENGINE___Scripts.Tools
             titleRect.sizeDelta = new Vector2(0, 60);
 
             Image titleBg = titleBar.AddComponent<Image>();
-            titleBg.sprite = Resources.Load<Sprite>("settingsTitle_bg");
+            titleBg.sprite = Resources.Load<Sprite>("titleBackground");
             
             // 添加标题栏底部边框效果
             GameObject titleBorder = new GameObject("TitleBorder");
@@ -812,7 +812,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configPanelRect.sizeDelta = new Vector2(1000, 650);
 
             Image configPanelBg = configPanel.AddComponent<Image>();
-            configPanelBg.color = new Color(0.16f, 0.17f, 0.22f, 1f);
+            configPanelBg.color = new Color(0.1608f, 0.1922f, 0.3725f, 1f);
             
             // 添加配置面板边框
             Outline configOutline = configPanel.AddComponent<Outline>();
@@ -916,16 +916,15 @@ namespace MATE_ENGINE___Scripts.Tools
             configInputRect.pivot = new Vector2(0.5f, 1);
             configInputRect.anchoredPosition = new Vector2(0, -78); // 标签高度40 + 间距18 + 顶部边距20
             configInputRect.sizeDelta = new Vector2(-40, -165); // 左右边距20，底部留出空间给按钮容器(70) + 顶部(78) + 底部边距(20)
-
-            // 添加输入框背景
-            Image inputFieldBg = configInputObj.AddComponent<Image>();
-            inputFieldBg.color = new Color(0.12f, 0.13f, 0.17f, 1f);
-            inputFieldBg.raycastTarget = true;
+            
+            // 添加背景图片组件（Outline需要Graphic组件才能工作）
+            Image inputBackground = configInputObj.AddComponent<Image>();
+            inputBackground.color = new Color(0.1608f, 0.1922f, 0.3725f, 1f); // 半透明白色背景
             
             // 添加输入框边框效果
             Outline inputOutline = configInputObj.AddComponent<Outline>();
             inputOutline.effectColor = new Color(0.25f, 0.30f, 0.45f, 0.5f);
-            inputOutline.effectDistance = new Vector2(1, -1);
+            inputOutline.effectDistance = new Vector2(2, -2);
 
             configInputField = configInputObj.AddComponent<TMP_InputField>();
             
@@ -1070,7 +1069,6 @@ namespace MATE_ENGINE___Scripts.Tools
             configInputField.textComponent = configTextComp;
             configInputField.placeholder = configPlaceholderComp;
             configInputField.textViewport = contentContainerRect;
-            configInputField.targetGraphic = inputFieldBg;
             configInputField.lineType = TMP_InputField.LineType.MultiLineNewline;
             configInputField.scrollSensitivity = 5f;
             configInputField.onFocusSelectAll = false;
