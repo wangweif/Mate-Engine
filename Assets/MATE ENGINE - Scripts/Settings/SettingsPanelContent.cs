@@ -299,8 +299,8 @@ namespace MATE_ENGINE___Scripts.Tools
                 scrollBg.sprite = roundedCornerSprite;
                 scrollBg.type = Image.Type.Sliced;
             }
-            // 更新日志滚动区域背景：RGB(41, 58, 108)
-            scrollBg.color = new Color(41f/255f, 58f/255f, 108f/255f, 1f);
+            // 更新日志滚动区域背景：与下拉框一致
+            scrollBg.color = new Color(0.18f, 0.20f, 0.25f, 1f);
             scrollBg.raycastTarget = false;
 
             // 创建视口
