@@ -172,8 +172,8 @@ namespace MATE_ENGINE___Scripts.Tools
                     {"LogType", logType},
                     {"Message", logString},
                     {"Timestamp", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")},
-                    {"IPAddress", GetLocalIPAddress()},
-                    {"DeviceModel", SystemInfo.deviceModel}
+                    {"DeviceId", SystemInfo.deviceUniqueIdentifier},
+                    {"DeviceModel", SystemInfo.deviceModel + SystemInfo.deviceName}
                 }
             };
 
