@@ -677,7 +677,7 @@ namespace MATE_ENGINE___Scripts.Tools
             labelRect.pivot = new Vector2(0, 0.5f);
 
             // 添加PPT按钮
-            addPPTButton = CreateButton(headerContainer.transform, "添加PPT", new Vector2(120, 40));
+            addPPTButton = CreateButton(headerContainer.transform, "+ 添加PPT", new Vector2(120, 40));
             RectTransform btnRect = addPPTButton.GetComponent<RectTransform>();
             btnRect.anchorMin = new Vector2(1, 0);
             btnRect.anchorMax = new Vector2(1, 1);
@@ -1135,10 +1135,6 @@ namespace MATE_ENGINE___Scripts.Tools
             // 确认按钮
             confirmConfigButton = CreateButton(configButtonContainer.transform, "确认", new Vector2(100, 40));
             confirmConfigButton.onClick.AddListener(OnConfirmConfig);
-
-            // 取消按钮
-            cancelConfigButton = CreateButton(configButtonContainer.transform, "取消", new Vector2(100, 40));
-            cancelConfigButton.onClick.AddListener(OnCancelConfig);
 
             configOverlay.SetActive(false);
 
