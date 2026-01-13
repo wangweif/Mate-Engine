@@ -415,11 +415,82 @@ namespace MATE_ENGINE___Scripts.Tools
             panelRect.offsetMax = Vector2.zero;
             panelRect.anchoredPosition = Vector2.zero;
 
-            Image panelBg = mainPanel.AddComponent<Image>();
-            // 主面板背景：暗黑风格深色背景，带有轻微的蓝色调
-            Sprite settingsBackgroundSprite = Resources.Load<Sprite>("settingsBackground");
-            panelBg.sprite = settingsBackgroundSprite;
-            panelBg.raycastTarget = true; // 阻止点击穿透到场景
+            // 添加圆角遮罩(仿照ChatPanel实现)
+            Sprite maskSprite = Resources.Load<Sprite>("mask");
+            if (maskSprite != null)
+            {
+                // 先创建边框层(必须在添加Mask之前，作为主面板的子对象，但不受Mask影响)
+                GameObject borderLayer = new GameObject("BorderLayer");
+                borderLayer.transform.SetParent(mainPanel.transform, false);
+                RectTransform borderRect = borderLayer.AddComponent<RectTransform>();
+                borderRect.anchorMin = Vector2.zero;
+                borderRect.anchorMax = Vector2.one;
+                borderRect.pivot = new Vector2(0.5f, 0.5f);
+                borderRect.anchoredPosition = Vector2.zero;
+                // 边框比主面板大，向四周扩展
+                borderRect.sizeDelta = new Vector2(4, 4); // 比面板大4像素（每边2像素）
+
+                Image borderImg = borderLayer.AddComponent<Image>();
+                Sprite roundedRectSprite = Resources.Load<Sprite>("圆角矩形");
+                if (roundedRectSprite != null)
+                {
+                    borderImg.sprite = roundedRectSprite;
+                    borderImg.type = Image.Type.Sliced;
+                    borderImg.color = new Color(0.3f, 0.4f, 0.6f, 1f); // 边框颜色
+                }
+                else
+                {
+                    // 如果没有圆角矩形.png,使用mask.png作为边框
+                    borderImg.sprite = maskSprite;
+                    borderImg.type = Image.Type.Sliced;
+                    borderImg.color = new Color(0.3f, 0.4f, 0.6f, 1f);
+                }
+                borderImg.raycastTarget = false; // 边框层不接收点击事件
+                borderImg.maskable = false; // 关键：不参与Mask裁剪
+
+                // 直接在主面板上添加Mask组件
+                Image panelBg = mainPanel.AddComponent<Image>();
+                panelBg.sprite = maskSprite;
+                panelBg.type = Image.Type.Sliced;
+                panelBg.color = Color.white;
+                panelBg.raycastTarget = true;
+
+                Mask panelMask = mainPanel.AddComponent<Mask>();
+                panelMask.showMaskGraphic = false; // 不显示遮罩图片
+
+                // 创建背景层显示原来的背景图
+                GameObject bgLayerObj = new GameObject("BackgroundLayer");
+                bgLayerObj.transform.SetParent(mainPanel.transform, false);
+                RectTransform bgLayerRect = bgLayerObj.AddComponent<RectTransform>();
+                bgLayerRect.anchorMin = Vector2.zero;
+                bgLayerRect.anchorMax = Vector2.one;
+                bgLayerRect.offsetMin = Vector2.zero;
+                bgLayerRect.offsetMax = Vector2.zero;
+
+                Image bgLayerImg = bgLayerObj.AddComponent<Image>();
+                Sprite settingsBackgroundSprite = Resources.Load<Sprite>("settingsBackground");
+                if (settingsBackgroundSprite != null)
+                {
+                    bgLayerImg.sprite = settingsBackgroundSprite;
+                    bgLayerImg.type = Image.Type.Sliced;
+                }
+                bgLayerImg.color = new Color(1, 1, 1, 1); // 完全不透明
+                bgLayerImg.raycastTarget = false; // 背景层不接收点击事件
+
+                // 将边框层移到最底层（在背景和遮罩之后）
+                borderLayer.transform.SetAsFirstSibling();
+
+                Debug.Log("[SettingsPanel] 已添加边框、圆角遮罩和背景层");
+            }
+            else
+            {
+                // 如果没有mask.png，使用原来的方式
+                Image panelBg = mainPanel.AddComponent<Image>();
+                Sprite settingsBackgroundSprite = Resources.Load<Sprite>("settingsBackground");
+                panelBg.sprite = settingsBackgroundSprite;
+                panelBg.raycastTarget = true;
+                Debug.Log("[SettingsPanel] 未找到mask.png，使用普通背景");
+            }
 
             // 确保主面板阻塞射线
             CanvasGroup panelCanvasGroup = mainPanel.AddComponent<CanvasGroup>();
