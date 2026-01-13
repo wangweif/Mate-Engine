@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using MATE_ENGINE___Scripts.Tools;
 using Xamin;
 using MateEngine.PPT;
 
@@ -41,6 +42,9 @@ public class UISetOnOff : MonoBehaviour
     public Sprite displayImage;
 
     [HideInInspector] public PPTControlUI pptControlUI;
+    
+    // 获取或添加 ChatPanel 组件
+    private ChatPanel chatPanel;
 
 
     /// <summary>
@@ -65,6 +69,8 @@ public class UISetOnOff : MonoBehaviour
             Debug.Log("✅ 已注册PPT关闭监听器");
             Debug.Log("✅ 已注册PPT打开完成监听器");
         }
+        chatPanel = gameObject.AddComponent<ChatPanel>();
+        chatPanel.TogglePanel();
     }
 
     /// <summary>
@@ -310,6 +316,11 @@ public class UISetOnOff : MonoBehaviour
     public void SetOnOff(GameObject obj)
     {
         Debug.Log("objname:" + obj.name);
+        if (obj.name == "NewChatMenuPanel")
+        {
+            chatPanel.TogglePanel();
+            return;
+        }
         if (obj != null)
             obj.SetActive(!obj.activeSelf);
     }
