@@ -1543,12 +1543,9 @@ namespace MATE_ENGINE___Scripts.Tools
             itemOutline.effectDistance = new Vector2(1, -1);
 
             Button itemButton = itemObj.AddComponent<Button>();
-            ColorBlock colors = itemButton.colors;
-            colors.normalColor = new Color(0.039f, 0.102f, 0.243f, 1f);
-            colors.highlightedColor = new Color(0.22f, 0.24f, 0.30f, 0.5f);
-            colors.pressedColor = new Color(0.15f, 0.17f, 0.22f, 0.7f);
-            colors.selectedColor = new Color(0.25f, 0.47f, 0.87f, 0.5f);
-            itemButton.colors = colors;
+            itemButton.transition = Selectable.Transition.None;
+            itemButton.targetGraphic = itemBg;
+            itemBg.color = new Color(0.039f, 0.102f, 0.243f, 1f);
 
             HorizontalLayoutGroup itemLayout = itemObj.AddComponent<HorizontalLayoutGroup>();
             itemLayout.childForceExpandWidth = false;
@@ -1687,7 +1684,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 Image prevImg = selectedPPTItem.itemButton.GetComponent<Image>();
                 if (prevImg != null)
                 {
-                    prevImg.color = new Color(1f, 1f, 1f, 1f);
+                    prevImg.color = new Color(0.039f, 0.102f, 0.243f, 1f);
                 }
             }
 
@@ -1700,7 +1697,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 Image img = item.itemButton.GetComponent<Image>();
                 if (img != null)
                 {
-                    img.color = new Color(0.25f, 0.47f, 0.87f, 0.5f); // 蓝色高亮（暗黑风格）
+                    img.color = new Color(0.0196f, 0.3725f, 0.5922f, 1f);
                 }
             }
 
@@ -1723,7 +1720,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 Image prevImg = selectedPPTItem.itemButton.GetComponent<Image>();
                 if (prevImg != null)
                 {
-                    prevImg.color = new Color(1f, 1f, 1f, 1f);
+                    prevImg.color = new Color(0.039f, 0.102f, 0.243f, 1f);
                 }
             }
 
