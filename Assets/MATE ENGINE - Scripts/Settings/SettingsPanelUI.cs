@@ -2672,7 +2672,7 @@ namespace MATE_ENGINE___Scripts.Tools
 
             if (isFullscreen)
             {
-                EnterFullscreen();
+                StartCoroutine(EnterFullscreen());
                 // 更改按钮图标为shrink
                 if (configFullscreenButton != null)
                 {
@@ -2681,7 +2681,7 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             else
             {
-                ExitFullscreen();
+                StartCoroutine(ExitFullscreen());
                 // 恢复按钮图标为全屏
                 if (configFullscreenButton != null)
                 {
@@ -2693,87 +2693,79 @@ namespace MATE_ENGINE___Scripts.Tools
         /// <summary>
         /// 进入全屏模式
         /// </summary>
-        void EnterFullscreen()
+        private IEnumerator EnterFullscreen()
         {
-            if (configPanel == null) return;
+            if (configPanel == null) yield break;
 
             RectTransform panelRect = configPanel.GetComponent<RectTransform>();
-            if (panelRect == null) return;
+            if (panelRect == null) yield break;
 
-            try
+           
+            // 保存原始状态（在第一次进入全屏时）
+            if (originalParent == null)
             {
-                // 保存原始状态（在第一次进入全屏时）
-                if (originalParent == null)
-                {
-                    originalParent = panelRect.parent;
-                }
-                originalSiblingIndex = panelRect.GetSiblingIndex();
-                originalAnchorMin = panelRect.anchorMin;
-                originalAnchorMax = panelRect.anchorMax;
-                originalOffsetMin = panelRect.offsetMin;
-                originalOffsetMax = panelRect.offsetMax;
-
-                // 设置为全屏 - 占满整个Canvas
-                panelRect.SetParent(parentCanvas.transform, true);
-                panelRect.anchorMin = Vector2.zero;
-                panelRect.anchorMax = Vector2.one;
-                panelRect.offsetMin = Vector2.zero;
-                panelRect.offsetMax = Vector2.zero;
-                panelRect.pivot = new Vector2(0.5f, 0.5f);
-                panelRect.anchoredPosition = Vector2.zero;
-                panelRect.sizeDelta = Vector2.zero;
-                panelRect.localScale = Vector3.one;
-
-                // 将面板置于最上层
-                panelRect.SetAsLastSibling();
-
-                // 刷新行号和自动滚动
-                StartCoroutine(RefreshConfigParagraphNumbersDelayed());
-                StartCoroutine(AutoScrollToTopIfNeeded());
-
-                Debug.Log("进入全屏模式 - 配置窗口");
+                originalParent = panelRect.parent;
             }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"进入全屏模式失败: {ex.Message}");
-                isFullscreen = false;
-            }
+            originalSiblingIndex = panelRect.GetSiblingIndex();
+            originalAnchorMin = panelRect.anchorMin;
+            originalAnchorMax = panelRect.anchorMax;
+            originalOffsetMin = panelRect.offsetMin;
+            originalOffsetMax = panelRect.offsetMax;
+
+            configInputField.ActivateInputField();
+            configInputField.MoveTextStart(false);      
+            Canvas.ForceUpdateCanvases(); 
+            yield return null;
+            yield return null;
+
+            // 设置为全屏 - 占满整个Canvas
+            panelRect.SetParent(parentCanvas.transform, true);
+            panelRect.anchorMin = Vector2.zero;
+            panelRect.anchorMax = Vector2.one;
+            panelRect.offsetMin = Vector2.zero;
+            panelRect.offsetMax = Vector2.zero;
+            panelRect.pivot = new Vector2(0.5f, 0.5f);
+            panelRect.anchoredPosition = Vector2.zero;
+            panelRect.sizeDelta = Vector2.zero;
+            panelRect.localScale = Vector3.one;
+
+            // 将面板置于最上层
+            panelRect.SetAsLastSibling();
+
+            // 刷新行号
+            StartCoroutine(RefreshConfigParagraphNumbersDelayed());
         }
 
         /// <summary>
         /// 退出全屏模式
         /// </summary>
-        void ExitFullscreen()
+        private IEnumerator ExitFullscreen()
         {
-            if (configPanel == null || originalParent == null) return;
+            if (configPanel == null || originalParent == null) yield break;
 
             RectTransform panelRect = configPanel.GetComponent<RectTransform>();
-            if (panelRect == null) return;
+            if (panelRect == null) yield break;
 
-            try
-            {
-                // 恢复原始状态
-                panelRect.SetParent(originalParent, true);
-                panelRect.anchorMin = originalAnchorMin;
-                panelRect.anchorMax = originalAnchorMax;
-                panelRect.offsetMin = originalOffsetMin;
-                panelRect.offsetMax = originalOffsetMax;
+           
+            configInputField.ActivateInputField();
+            configInputField.MoveTextStart(false);      
+            Canvas.ForceUpdateCanvases(); 
+            yield return null;
+            yield return null;
+            // 恢复原始状态
+            panelRect.SetParent(originalParent, true);
+            panelRect.anchorMin = originalAnchorMin;
+            panelRect.anchorMax = originalAnchorMax;
+            panelRect.offsetMin = originalOffsetMin;
+            panelRect.offsetMax = originalOffsetMax;
 
-                // 确保设置正确的位置
-                panelRect.pivot = new Vector2(0.5f, 0.5f);
-                panelRect.anchoredPosition = Vector2.zero;
-                panelRect.localScale = Vector3.one;
+            // 确保设置正确的位置
+            panelRect.pivot = new Vector2(0.5f, 0.5f);
+            panelRect.anchoredPosition = Vector2.zero;
+            panelRect.localScale = Vector3.one;
 
-                // 刷新行号和自动滚动
-                StartCoroutine(RefreshConfigParagraphNumbersDelayed());
-                StartCoroutine(AutoScrollToTopIfNeeded());
-
-                Debug.Log("退出全屏模式 - 配置窗口");
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"退出全屏模式失败: {ex.Message}");
-            }
+            // 刷新行号
+            StartCoroutine(RefreshConfigParagraphNumbersDelayed());
         }
 
         private void SyncConfigParagraphNumberScroll()
