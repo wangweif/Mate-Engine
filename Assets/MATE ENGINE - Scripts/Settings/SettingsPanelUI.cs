@@ -702,9 +702,9 @@ namespace MATE_ENGINE___Scripts.Tools
             scrollBg.raycastTarget = false;
             
             // 添加滚动视图边框
-            Outline scrollOutline = scrollObj.AddComponent<Outline>();
-            scrollOutline.effectColor = new Color(0.25f, 0.30f, 0.40f, 0.5f);
-            scrollOutline.effectDistance = new Vector2(1, -1);
+            // Outline scrollOutline = scrollObj.AddComponent<Outline>();
+            // scrollOutline.effectColor = new Color(0.25f, 0.30f, 0.40f, 0.5f);
+            // scrollOutline.effectDistance = new Vector2(1, -1);
 
             // 创建视口
             GameObject viewport = new GameObject("Viewport");
