@@ -181,7 +181,7 @@ public class PPTControlUI : MonoBehaviour
         barRect.sizeDelta = new Vector2(520, 75); // 增加尺寸以容纳所有按钮
 
         // 1. 背景处理:使用深色半透明(毛玻璃感) + 圆角边框
-        Sprite borderSprite = Resources.Load<Sprite>("PPTIcons/边框");
+        Sprite borderSprite = Resources.Load<Sprite>("PPTIcons/边框1");
         
         Image bgImage = controlBar.AddComponent<Image>();
         bgImage.sprite = borderSprite;
