@@ -70,7 +70,7 @@ namespace MATE_ENGINE___Scripts.Tools
             deviceIdLayoutElem.flexibleWidth = 1;
 
             // 设备ID标签
-            GameObject deviceIdLabel = createLabelFunc(deviceIdRow.transform, $"设备ID:{SystemInfo.deviceUniqueIdentifier}", 16);
+            GameObject deviceIdLabel = createLabelFunc(deviceIdRow.transform, $"设备ID:{UnityLogToSLS.GetMacAddress()}", 16);
             RectTransform deviceIdLabelRect = deviceIdLabel.GetComponent<RectTransform>();
             if (deviceIdLabelRect != null)
             {

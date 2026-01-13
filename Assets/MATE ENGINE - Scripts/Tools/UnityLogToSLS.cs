@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Threading;
 using System.Threading.Tasks;
 using Aliyun.Api.LogService;
@@ -172,7 +173,7 @@ namespace MATE_ENGINE___Scripts.Tools
                     {"LogType", logType},
                     {"Message", logString},
                     {"Timestamp", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")},
-                    {"DeviceId", SystemInfo.deviceUniqueIdentifier},
+                    {"DeviceId", GetMacAddress()},
                     {"DeviceModel", SystemInfo.deviceModel + SystemInfo.deviceName}
                 }
             };
@@ -369,6 +370,31 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 logQueue.Enqueue(logInfo);
             }
+        }
+        
+        public static string GetMacAddress()
+        {
+            // 方法1：获取第一个活动的物理网卡MAC地址
+            try
+            {
+                var networkInterfaces = NetworkInterface.GetAllNetworkInterfaces()
+                    .Where(nic => nic.NetworkInterfaceType == NetworkInterfaceType.Ethernet || 
+                                  nic.NetworkInterfaceType == NetworkInterfaceType.Wireless80211)
+                    .Where(nic => nic.OperationalStatus == OperationalStatus.Up)
+                    .ToList();
+
+                if (networkInterfaces.Count > 0)
+                {
+                    var firstNic = networkInterfaces[0];
+                    return firstNic.GetPhysicalAddress().ToString();
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("获取MAC地址失败: " + e.Message);
+            }
+
+            return "获取MAC地址失败";
         }
     }
 }

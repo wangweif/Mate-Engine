@@ -7,6 +7,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,6 +24,7 @@ namespace MATE_ENGINE___Scripts.Tools
         // UI组件 - 自动在代码中创建
         private Canvas parentCanvas;
         private GameObject mainPanel;
+        private GameObject borderLayer; // 边框层
         private Button closeButton;
         private ScrollRect scrollRect;
         private RectTransform messageContainer;
@@ -40,7 +42,7 @@ namespace MATE_ENGINE___Scripts.Tools
         public GameObject aiMessagePrefab;
 
         // 气泡设置 - 与AdvancedChatManager场景中的实际配置相同
-        private float maxBubbleWidth = 580f;  // 场景中的实际值
+        private float maxBubbleWidth = 700f;  // 气泡最大宽度
         private float minBubbleWidth = 0f;      // 场景中的实际值
         private float bubblePadding = 20f;
         private float userMessageRightMargin = 20f;
@@ -133,6 +135,35 @@ namespace MATE_ENGINE___Scripts.Tools
 
             // 计算容器宽度
             CalculateContainerWidth();
+
+            // 将自己注册到MenuActions
+            RegisterToMenuActions();
+        }
+
+        /// <summary>
+        /// 将ChatPanel注册到MenuActions中
+        /// </summary>
+        void RegisterToMenuActions()
+        {
+            var menuActions = FindFirstObjectByType<MenuActions>();
+            if (menuActions != null)
+            {
+                // 使用反射设置私有字段chatPanel
+                var chatPanelField = typeof(MenuActions).GetField("chatPanel", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (chatPanelField != null)
+                {
+                    chatPanelField.SetValue(menuActions, mainPanel);
+                    Debug.Log("[ChatPanel] 已将ChatPanel注册到MenuActions");
+                }
+                else
+                {
+                    Debug.LogWarning("[ChatPanel] 未找到MenuActions中的chatPanel字段");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[ChatPanel] 未找到MenuActions实例");
+            }
         }
 
         /// <summary>
@@ -308,17 +339,36 @@ namespace MATE_ENGINE___Scripts.Tools
                 Mask panelMask = mainPanel.AddComponent<Mask>();
                 panelMask.showMaskGraphic = false; // 不显示遮罩图片
 
-                // 创建边框层(使用圆角矩形.png)
-                GameObject borderObj = new GameObject("BorderLayer");
-                borderObj.transform.SetParent(mainPanel.transform, false);
-                RectTransform borderRect = borderObj.AddComponent<RectTransform>();
+                // 创建背景层显示原来的背景图
+                GameObject bgLayerObj = new GameObject("BackgroundLayer");
+                bgLayerObj.transform.SetParent(mainPanel.transform, false);
+                RectTransform bgLayerRect = bgLayerObj.AddComponent<RectTransform>();
+                bgLayerRect.anchorMin = Vector2.zero;
+                bgLayerRect.anchorMax = Vector2.one;
+                bgLayerRect.offsetMin = Vector2.zero;
+                bgLayerRect.offsetMax = Vector2.zero;
+                bgLayerObj.transform.SetAsFirstSibling(); // 最底层
+
+                Image bgLayerImg = bgLayerObj.AddComponent<Image>();
+                Sprite settingsBackgroundSprite = Resources.Load<Sprite>("settingsBackground");
+                if (settingsBackgroundSprite != null)
+                {
+                    bgLayerImg.sprite = settingsBackgroundSprite;
+                    bgLayerImg.color = Color.white;
+                }
+                bgLayerImg.raycastTarget = false;
+
+                // 创建边框层(使用圆角矩形.png) - 作为主面板的子对象，但不参与Mask裁剪
+                borderLayer = new GameObject("BorderLayer");
+                borderLayer.transform.SetParent(mainPanel.transform, false);
+                RectTransform borderRect = borderLayer.AddComponent<RectTransform>();
                 borderRect.anchorMin = Vector2.zero;
                 borderRect.anchorMax = Vector2.one;
-                borderRect.offsetMin = Vector2.zero;
-                borderRect.offsetMax = Vector2.zero;
-                borderObj.transform.SetAsFirstSibling(); // 最底层
+                borderRect.offsetMin = new Vector2(-2, -2); // 比主面板大，显示边框
+                borderRect.offsetMax = new Vector2(2, 2);
+                borderLayer.transform.SetAsFirstSibling(); // 最底层
 
-                Image borderImg = borderObj.AddComponent<Image>();
+                Image borderImg = borderLayer.AddComponent<Image>();
                 Sprite roundedRectSprite = Resources.Load<Sprite>("圆角矩形");
                 if (roundedRectSprite != null)
                 {
@@ -334,27 +384,9 @@ namespace MATE_ENGINE___Scripts.Tools
                     borderImg.color = new Color(0.3f, 0.4f, 0.6f, 1f);
                 }
                 borderImg.raycastTarget = false;
+                borderImg.maskable = false; // 关键：不参与Mask裁剪
 
-                // 创建背景层显示原来的背景图
-                GameObject bgLayerObj = new GameObject("BackgroundLayer");
-                bgLayerObj.transform.SetParent(mainPanel.transform, false);
-                RectTransform bgLayerRect = bgLayerObj.AddComponent<RectTransform>();
-                bgLayerRect.anchorMin = Vector2.zero;
-                bgLayerRect.anchorMax = Vector2.one;
-                bgLayerRect.offsetMin = Vector2.zero;
-                bgLayerRect.offsetMax = Vector2.zero;
-                bgLayerObj.transform.SetAsFirstSibling(); // 第二层
-
-                Image bgLayerImg = bgLayerObj.AddComponent<Image>();
-                Sprite settingsBackgroundSprite = Resources.Load<Sprite>("settingsBackground");
-                if (settingsBackgroundSprite != null)
-                {
-                    bgLayerImg.sprite = settingsBackgroundSprite;
-                    bgLayerImg.color = Color.white;
-                }
-                bgLayerImg.raycastTarget = false;
-
-                Debug.Log("[ChatPanel] 已添加圆角遮罩、边框和背景层");
+                Debug.Log("[ChatPanel] 已添加边框、圆角遮罩和背景层");
             }
             else
             {
@@ -418,7 +450,13 @@ namespace MATE_ENGINE___Scripts.Tools
             titleRect.anchorMax = new Vector2(1, 1);
             titleRect.pivot = new Vector2(0.5f, 1);
             titleRect.anchoredPosition = Vector2.zero;
-            titleRect.sizeDelta = new Vector2(0, 60);
+            titleRect.sizeDelta = new Vector2(0, 60); // 固定高度60，宽度自适应
+
+            // 添加LayoutElement确保标题栏在布局中的优先级
+            LayoutElement titleLayout = titleBar.AddComponent<LayoutElement>();
+            titleLayout.minHeight = 60;
+            titleLayout.preferredHeight = 60;
+            titleLayout.flexibleWidth = 1; // 宽度可以伸缩
 
             Image titleBg = titleBar.AddComponent<Image>();
             Sprite titleBgSprite = Resources.Load<Sprite>("titleBackground");
@@ -459,6 +497,10 @@ namespace MATE_ENGINE___Scripts.Tools
             title.alignment = TextAlignmentOptions.Center;
             title.fontStyle = FontStyles.Bold;
             FontManager.ApplyFont(title);
+
+            // 标题文字添加LayoutElement
+            LayoutElement titleTextLayout = titleText.AddComponent<LayoutElement>();
+            titleTextLayout.flexibleWidth = 1;
         }
 
         void CreateChatContentArea()
@@ -480,6 +522,11 @@ namespace MATE_ENGINE___Scripts.Tools
             contentRect.anchorMax = new Vector2(1, 1);
             contentRect.offsetMin = new Vector2(10, bottomOffset); // 左边距10,底部留出空间给输入框
             contentRect.offsetMax = new Vector2(-10, -topOffset);  // 右边距10,顶部留出空间给标题栏
+
+            // 添加LayoutElement确保内容区域能够自适应
+            LayoutElement contentLayout = contentArea.AddComponent<LayoutElement>();
+            contentLayout.flexibleWidth = 1;
+            contentLayout.flexibleHeight = 1; // 高度可以伸缩，占据可用空间
 
             // 创建滚动视图
             GameObject scrollObj = new GameObject("ChatScrollRect");
@@ -554,6 +601,12 @@ namespace MATE_ENGINE___Scripts.Tools
             chatBorderRect.sizeDelta = new Vector2(0, 2);
             Image chatBorderImg = chatBottomBorder.AddComponent<Image>();
             chatBorderImg.color = new Color(0.3f, 0.4f, 0.6f, 0.5f);
+
+            // 添加LayoutElement
+            LayoutElement borderLayout = chatBottomBorder.AddComponent<LayoutElement>();
+            borderLayout.minHeight = 2;
+            borderLayout.preferredHeight = 2;
+            borderLayout.flexibleWidth = 1;
         }
 
         void CreateInputArea()
@@ -567,10 +620,26 @@ namespace MATE_ENGINE___Scripts.Tools
                 inputAreaRect = inputArea.AddComponent<RectTransform>();
             }
             inputAreaRect.anchorMin = new Vector2(0, 0);
-            inputAreaRect.anchorMax = new Vector2(0, 0);
-            inputAreaRect.pivot = new Vector2(0, 0);
-            inputAreaRect.anchoredPosition = new Vector2(5, 10);
-            inputAreaRect.sizeDelta = new Vector2(760, 50); // 固定宽度760，高度50
+            inputAreaRect.anchorMax = new Vector2(1, 0);
+            inputAreaRect.pivot = new Vector2(0.5f, 0);
+            inputAreaRect.anchoredPosition = new Vector2(0, 10);
+            inputAreaRect.sizeDelta = new Vector2(0, 50); // 高度固定50，宽度自适应
+
+            // 添加HorizontalLayoutGroup控制子组件布局
+            HorizontalLayoutGroup layout = inputArea.AddComponent<HorizontalLayoutGroup>();
+            layout.childForceExpandWidth = false; // 不强制子组件填充宽度
+            layout.childForceExpandHeight = false; // 不强制子组件填充高度
+            layout.childControlWidth = true; // 控制子组件宽度
+            layout.childControlHeight = true; // 控制子组件高度
+            layout.childAlignment = TextAnchor.MiddleCenter; // 子组件垂直居中
+            layout.spacing = 10; // 子组件间距10像素
+            layout.padding = new RectOffset(10, 10, 5, 5); // 左右边距10像素，上下边距5像素
+
+            // 添加LayoutElement确保输入区域的布局优先级
+            LayoutElement inputAreaLayout = inputArea.AddComponent<LayoutElement>();
+            inputAreaLayout.minHeight = 50;
+            inputAreaLayout.preferredHeight = 50;
+            inputAreaLayout.flexibleWidth = 1; // 宽度可以伸缩
 
             Image inputAreaBg = inputArea.AddComponent<Image>();
             // 设置为透明背景
@@ -584,17 +653,16 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 inputFieldRect = inputFieldObj.AddComponent<RectTransform>();
             }
-            // 手动定位：距离左边15像素，垂直居中
-            inputFieldRect.anchorMin = new Vector2(0, 0.5f);
-            inputFieldRect.anchorMax = new Vector2(0, 0.5f);
-            inputFieldRect.pivot = new Vector2(0, 0.5f);
-            inputFieldRect.anchoredPosition = new Vector2(15, 0);
-            inputFieldRect.sizeDelta = new Vector2(670, 40); // 固定宽高
-            // 使用LayoutElement控制宽度,避免Inspector显示问题
+            // 使用LayoutElement控制布局，由HorizontalLayoutGroup管理
+            inputFieldRect.sizeDelta = new Vector2(0, 40); // 高度40，宽度由布局系统决定
+
+            // 使用LayoutElement控制宽度,让InputField占据所有可用空间
             LayoutElement inputFieldLayout = inputFieldObj.AddComponent<LayoutElement>();
-            inputFieldLayout.preferredWidth = 670;
-            inputFieldLayout.minHeight = 30;
-            inputFieldLayout.preferredHeight = 30;
+            inputFieldLayout.minWidth = 100;
+            inputFieldLayout.preferredWidth = -1; // -1表示填充所有可用空间
+            inputFieldLayout.flexibleWidth = 1; // 宽度可以伸缩
+            inputFieldLayout.minHeight = 40;
+            inputFieldLayout.preferredHeight = 40;
 
             Image inputBg = inputFieldObj.AddComponent<Image>();
             // 使用input.png作为输入框背景
@@ -655,16 +723,13 @@ namespace MATE_ENGINE___Scripts.Tools
             inputField.placeholder = placeholder;
             inputField.lineType = TMP_InputField.LineType.SingleLine;
 
-            // 创建语音输入按钮
+            // 创建语音输入按钮 - 作为InputArea的子对象，由HorizontalLayoutGroup管理布局
             GameObject voiceBtnObj = new GameObject("VoiceInputButton");
             voiceBtnObj.transform.SetParent(inputArea.transform, false);
             RectTransform voiceBtnRect = voiceBtnObj.AddComponent<RectTransform>();
-            // 手动定位：距离右边15像素，垂直居中
-            voiceBtnRect.anchorMin = new Vector2(1, 0.5f);
-            voiceBtnRect.anchorMax = new Vector2(1, 0.5f);
-            voiceBtnRect.pivot = new Vector2(1, 0.5f);
-            voiceBtnRect.anchoredPosition = new Vector2(-15, 0);
             voiceBtnRect.sizeDelta = new Vector2(50, 50); // 设置为正方形50x50
+
+            // 使用LayoutElement设置固定大小
             LayoutElement voiceBtnLayout = voiceBtnObj.AddComponent<LayoutElement>();
             voiceBtnLayout.minWidth = 50;
             voiceBtnLayout.preferredWidth = 50;
@@ -1015,7 +1080,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 textRect.sizeDelta = new Vector2(100, 30);
 
                 TMP_Text textComp = textObj.AddComponent<TextMeshProUGUI>();
-                textComp.fontSize = 18;
+                textComp.fontSize = 24;
                 textComp.color = isUserMessage ? userTextColor : aiTextColor;
                 textComp.enableWordWrapping = true;
                 FontManager.ApplyFont(textComp);
