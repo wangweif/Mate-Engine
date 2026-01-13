@@ -176,7 +176,7 @@ namespace MATE_ENGINE___Scripts.Tools
                     {"LogType", logType},
                     {"Message", logString},
                     {"Timestamp", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")},
-                    {"DeviceId", GetMacAddress()},
+                    {"DeviceId", GetUUID()},
                     {"DeviceModel", SystemInfo.deviceModel + SystemInfo.deviceName}
                 }
             };
@@ -375,14 +375,14 @@ namespace MATE_ENGINE___Scripts.Tools
             }
         }
         
-        public static string GetMacAddress()
+        public static string GetUUID()
         {
             try
             {
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = "/c wmic csproduct get uuid",
+                    Arguments = "/c \"wmic csproduct get uuid\"",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     CreateNoWindow = true
