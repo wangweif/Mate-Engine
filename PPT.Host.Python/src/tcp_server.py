@@ -124,7 +124,7 @@ class TCPServer:
                     command = line.strip()
                     
                     if command:
-                        logger.info(f"收到命令: {command}")
+                        # logger.info(f"收到命令: {command}")
                         
                         # 调用命令处理函数
                         if self.command_handler:
@@ -153,7 +153,7 @@ class TCPServer:
         if self.client_socket:
             try:
                 self.client_socket.sendall((message + '\n').encode('utf-8'))
-                logger.info(f"发送响应: {message}")
+                # logger.info(f"发送响应: {message}")
             except Exception as e:
                 logger.error(f"发送响应失败: {e}")
     

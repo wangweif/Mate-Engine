@@ -39,7 +39,7 @@ class PPTHost:
     
     def _on_slide_changed(self, slide_number: int):
         """幻灯片切换事件处理"""
-        logger.info(f"幻灯片切换到第 {slide_number} 张")
+        # logger.info(f"幻灯片切换到第 {slide_number} 张")
         self.tcp_server.send_event(f"SLIDE_CHANGED|{slide_number}")
     
     def _on_presentation_closed(self):
@@ -138,10 +138,10 @@ class PPTHost:
         
         signal.signal(signal.SIGINT, signal_handler)
         
-        logger.info("=" * 50)
+        # logger.info("=" * 50)
         logger.info("  PPT Host - Python 版本")
         logger.info("  监听端口: 45678")
-        logger.info("=" * 50)
+        # logger.info("=" * 50)
         
         # 检测已安装的演示软件
         from ppt_detector import PPTApplicationDetector

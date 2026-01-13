@@ -1,13 +1,46 @@
 """
 日志配置模块
 
-提供统一的日志配置,支持控制台和文件输出
+提供统一的日志配置,支持控制台、文件和 SLS 输出
 """
 import logging
 import sys
 import os
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
+from typing import Optional, Dict
+
+# 加载 .env 文件
+_env_loaded = False
+try:
+    from dotenv import load_dotenv
+    
+    # 确定 .env 文件的搜索路径
+    env_paths = []
+    
+    # 1. 如果是打包后的 exe,优先从可执行文件所在目录加载
+    if getattr(sys, 'frozen', False):
+        # 打包后:可执行文件所在目录
+        exe_dir = Path(sys.executable).parent
+        env_paths.append(exe_dir / ".env")
+    else:
+        # 开发环境:项目根目录 (src 的父目录)
+        env_paths.append(Path(__file__).parent.parent / ".env")
+    
+    # 2. 当前工作目录 (无论开发还是打包都检查)
+    env_paths.append(Path.cwd() / ".env")
+    
+    # 3. 尝试加载第一个存在的 .env 文件
+    for env_path in env_paths:
+        if env_path.exists():
+            load_dotenv(env_path, override=True)
+            _env_loaded = True
+            break
+            
+except ImportError:
+    pass
+except Exception:
+    pass
 
 
 def _get_log_directory() -> Path:
@@ -30,6 +63,41 @@ def _get_log_directory() -> Path:
         log_dir = Path(__file__).parent.parent / "logs"
     
     return log_dir
+
+
+def _get_sls_config() -> Optional[Dict[str, str]]:
+    """
+    从环境变量获取 SLS 配置
+    
+    Returns:
+        SLS 配置字典,如果未启用则返回 None
+    """
+    # 检查是否启用 SLS
+    if os.getenv("SLS_ENABLED", "false").lower() != "true":
+        return None
+    
+    # 读取必需的配置项
+    config = {
+        "access_key_id": os.getenv("SLS_ACCESS_KEY_ID", ""),
+        "access_key_secret": os.getenv("SLS_ACCESS_KEY_SECRET", ""),
+        "endpoint": os.getenv("SLS_ENDPOINT", ""),
+        "project": os.getenv("SLS_PROJECT", ""),
+        "logstore": os.getenv("SLS_LOGSTORE", ""),
+    }
+    
+    # 可选配置项
+    config["topic"] = os.getenv("SLS_TOPIC", "")
+    config["source"] = os.getenv("SLS_SOURCE", "PPTHost")
+    config["min_level"] = os.getenv("SLS_MIN_LEVEL", "INFO")
+    config["batch_size"] = int(os.getenv("SLS_BATCH_SIZE", "10"))
+    config["flush_interval"] = float(os.getenv("SLS_FLUSH_INTERVAL", "5.0"))
+    
+    # 验证必需配置
+    required_keys = ["access_key_id", "access_key_secret", "endpoint", "project", "logstore"]
+    if not all(config[key] for key in required_keys):
+        return None
+    
+    return config
 
 
 def setup_logger(name: str = "PPTHost", log_level: int = logging.INFO) -> logging.Logger:
@@ -85,5 +153,35 @@ def setup_logger(name: str = "PPTHost", log_level: int = logging.INFO) -> loggin
         # 如果创建日志文件失败,只输出到控制台
         logger.warning(f"无法创建日志文件: {e},日志将仅输出到控制台")
     
+    # SLS 处理器 (可选)
+    try:
+        sls_config = _get_sls_config()
+        if sls_config:
+            from sls_handler import SLSHandler
+            
+            # 解析日志级别
+            min_level_str = sls_config.get("min_level", "INFO")
+            min_level = getattr(logging, min_level_str.upper(), logging.INFO)
+            
+            # 创建 SLS Handler
+            sls_handler = SLSHandler(
+                access_key_id=sls_config["access_key_id"],
+                access_key_secret=sls_config["access_key_secret"],
+                endpoint=sls_config["endpoint"],
+                project=sls_config["project"],
+                logstore=sls_config["logstore"],
+                topic=sls_config.get("topic", ""),
+                source=sls_config.get("source", "PPTHost"),
+                batch_size=sls_config.get("batch_size", 10),
+                flush_interval=sls_config.get("flush_interval", 5.0)
+            )
+            sls_handler.setLevel(min_level)
+            sls_handler.setFormatter(formatter)
+            logger.addHandler(sls_handler)
+            
+            logger.info(f"SLS 日志已启用: {sls_config['project']}/{sls_config['logstore']}")
+    except Exception as e:
+        # SLS 初始化失败不影响其他日志输出
+        logger.warning(f"SLS 日志初始化失败: {e},将仅使用本地日志")
+    
     return logger
-

@@ -157,7 +157,7 @@ class PowerPointController:
                     """幻灯片切换事件 - 只设置标志位,不执行 Close/Quit"""
                     try:
                         current = Wn.View.Slide.SlideIndex
-                        logger.info(f"幻灯片切换到第 {current} 张")
+                        # logger.info(f"幻灯片切换到第 {current} 张")
                         if controller_ref.on_slide_changed:
                             controller_ref.on_slide_changed(current)
                     except Exception as e:
@@ -165,7 +165,7 @@ class PowerPointController:
                 
                 def OnSlideShowEnd(self, Pres):
                     """演示结束事件 - 只设置标志位,不执行 Close/Quit"""
-                    logger.info("演示已结束")
+                    # logger.info("演示已结束")
                     controller_ref._need_close = True
                     if controller_ref.on_presentation_closed:
                         controller_ref.on_presentation_closed()
@@ -246,7 +246,7 @@ class PowerPointController:
         try:
             self.slideshow_window.View.Next()
             current = self._get_current_slide_index()
-            logger.info(f"下一张 -> {current}")
+            # logger.info(f"下一张 -> {current}")
             return current
         except Exception as e:
             logger.error(f"下一张失败: {e}")
@@ -265,7 +265,7 @@ class PowerPointController:
         try:
             self.slideshow_window.View.Previous()
             current = self._get_current_slide_index()
-            logger.info(f"上一张 -> {current}")
+            # logger.info(f"上一张 -> {current}")
             return current
         except Exception as e:
             logger.error(f"上一张失败: {e}")
@@ -286,7 +286,7 @@ class PowerPointController:
         
         try:
             self.slideshow_window.View.GotoSlide(slide_number)
-            logger.info(f"跳转到第 {slide_number} 张")
+            # logger.info(f"跳转到第 {slide_number} 张")
             return slide_number
         except Exception as e:
             logger.error(f"跳转失败: {e}")
