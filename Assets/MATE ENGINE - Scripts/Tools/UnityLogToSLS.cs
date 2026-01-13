@@ -1,14 +1,17 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.NetworkInformation;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Aliyun.Api.LogService;
 using Aliyun.Api.LogService.Domain.Log;
 using Aliyun.Api.LogService.Infrastructure.Protocol;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace MATE_ENGINE___Scripts.Tools
 {
@@ -374,27 +377,39 @@ namespace MATE_ENGINE___Scripts.Tools
         
         public static string GetMacAddress()
         {
-            // 方法1：获取第一个活动的物理网卡MAC地址
             try
             {
-                var networkInterfaces = NetworkInterface.GetAllNetworkInterfaces()
-                    .Where(nic => nic.NetworkInterfaceType == NetworkInterfaceType.Ethernet || 
-                                  nic.NetworkInterfaceType == NetworkInterfaceType.Wireless80211)
-                    .Where(nic => nic.OperationalStatus == OperationalStatus.Up)
-                    .ToList();
-
-                if (networkInterfaces.Count > 0)
+                ProcessStartInfo startInfo = new ProcessStartInfo
                 {
-                    var firstNic = networkInterfaces[0];
-                    return firstNic.GetPhysicalAddress().ToString();
+                    FileName = "cmd.exe",
+                    Arguments = "/c wmic csproduct get uuid",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+
+                using (Process process = Process.Start(startInfo))
+                {
+                    string output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit();
+                
+                    // 使用正则表达式提取UUID
+                    string pattern = @"[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}";
+                    Match match = Regex.Match(output, pattern);
+                
+                    if (match.Success)
+                    {
+                        // 去掉所有"-"分隔符
+                        return match.Value.Replace("-", "");
+                    }
                 }
             }
-            catch (System.Exception e)
+            catch
             {
-                Debug.LogWarning("获取MAC地址失败: " + e.Message);
+                // 发生异常时返回空字符串
             }
-
-            return "获取MAC地址失败";
+        
+            return string.Empty;
         }
     }
 }
