@@ -689,14 +689,17 @@ namespace MATE_ENGINE___Scripts.Tools
             pptListScrollRect = scrollObj.AddComponent<ScrollRect>();
             pptListScrollRect.horizontal = false;
             pptListScrollRect.vertical = true;
+            pptListScrollRect.scrollSensitivity = 20f;
 
             Image scrollBg = scrollObj.AddComponent<Image>();
-            if (roundedListSprite != null)
+            Sprite roundedCornerSprite = Resources.Load<Sprite>("圆角矩形");
+            if (roundedCornerSprite != null)
             {
-                scrollBg.sprite = roundedListSprite;
+                scrollBg.sprite = roundedCornerSprite;
                 scrollBg.type = Image.Type.Sliced;
             }
-            scrollBg.color = new Color(0f, 0f, 0f, 0f);
+            scrollBg.color = new Color(41f/255f, 58f/255f, 108f/255f, 1f);
+            scrollBg.raycastTarget = false;
             
             // 添加滚动视图边框
             Outline scrollOutline = scrollObj.AddComponent<Outline>();
@@ -713,11 +716,11 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             viewportRect.anchorMin = Vector2.zero;
             viewportRect.anchorMax = Vector2.one;
-            viewportRect.offsetMin = Vector2.zero;
-            viewportRect.offsetMax = Vector2.zero;
+            viewportRect.offsetMin = new Vector2(8, 15);
+            viewportRect.offsetMax = new Vector2(-8, -15);
 
             Image viewportMask = viewport.AddComponent<Image>();
-            viewportMask.color = new Color(0.15f, 0.16f, 0.20f, 1f);
+            viewportMask.color = new Color(1f, 1f, 1f, 1f);
             Mask mask = viewport.AddComponent<Mask>();
             mask.showMaskGraphic = false;
 
@@ -740,7 +743,7 @@ namespace MATE_ENGINE___Scripts.Tools
             contentLayout.childForceExpandWidth = true;
             contentLayout.childControlHeight = false;
             contentLayout.spacing = 5;
-            contentLayout.padding = new RectOffset(5, 5, 5, 5);
+            contentLayout.padding = new RectOffset(2, 2, 2, 2);
 
             ContentSizeFitter contentFitter = pptListContent.AddComponent<ContentSizeFitter>();
             contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
