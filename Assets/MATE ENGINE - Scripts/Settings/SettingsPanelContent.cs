@@ -157,7 +157,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 dropdownBg.type = Image.Type.Sliced;
                 dropdownBg.pixelsPerUnitMultiplier = 2f;
             }
-            dropdownBg.color = new Color(0.18f, 0.20f, 0.25f, 1f);
+            dropdownBg.color = new Color(41f/255f, 58f/255f, 108f/255f, 1f);
 
             // 添加下拉框组件
             versionDropdown = dropdownObj.AddComponent<TMP_Dropdown>();
@@ -300,7 +300,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 scrollBg.type = Image.Type.Sliced;
             }
             // 更新日志滚动区域背景：与下拉框一致
-            scrollBg.color = new Color(0.18f, 0.20f, 0.25f, 1f);
+            scrollBg.color = new Color(41f/255f, 58f/255f, 108f/255f, 1f);
             scrollBg.raycastTarget = false;
 
             // 创建视口
