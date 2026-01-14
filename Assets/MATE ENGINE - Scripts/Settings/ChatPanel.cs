@@ -332,79 +332,22 @@ namespace MATE_ENGINE___Scripts.Tools
             panelRect.offsetMax = Vector2.zero;
             panelRect.anchoredPosition = Vector2.zero;
 
-            // 添加圆角遮罩(如果存在mask.png)
-            Sprite maskSprite = Resources.Load<Sprite>("mask");
-            if (maskSprite != null)
+            // 设置主面板背景图片
+            Image panelBg = mainPanel.AddComponent<Image>();
+            Sprite backgroundUiSprite = Resources.Load<Sprite>("background");
+            if (backgroundUiSprite != null)
             {
-                // 直接在主面板上添加Mask组件
-                Image panelBg = mainPanel.AddComponent<Image>();
-                panelBg.sprite = maskSprite;
+                panelBg.sprite = backgroundUiSprite;
                 panelBg.type = Image.Type.Sliced;
                 panelBg.color = Color.white;
-                panelBg.raycastTarget = true;
-
-                Mask panelMask = mainPanel.AddComponent<Mask>();
-                panelMask.showMaskGraphic = false; // 不显示遮罩图片
-
-                // 创建背景层显示原来的背景图
-                GameObject bgLayerObj = new GameObject("BackgroundLayer");
-                bgLayerObj.transform.SetParent(mainPanel.transform, false);
-                RectTransform bgLayerRect = bgLayerObj.AddComponent<RectTransform>();
-                bgLayerRect.anchorMin = Vector2.zero;
-                bgLayerRect.anchorMax = Vector2.one;
-                bgLayerRect.offsetMin = Vector2.zero;
-                bgLayerRect.offsetMax = Vector2.zero;
-                bgLayerObj.transform.SetAsFirstSibling(); // 最底层
-
-                Image bgLayerImg = bgLayerObj.AddComponent<Image>();
-                Sprite settingsBackgroundSprite = Resources.Load<Sprite>("settingsBackground");
-                if (settingsBackgroundSprite != null)
-                {
-                    bgLayerImg.sprite = settingsBackgroundSprite;
-                    bgLayerImg.color = Color.white;
-                }
-                bgLayerImg.raycastTarget = false;
-
-                // 创建边框层(使用圆角矩形.png) - 作为主面板的子对象，但不参与Mask裁剪
-                borderLayer = new GameObject("BorderLayer");
-                borderLayer.transform.SetParent(mainPanel.transform, false);
-                RectTransform borderRect = borderLayer.AddComponent<RectTransform>();
-                borderRect.anchorMin = Vector2.zero;
-                borderRect.anchorMax = Vector2.one;
-                borderRect.offsetMin = new Vector2(-2, -2); // 比主面板大，显示边框
-                borderRect.offsetMax = new Vector2(2, 2);
-                borderLayer.transform.SetAsFirstSibling(); // 最底层
-
-                Image borderImg = borderLayer.AddComponent<Image>();
-                Sprite roundedRectSprite = Resources.Load<Sprite>("圆角矩形");
-                if (roundedRectSprite != null)
-                {
-                    borderImg.sprite = roundedRectSprite;
-                    borderImg.type = Image.Type.Sliced;
-                    borderImg.color = new Color(0.3f, 0.4f, 0.6f, 1f); // 边框颜色
-                }
-                else
-                {
-                    // 如果没有圆角矩形.png,使用mask.png作为边框
-                    borderImg.sprite = maskSprite;
-                    borderImg.type = Image.Type.Sliced;
-                    borderImg.color = new Color(0.3f, 0.4f, 0.6f, 1f);
-                }
-                borderImg.raycastTarget = false;
-                borderImg.maskable = false; // 关键：不参与Mask裁剪
-
-                Debug.Log("[ChatPanel] 已添加边框、圆角遮罩和背景层");
+                Debug.Log("[ChatPanel] 已设置backgroundui.png作为主面板背景");
             }
             else
             {
-                // 如果没有mask.png,直接使用背景图
-                Image panelBg = mainPanel.AddComponent<Image>();
-                Sprite settingsBackgroundSprite = Resources.Load<Sprite>("settingsBackground");
-                panelBg.sprite = settingsBackgroundSprite;
-                panelBg.color = Color.white;
-                panelBg.raycastTarget = true;
-                Debug.LogWarning("[ChatPanel] 未找到mask.png,使用普通背景");
+                Debug.LogWarning("[ChatPanel] 未找到Resources/backgroundui.png,使用默认背景");
+                panelBg.color = new Color(0.15f, 0.16f, 0.20f, 1f);
             }
+            panelBg.raycastTarget = true;
 
             // 确保主面板阻塞射线
             CanvasGroup panelCanvasGroup = mainPanel.AddComponent<CanvasGroup>();
@@ -457,32 +400,17 @@ namespace MATE_ENGINE___Scripts.Tools
             titleRect.anchorMax = new Vector2(1, 1);
             titleRect.pivot = new Vector2(0.5f, 1);
             titleRect.anchoredPosition = Vector2.zero;
-            titleRect.sizeDelta = new Vector2(0, 60); // 固定高度60，宽度自适应
+            titleRect.sizeDelta = new Vector2(0, 40); // 固定高度40，宽度自适应
 
             // 添加LayoutElement确保标题栏在布局中的优先级
             LayoutElement titleLayout = titleBar.AddComponent<LayoutElement>();
-            titleLayout.minHeight = 60;
-            titleLayout.preferredHeight = 60;
+            titleLayout.minHeight = 40;
+            titleLayout.preferredHeight = 40;
             titleLayout.flexibleWidth = 1; // 宽度可以伸缩
 
             Image titleBg = titleBar.AddComponent<Image>();
-            Sprite titleBgSprite = Resources.Load<Sprite>("titleBackground");
-            if (titleBgSprite != null)
-            {
-                titleBg.sprite = titleBgSprite;
-            }
-
-            // 创建标题底部分隔线
-            GameObject titleBorder = new GameObject("TitleBorder");
-            titleBorder.transform.SetParent(titleBar.transform, false);
-            RectTransform borderRect = titleBorder.AddComponent<RectTransform>();
-            borderRect.anchorMin = new Vector2(0, 0);
-            borderRect.anchorMax = new Vector2(1, 0);
-            borderRect.pivot = new Vector2(0.5f, 0);
-            borderRect.anchoredPosition = Vector2.zero;
-            borderRect.sizeDelta = new Vector2(0, 2);
-            Image borderImg = titleBorder.AddComponent<Image>();
-            borderImg.color = new Color(0.3f, 0.4f, 0.6f, 0.5f);
+            // 设置标题栏背景为透明
+            titleBg.color = new Color(1f, 1f, 1f, 0f); // 完全透明
 
             GameObject titleText = new GameObject("TitleText");
             titleText.transform.SetParent(titleBar.transform, false);
@@ -494,7 +422,7 @@ namespace MATE_ENGINE___Scripts.Tools
             }
             titleTextRect.anchorMin = Vector2.zero;
             titleTextRect.anchorMax = Vector2.one;
-            titleTextRect.offsetMin = new Vector2(20, 0);
+            titleTextRect.offsetMin = new Vector2(20, -20); // 左边距20，距离上边框10像素
             titleTextRect.offsetMax = new Vector2(-20, 0);
 
             TMP_Text title = titleText.AddComponent<TextMeshProUGUI>();
@@ -803,12 +731,12 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 closeRect = closeBtnObj.AddComponent<RectTransform>();
             }
-            // 定位在标题栏右侧，垂直居中
-            closeRect.anchorMin = new Vector2(1, 0.5f);
-            closeRect.anchorMax = new Vector2(1, 0.5f);
-            closeRect.pivot = new Vector2(1, 0.5f);
-            closeRect.anchoredPosition = new Vector2(-15, 0);
-            closeRect.sizeDelta = new Vector2(45, 45);
+            // 定位在右上角，距离上边框和右边框各10像素
+            closeRect.anchorMin = new Vector2(1, 1);
+            closeRect.anchorMax = new Vector2(1, 1);
+            closeRect.pivot = new Vector2(1, 1);
+            closeRect.anchoredPosition = new Vector2(-10, -10);
+            closeRect.sizeDelta = new Vector2(40, 40);
 
             closeButton = closeBtnObj.AddComponent<Button>();
             Image closeImage = closeBtnObj.AddComponent<Image>();
