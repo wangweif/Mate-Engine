@@ -42,9 +42,10 @@ namespace MATE_ENGINE___Scripts.Tools
         public GameObject aiMessagePrefab;
 
         // 气泡设置 - 与AdvancedChatManager场景中的实际配置相同
-        private float maxBubbleWidth = 700f;  // 气泡最大宽度
+        private float maxBubbleWidth = 0f;  // 气泡最大宽度，将根据容器宽度动态计算
         private float minBubbleWidth = 0f;      // 场景中的实际值
-        private float bubblePadding = 20f;
+        private float bubblePadding = 20f;      // 气泡内边距
+        private float messageContainerPadding = 20f;  // 消息容器与边框的边距
         private float userMessageRightMargin = 20f;
         private float aiMessageLeftMargin = 20f;
         private float messageSpacing = 12f;
@@ -76,6 +77,9 @@ namespace MATE_ENGINE___Scripts.Tools
 
         // 私有字段
         private float containerWidth;
+        private float lastCheckedContainerWidth;  // 上次检查的容器宽度
+        private float lastRefreshTime;  // 上次刷新气泡的时间
+        private const float refreshCooldown = 0.1f;  // 刷新冷却时间（秒）
         private Animator avatarAnimator;
         private XunFeiSpeechService xunFeiSpeechService;
         private string currentSessionId = "";
@@ -132,6 +136,9 @@ namespace MATE_ENGINE___Scripts.Tools
                 RemoveLayoutComponents(messageContainer.gameObject);
             }
 
+            // 初始化刷新时间
+            lastRefreshTime = Time.time;
+
             // 计算容器宽度
             CalculateContainerWidth();
 
@@ -152,7 +159,6 @@ namespace MATE_ENGINE___Scripts.Tools
                 if (chatPanelField != null)
                 {
                     chatPanelField.SetValue(menuActions, mainPanel);
-                    Debug.Log("[ChatPanel] 已将ChatPanel注册到MenuActions");
                 }
                 else
                 {
@@ -207,7 +213,6 @@ namespace MATE_ENGINE___Scripts.Tools
             ttsAudioSource.spatialBlend = 0.0f;            // 2D声音
 
             DontDestroyOnLoad(audioSourceObj);
-            Debug.Log($"[ChatPanel] 已创建专用TTS AudioSource, 名称: {ttsAudioSource.gameObject.name}, 音量: {ttsAudioSource.volume}");
         }
 
         void InitializeComponents()
@@ -584,7 +589,8 @@ namespace MATE_ENGINE___Scripts.Tools
             containerRect.anchorMax = new Vector2(1, 1);
             containerRect.pivot = new Vector2(0.5f, 1);
             containerRect.anchoredPosition = Vector2.zero;
-            containerRect.sizeDelta = new Vector2(0, 100);
+            // 设置容器的左右边距，确保气泡与边框保持20像素距离
+            containerRect.sizeDelta = new Vector2(-messageContainerPadding * 2, 100);
 
             messageContainer = containerRect;
             scrollRect.content = containerRect;
@@ -867,9 +873,126 @@ namespace MATE_ENGINE___Scripts.Tools
         {
             if (messageContainer != null)
             {
-                containerWidth = messageContainer.rect.width;
-                Debug.Log($"容器宽度: {containerWidth}");
+                float newWidth = messageContainer.rect.width;
+
+                // 检查容器宽度是否发生变化（超过1像素）
+                if (Mathf.Abs(newWidth - lastCheckedContainerWidth) > 1f)
+                {
+                    containerWidth = newWidth;
+                    lastCheckedContainerWidth = newWidth;
+                    // 计算气泡最大宽度：容器宽度 - 左右边距（各20像素）
+                    maxBubbleWidth = containerWidth - (messageContainerPadding * 2);
+
+                    // 检查冷却时间，避免频繁刷新
+                    if (Time.time - lastRefreshTime >= refreshCooldown)
+                    {
+                        // 容器宽度变化时，重新调整所有现有气泡的尺寸
+                        RefreshAllMessagesSize();
+                        lastRefreshTime = Time.time;
+                    }
+                }
             }
+        }
+
+        /// <summary>
+        /// 刷新所有消息气泡的尺寸（当容器宽度变化时调用）
+        /// </summary>
+        void RefreshAllMessagesSize()
+        {
+            if (messageContainer == null) return;
+
+            // 使用单次协程刷新所有气泡，避免启动太多协程
+            StartCoroutine(RefreshAllMessagesSizeCoroutine());
+        }
+
+        /// <summary>
+        /// 协程：延迟刷新所有消息气泡尺寸
+        /// </summary>
+        IEnumerator RefreshAllMessagesSizeCoroutine()
+        {
+            // 等待一帧，确保布局更新完成
+            yield return new WaitForEndOfFrame();
+
+            int updatedCount = 0;
+
+            // 遍历所有子对象（消息气泡）
+            for (int i = 0; i < messageContainer.childCount; i++)
+            {
+                Transform child = messageContainer.GetChild(i);
+                if (child != null)
+                {
+                    // 直接更新气泡尺寸，不启动新协程
+                    UpdateBubbleSizeImmediate(child.gameObject);
+                    updatedCount++;
+                }
+            }
+
+            // 更新完所有气泡后，重新排列位置
+            UpdateAllMessagesVerticalPosition();
+            ScrollToBottom();
+        }
+
+        /// <summary>
+        /// 立即更新气泡尺寸（不使用协程，用于批量刷新）
+        /// </summary>
+        void UpdateBubbleSizeImmediate(GameObject bubble)
+        {
+            if (bubble == null) return;
+
+            TMP_Text textComponent = bubble.GetComponentInChildren<TMP_Text>();
+            RectTransform bubbleRect = bubble.GetComponent<RectTransform>();
+
+            if (textComponent == null || bubbleRect == null) return;
+
+            bool isUserMessage = bubbleRect.anchorMin.x > 0.5f;
+
+            // 设置锚点
+            if (isUserMessage)
+            {
+                bubbleRect.anchorMin = new Vector2(1, 1);
+                bubbleRect.anchorMax = new Vector2(1, 1);
+                bubbleRect.pivot = new Vector2(1, 1);
+            }
+            else
+            {
+                bubbleRect.anchorMin = new Vector2(0, 1);
+                bubbleRect.anchorMax = new Vector2(0, 1);
+                bubbleRect.pivot = new Vector2(0, 1);
+            }
+
+            // 强制更新文本网格
+            textComponent.ForceMeshUpdate();
+
+            // 计算新的宽度和高度
+            float textWidth = textComponent.preferredWidth;
+            float bubbleWidth = Mathf.Clamp(textWidth + bubblePadding * 2, minBubbleWidth, maxBubbleWidth);
+
+            RectTransform textRect = textComponent.GetComponent<RectTransform>();
+            if (textRect != null)
+            {
+                float textWidthLimit = bubbleWidth - 30f;
+                textRect.sizeDelta = new Vector2(textWidthLimit, textRect.sizeDelta.y);
+            }
+
+            // 重新计算文本高度
+            textComponent.ForceMeshUpdate();
+            float textHeight = textComponent.preferredHeight;
+            float fontSize = textComponent.fontSize;
+            float textPadding = 30f;
+            float singleLineHeight = fontSize + textPadding;
+            float bubbleHeight = textHeight + textPadding;
+
+            if (bubbleHeight < singleLineHeight)
+            {
+                bubbleHeight = singleLineHeight;
+            }
+
+            // 应用新尺寸
+            bubbleRect.sizeDelta = new Vector2(bubbleWidth, bubbleHeight);
+
+            // 设置水平位置
+            float xPos = isUserMessage ? -userMessageRightMargin : aiMessageLeftMargin;
+            bubbleRect.anchoredPosition = new Vector2(xPos, bubbleRect.anchoredPosition.y);
         }
 
         void OnDestroy()
@@ -901,6 +1024,8 @@ namespace MATE_ENGINE___Scripts.Tools
             if (mainPanel != null)
             {
                 mainPanel.SetActive(true);
+                // 面板打开时重新计算容器宽度
+                StartCoroutine(RecalculateContainerWidthDelayed());
                 StartCoroutine(FocusInputFieldDelayed());
             }
         }
@@ -932,11 +1057,30 @@ namespace MATE_ENGINE___Scripts.Tools
             return mainPanel != null && mainPanel.activeSelf;
         }
 
+        /// <summary>
+        /// 手动强制刷新所有消息气泡的尺寸
+        /// 可以在外部调用，例如窗口大小改变后
+        /// </summary>
+        public void ForceRefreshAllMessages()
+        {
+            CalculateContainerWidth();
+            RefreshAllMessagesSize();
+        }
+
         void OnMainPanelClicked(PointerEventData eventData)
         {
             // 可以在这里处理面板点击事件
             // 例如：取消消息选中状态等
             Debug.Log("主面板被点击");
+        }
+
+        IEnumerator RecalculateContainerWidthDelayed()
+        {
+            // 等待两帧，确保UI布局完成
+            yield return new WaitForEndOfFrame();
+            yield return new WaitForEndOfFrame();
+
+            CalculateContainerWidth();
         }
 
         IEnumerator FocusInputFieldDelayed()
@@ -1163,6 +1307,12 @@ namespace MATE_ENGINE___Scripts.Tools
             RectTransform bubbleRect = bubble.GetComponent<RectTransform>();
 
             if (textComponent == null || bubbleRect == null) yield break;
+
+            // 如果气泡最大宽度未初始化，重新计算
+            if (maxBubbleWidth <= 0f)
+            {
+                CalculateContainerWidth();
+            }
 
             bool isUserMessage = bubbleRect.anchorMin.x > 0.5f;
 
@@ -2103,9 +2253,16 @@ namespace MATE_ENGINE___Scripts.Tools
 
         void Update()
         {
+            // 检测回车键发送消息
             if (Input.GetKeyDown(KeyCode.Return) && inputField != null && inputField.isFocused)
             {
                 SendMessage();
+            }
+
+            // 定期检测容器宽度变化（当面板打开时）
+            if (mainPanel != null && mainPanel.activeSelf && messageContainer != null)
+            {
+                CalculateContainerWidth();
             }
         }
     }
