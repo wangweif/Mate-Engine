@@ -198,3 +198,7 @@ Assets/StreamingAssets/undreamai-*
 *.backup
 *.backup1
 *.backup2
+
+# 配置文件（个人设置或敏感信息）
+Assets/Resources/SLSConfig.json
+Assets/Resources/SLSConfig.json.meta
