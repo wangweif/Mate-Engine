@@ -11,6 +11,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Reflection;
+using Unity.VisualScripting;
 
 namespace MATE_ENGINE___Scripts.Tools
 {
@@ -886,7 +887,7 @@ namespace MATE_ENGINE___Scripts.Tools
             configOverlayOriginalAnchorMax = configOverlayRect.anchorMax;
 
             Image overlayBg = configOverlay.AddComponent<Image>();
-            overlayBg.color = new Color(0f, 0f, 0f, 0.6f);
+            overlayBg.color = new Color(0f, 0f, 0f, 0f);
 
             configPanel = new GameObject("ConfigPanel");
             configPanel.transform.SetParent(configOverlay.transform, false);
@@ -942,6 +943,8 @@ namespace MATE_ENGINE___Scripts.Tools
                 configPanelBg.raycastTarget = true;
 
                 Mask configPanelMask = configPanel.AddComponent<Mask>();
+                DragHandler configPanelMaskDrag = configPanelMask.AddComponent<DragHandler>();
+                configPanelMaskDrag.dragSmooth = 10f;
                 configPanelMask.showMaskGraphic = false; // 不显示遮罩图片
 
                 // 创建背景层显示原来的背景色

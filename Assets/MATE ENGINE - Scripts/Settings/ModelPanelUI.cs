@@ -547,13 +547,13 @@ namespace MATE_ENGINE___Scripts.Tools
             switch (baseName.ToLower())
             {
                 case "male01":
-                    return "男性";
+                    return "大静小怪";
                 case "female01":
-                    return "女性1";
+                    return "狐狸尾巴小可爱";
                 case "female02":
-                    return "女性2";
+                    return "嗨皮小胖子";
                 case "xiaozhi":
-                    return "小智";
+                    return "数字人小智";
                 default:
                     return "基础模型"; // 默认语音
             }
