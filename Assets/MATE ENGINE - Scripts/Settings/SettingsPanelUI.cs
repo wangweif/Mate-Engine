@@ -69,6 +69,10 @@ namespace MATE_ENGINE___Scripts.Tools
         public Button confirmConfigButton;
         public Button cancelConfigButton;
         private GameObject configOverlay;
+        private RectTransform configOverlayRect;
+        private Vector2 configOverlayOriginalAnchorMin;
+        private Vector2 configOverlayOriginalAnchorMax;
+        private bool configOverlayExpanded = false;
         private TMP_Text pptPageCountLabel; // 显示PPT页数的文本组件
         private TextMeshProUGUI configParagraphNumberText;
         private bool configNumberScrollOffsetInitialized;
@@ -106,16 +110,20 @@ namespace MATE_ENGINE___Scripts.Tools
         // 全屏功能相关字段
         private bool isFullscreen = false;
 
-        // 备份原始状态
-        private Vector2 originalAnchorMin;
-        private Vector2 originalAnchorMax;
-        private Vector2 originalOffsetMin;
-        private Vector2 originalOffsetMax;
+        // 全屏功能备份的原始状态(仅用于configPanel)
+        private Vector2 fullscreenOriginalAnchorMin;
+        private Vector2 fullscreenOriginalAnchorMax;
+        private Vector2 fullscreenOriginalOffsetMin;
+        private Vector2 fullscreenOriginalOffsetMax;
+        private Transform fullscreenOriginalParent;
+        private int fullscreenOriginalSiblingIndex;
+
+        // configOverlay扩展功能备份的原始状态(仅用于configOverlay)
+        private Transform overlayOriginalParent;
+        private int overlayOriginalSiblingIndex;
 
         // 备份演讲稿内容，用于生成失败时恢复
         private string[] backupSpeechContent;
-        private Transform originalParent;
-        private int originalSiblingIndex;
 
         // PPT列表项数据结构
         private class PPTListItem
@@ -863,7 +871,7 @@ namespace MATE_ENGINE___Scripts.Tools
 
             configOverlay = new GameObject("ConfigOverlay");
             configOverlay.transform.SetParent(mainPanel.transform, false);
-            RectTransform configOverlayRect = configOverlay.GetComponent<RectTransform>();
+            configOverlayRect = configOverlay.GetComponent<RectTransform>();
             if (configOverlayRect == null)
             {
                 configOverlayRect = configOverlay.AddComponent<RectTransform>();
@@ -872,6 +880,10 @@ namespace MATE_ENGINE___Scripts.Tools
             configOverlayRect.anchorMax = Vector2.one;
             configOverlayRect.offsetMin = Vector2.zero;
             configOverlayRect.offsetMax = Vector2.zero;
+
+            // 备份原始anchor值
+            configOverlayOriginalAnchorMin = configOverlayRect.anchorMin;
+            configOverlayOriginalAnchorMax = configOverlayRect.anchorMax;
 
             Image overlayBg = configOverlay.AddComponent<Image>();
             overlayBg.color = new Color(0f, 0f, 0f, 0.6f);
@@ -889,18 +901,74 @@ namespace MATE_ENGINE___Scripts.Tools
             configPanelRect.anchoredPosition = Vector2.zero;
             configPanelRect.sizeDelta = new Vector2(1000, 650);
 
-            Image configPanelBg = configPanel.AddComponent<Image>();
-            configPanelBg.color = new Color(0.1608f, 0.1922f, 0.3725f, 1f);
-            
-            // 添加配置面板边框
-            Outline configOutline = configPanel.AddComponent<Outline>();
-            configOutline.effectColor = new Color(0.35f, 0.45f, 0.65f, 0.6f);
-            configOutline.effectDistance = new Vector2(2, -2);
-            
-            // 添加配置面板阴影
-            Shadow configShadow = configPanel.AddComponent<Shadow>();
-            configShadow.effectColor = new Color(0, 0, 0, 0.5f);
-            configShadow.effectDistance = new Vector2(0, 8);
+            // 添加圆角遮罩和边框(与主面板保持一致)
+            Sprite maskSprite = Resources.Load<Sprite>("mask");
+            if (maskSprite != null)
+            {
+                // 先创建边框层(必须在添加Mask之前)
+                GameObject configBorderLayer = new GameObject("ConfigBorderLayer");
+                configBorderLayer.transform.SetParent(configPanel.transform, false);
+                RectTransform configBorderRect = configBorderLayer.AddComponent<RectTransform>();
+                configBorderRect.anchorMin = Vector2.zero;
+                configBorderRect.anchorMax = Vector2.one;
+                configBorderRect.pivot = new Vector2(0.5f, 0.5f);
+                configBorderRect.anchoredPosition = Vector2.zero;
+                // 边框比面板大，向四周扩展
+                configBorderRect.sizeDelta = new Vector2(4, 4); // 比面板大4像素（每边2像素）
+
+                Image configBorderImg = configBorderLayer.AddComponent<Image>();
+                Sprite roundedRectSprite = Resources.Load<Sprite>("圆角矩形");
+                if (roundedRectSprite != null)
+                {
+                    configBorderImg.sprite = roundedRectSprite;
+                    configBorderImg.type = Image.Type.Sliced;
+                    configBorderImg.color = new Color(0.3f, 0.4f, 0.6f, 1f); // 边框颜色
+                }
+                else
+                {
+                    // 如果没有圆角矩形.png,使用mask.png作为边框
+                    configBorderImg.sprite = maskSprite;
+                    configBorderImg.type = Image.Type.Sliced;
+                    configBorderImg.color = new Color(0.3f, 0.4f, 0.6f, 1f);
+                }
+                configBorderImg.raycastTarget = false; // 边框层不接收点击事件
+                configBorderImg.maskable = false; // 关键：不参与Mask裁剪
+
+                // 直接在配置面板上添加Mask组件
+                Image configPanelBg = configPanel.AddComponent<Image>();
+                configPanelBg.sprite = maskSprite;
+                configPanelBg.type = Image.Type.Sliced;
+                configPanelBg.color = Color.white;
+                configPanelBg.raycastTarget = true;
+
+                Mask configPanelMask = configPanel.AddComponent<Mask>();
+                configPanelMask.showMaskGraphic = false; // 不显示遮罩图片
+
+                // 创建背景层显示原来的背景色
+                GameObject configBgLayerObj = new GameObject("ConfigBackgroundLayer");
+                configBgLayerObj.transform.SetParent(configPanel.transform, false);
+                RectTransform configBgLayerRect = configBgLayerObj.AddComponent<RectTransform>();
+                configBgLayerRect.anchorMin = Vector2.zero;
+                configBgLayerRect.anchorMax = Vector2.one;
+                configBgLayerRect.offsetMin = Vector2.zero;
+                configBgLayerRect.offsetMax = Vector2.zero;
+
+                Image configBgLayerImg = configBgLayerObj.AddComponent<Image>();
+                configBgLayerImg.color = new Color(0.1608f, 0.1922f, 0.3725f, 1f); // 与原背景色一致
+                configBgLayerImg.raycastTarget = false; // 背景层不接收点击事件
+
+                // 将边框层移到最底层
+                configBorderLayer.transform.SetAsFirstSibling();
+
+                Debug.Log("[SettingsPanel] 已为ConfigPanel添加圆角遮罩和边框");
+            }
+            else
+            {
+                // 如果没有mask.png，使用原来的方式
+                Image configPanelBg = configPanel.AddComponent<Image>();
+                configPanelBg.color = new Color(0.1608f, 0.1922f, 0.3725f, 1f);
+                Debug.Log("[SettingsPanel] 未找到mask.png，ConfigPanel使用普通背景");
+            }
 
             // 演讲稿输入框标签和AI生成按钮容器
             GameObject labelContainer = new GameObject("LabelContainer");
@@ -2093,19 +2161,27 @@ namespace MATE_ENGINE___Scripts.Tools
         /// <param name="errorMessage">错误信息</param>
         void ShowErrorDialog(string errorMessage)
         {
-            // 创建错误对话框遮罩层
+            // 创建错误对话框遮罩层 - 直接放在parentCanvas下以置顶显示
             GameObject errorOverlay = new GameObject("ErrorDialogOverlay");
-            errorOverlay.transform.SetParent(mainPanel.transform, false);
+            errorOverlay.transform.SetParent(parentCanvas.transform, false);
             RectTransform overlayRect = errorOverlay.AddComponent<RectTransform>();
             overlayRect.anchorMin = Vector2.zero;
             overlayRect.anchorMax = Vector2.one;
             overlayRect.offsetMin = Vector2.zero;
             overlayRect.offsetMax = Vector2.zero;
+            overlayRect.localScale = Vector3.one; // 确保不被缩放
+
+            // 设置更高的sortingOrder以确保在最上层
+            Canvas overlayCanvas = errorOverlay.AddComponent<Canvas>();
+            overlayCanvas.overrideSorting = true;
+            overlayCanvas.sortingOrder = canvasSortingOrder + 100; // 比主面板更高
+
+            GraphicRaycaster raycaster = errorOverlay.AddComponent<GraphicRaycaster>();
 
             Image overlayBg = errorOverlay.AddComponent<Image>();
-            overlayBg.color = new Color(0f, 0f, 0f, 0.7f);
+            overlayBg.color = new Color(0f, 0f, 0f, 0f); // 完全透明背景
 
-            // 创建错误对话框面板
+            // 创建错误对话框面板 - 使用与确认删除相同的样式
             GameObject errorPanel = new GameObject("ErrorPanel");
             errorPanel.transform.SetParent(errorOverlay.transform, false);
             RectTransform errorPanelRect = errorPanel.AddComponent<RectTransform>();
@@ -2113,69 +2189,63 @@ namespace MATE_ENGINE___Scripts.Tools
             errorPanelRect.anchorMax = new Vector2(0.5f, 0.5f);
             errorPanelRect.pivot = new Vector2(0.5f, 0.5f);
             errorPanelRect.anchoredPosition = Vector2.zero;
-            errorPanelRect.sizeDelta = new Vector2(500, 250);
+            errorPanelRect.sizeDelta = new Vector2(400, 200);
 
             Image errorPanelBg = errorPanel.AddComponent<Image>();
-            errorPanelBg.color = new Color(0.16f, 0.17f, 0.22f, 1f);
+            errorPanelBg.sprite = Resources.Load<Sprite>("settingsBackground");
 
-            // 添加边框和阴影
-            Outline errorOutline = errorPanel.AddComponent<Outline>();
-            errorOutline.effectColor = new Color(0.85f, 0.25f, 0.25f, 0.6f);
-            errorOutline.effectDistance = new Vector2(2, -2);
-
-            Shadow errorShadow = errorPanel.AddComponent<Shadow>();
-            errorShadow.effectColor = new Color(0, 0, 0, 0.5f);
-            errorShadow.effectDistance = new Vector2(0, 8);
-
-            // 创建标题文本
+            // 创建标题文本 - 调整位置避免超出
             GameObject titleObj = new GameObject("Title");
             titleObj.transform.SetParent(errorPanel.transform, false);
             RectTransform titleRect = titleObj.AddComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(0, 0.7f);
+            titleRect.anchorMin = new Vector2(0, 0.6f); // 从0.5调整到0.6
             titleRect.anchorMax = new Vector2(1, 0.9f);
             titleRect.offsetMin = new Vector2(20, 0);
-            titleRect.offsetMax = new Vector2(-20, -10);
+            titleRect.offsetMax = new Vector2(-20, -5); // 从-10调整到-5
 
             TMP_Text titleText = titleObj.AddComponent<TextMeshProUGUI>();
             titleText.text = "生成演讲稿失败";
-            titleText.fontSize = 24;
+            titleText.fontSize = 20; // 从22调整到20
             titleText.color = new Color(0.85f, 0.25f, 0.25f, 1f);
             titleText.alignment = TextAlignmentOptions.Center;
             titleText.fontStyle = FontStyles.Bold;
             FontManager.ApplyFont(titleText);
 
-            // 创建错误信息文本
+            // 创建错误信息文本 - 调整位置避免超出
             GameObject messageObj = new GameObject("Message");
             messageObj.transform.SetParent(errorPanel.transform, false);
             RectTransform messageRect = messageObj.AddComponent<RectTransform>();
-            messageRect.anchorMin = new Vector2(0, 0.3f);
-            messageRect.anchorMax = new Vector2(1, 0.7f);
+            messageRect.anchorMin = new Vector2(0, 0.25f); // 从0.1调整到0.25
+            messageRect.anchorMax = new Vector2(1, 0.6f); // 从0.5调整到0.6
             messageRect.offsetMin = new Vector2(20, 0);
             messageRect.offsetMax = new Vector2(-20, 0);
 
             TMP_Text messageText = messageObj.AddComponent<TextMeshProUGUI>();
             messageText.text = errorMessage;
-            messageText.fontSize = 18;
+            messageText.fontSize = 16; // 从18调整到16
             messageText.color = textColor;
             messageText.alignment = TextAlignmentOptions.Center;
             messageText.enableWordWrapping = true;
             FontManager.ApplyFont(messageText);
 
-            // 创建确定按钮
+            // 创建按钮容器 - 调整位置避免超出
             GameObject buttonContainer = new GameObject("ButtonContainer");
             buttonContainer.transform.SetParent(errorPanel.transform, false);
             RectTransform buttonContainerRect = buttonContainer.AddComponent<RectTransform>();
             buttonContainerRect.anchorMin = new Vector2(0, 0);
-            buttonContainerRect.anchorMax = new Vector2(1, 0.3f);
-            buttonContainerRect.offsetMin = new Vector2(20, 20);
-            buttonContainerRect.offsetMax = new Vector2(-20, 0);
+            buttonContainerRect.anchorMax = new Vector2(1, 0.25f); // 从0.1调整到0.25
+            buttonContainerRect.offsetMin = new Vector2(20, 15); // 从20调整到15
+            buttonContainerRect.offsetMax = new Vector2(-20, 5); // 添加底部偏移5
 
-            Button okBtn = CreateButton(buttonContainer.transform, "确定", new Vector2(100, 40), "buttonBackgroundBlue");
-            RectTransform okBtnRect = okBtn.GetComponent<RectTransform>();
-            okBtnRect.anchorMin = new Vector2(0.5f, 0);
-            okBtnRect.anchorMax = new Vector2(0.5f, 1);
-            okBtnRect.pivot = new Vector2(0.5f, 0.5f);
-            okBtnRect.anchoredPosition = Vector2.zero;
+            HorizontalLayoutGroup buttonLayout = buttonContainer.AddComponent<HorizontalLayoutGroup>();
+            buttonLayout.childForceExpandWidth = false;
+            buttonLayout.childForceExpandHeight = false;
+            buttonLayout.spacing = 20;
+            buttonLayout.padding = new RectOffset(0, 0, 0, 0);
+            buttonLayout.childAlignment = TextAnchor.MiddleCenter;
+
+            // 创建确定按钮 - 调整大小
+            Button okBtn = CreateButton(buttonContainer.transform, "确定", new Vector2(80, 40), "buttonBackgroundRed"); // 从100x50调整到80x40
             okBtn.onClick.AddListener(() => {
                 Destroy(errorOverlay);
             });
@@ -2258,6 +2328,9 @@ namespace MATE_ENGINE___Scripts.Tools
             // 显示配置面板
             if (configOverlay != null)
             {
+                // 先扩展遮罩层到整个Canvas
+                ExpandConfigOverlay();
+
                 configOverlay.SetActive(true);
                 
                 // 再等待一帧，确保面板激活完成
@@ -2387,6 +2460,7 @@ namespace MATE_ENGINE___Scripts.Tools
                     // 直接关闭配置面板，不保存任何更改
                     if (configOverlay != null)
                     {
+                        RestoreConfigOverlay();
                         configOverlay.SetActive(false);
                     }
                 }
@@ -2410,6 +2484,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 // 直接关闭配置面板，不保存任何更改
                 if (configOverlay != null)
                 {
+                    RestoreConfigOverlay();
                     configOverlay.SetActive(false);
                 }
             }
@@ -2423,6 +2498,7 @@ namespace MATE_ENGINE___Scripts.Tools
             yield return null;
             if (configOverlay != null)
             {
+                RestoreConfigOverlay();
                 configOverlay.SetActive(false);
             }
         }
@@ -2777,15 +2853,15 @@ namespace MATE_ENGINE___Scripts.Tools
 
            
             // 保存原始状态（在第一次进入全屏时）
-            if (originalParent == null)
+            if (fullscreenOriginalParent == null)
             {
-                originalParent = panelRect.parent;
+                fullscreenOriginalParent = panelRect.parent;
             }
-            originalSiblingIndex = panelRect.GetSiblingIndex();
-            originalAnchorMin = panelRect.anchorMin;
-            originalAnchorMax = panelRect.anchorMax;
-            originalOffsetMin = panelRect.offsetMin;
-            originalOffsetMax = panelRect.offsetMax;
+            fullscreenOriginalSiblingIndex = panelRect.GetSiblingIndex();
+            fullscreenOriginalAnchorMin = panelRect.anchorMin;
+            fullscreenOriginalAnchorMax = panelRect.anchorMax;
+            fullscreenOriginalOffsetMin = panelRect.offsetMin;
+            fullscreenOriginalOffsetMax = panelRect.offsetMax;
 
             configInputField.ActivateInputField();
             configInputField.MoveTextStart(false);      
@@ -2816,23 +2892,23 @@ namespace MATE_ENGINE___Scripts.Tools
         /// </summary>
         private IEnumerator ExitFullscreen()
         {
-            if (configPanel == null || originalParent == null) yield break;
+            if (configPanel == null || fullscreenOriginalParent == null) yield break;
 
             RectTransform panelRect = configPanel.GetComponent<RectTransform>();
             if (panelRect == null) yield break;
 
-           
+
             configInputField.ActivateInputField();
-            configInputField.MoveTextStart(false);      
-            Canvas.ForceUpdateCanvases(); 
+            configInputField.MoveTextStart(false);
+            Canvas.ForceUpdateCanvases();
             yield return null;
             yield return null;
             // 恢复原始状态
-            panelRect.SetParent(originalParent, true);
-            panelRect.anchorMin = originalAnchorMin;
-            panelRect.anchorMax = originalAnchorMax;
-            panelRect.offsetMin = originalOffsetMin;
-            panelRect.offsetMax = originalOffsetMax;
+            panelRect.SetParent(fullscreenOriginalParent, true);
+            panelRect.anchorMin = fullscreenOriginalAnchorMin;
+            panelRect.anchorMax = fullscreenOriginalAnchorMax;
+            panelRect.offsetMin = fullscreenOriginalOffsetMin;
+            panelRect.offsetMax = fullscreenOriginalOffsetMax;
 
             // 确保设置正确的位置
             panelRect.pivot = new Vector2(0.5f, 0.5f);
@@ -2875,6 +2951,55 @@ namespace MATE_ENGINE___Scripts.Tools
             Vector2 numberPos = numberRect.anchoredPosition;
             numberPos.y = configNumberScrollBaseAnchoredPos.y + deltaY;
             numberRect.anchoredPosition = numberPos;
+        }
+
+        /// <summary>
+        /// 扩大configOverlay的遮罩范围,使其超出mainPanel的边界
+        /// </summary>
+        private void ExpandConfigOverlay()
+        {
+            if (configOverlayRect == null || configOverlayExpanded)
+                return;
+
+            // 备份configOverlay的原始父对象和位置
+            overlayOriginalParent = configOverlay.transform.parent;
+            overlayOriginalSiblingIndex = configOverlay.transform.GetSiblingIndex();
+
+            // 将configOverlay临时提升到parentCanvas,使其可以覆盖整个Canvas
+            configOverlay.transform.SetParent(parentCanvas.transform, false);
+
+            // 设置为覆盖整个Canvas
+            configOverlayRect.anchorMin = Vector2.zero;
+            configOverlayRect.anchorMax = Vector2.one;
+            configOverlayRect.sizeDelta = Vector2.zero;
+            configOverlayRect.anchoredPosition = Vector2.zero;
+
+            configOverlayExpanded = true;
+
+            Debug.Log("[SettingsPanel] ConfigOverlay已扩展到整个Canvas");
+        }
+
+        /// <summary>
+        /// 恢复configOverlay的原始遮罩范围
+        /// </summary>
+        private void RestoreConfigOverlay()
+        {
+            if (configOverlayRect == null || !configOverlayExpanded)
+                return;
+
+            // 恢复到mainPanel下的原始位置
+            configOverlay.transform.SetParent(overlayOriginalParent, false);
+            configOverlay.transform.SetSiblingIndex(overlayOriginalSiblingIndex);
+
+            // 恢复原始anchor
+            configOverlayRect.anchorMin = configOverlayOriginalAnchorMin;
+            configOverlayRect.anchorMax = configOverlayOriginalAnchorMax;
+            configOverlayRect.offsetMin = Vector2.zero;
+            configOverlayRect.offsetMax = Vector2.zero;
+
+            configOverlayExpanded = false;
+
+            Debug.Log("[SettingsPanel] ConfigOverlay已恢复到原始范围");
         }
     }
 }
