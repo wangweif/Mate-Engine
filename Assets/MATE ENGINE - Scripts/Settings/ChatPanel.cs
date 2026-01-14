@@ -60,8 +60,7 @@ namespace MATE_ENGINE___Scripts.Tools
         private float typingSpeed = 0.05f;
 
         // RAGFlow配置 - 与AdvancedChatManager相同
-        private string ragflowHost = "192.168.8.88";
-        private int ragflowPort = 9380;
+        private string ragflowHost = "llm.bjzntd.com/llmforward";
         private string ragflowApiKey = "ragflow-cwZWU5YjBjMzUxODExZjBhNThhMDk2OD";
         private string ragflowAssistantId = "37fd87c8d3d711f097ac578fc36c86e8";
         private string ragflowLanguage = "Chinese";
@@ -1346,7 +1345,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 }
             }
 
-            string questionUrl = $"http://{ragflowHost}:{ragflowPort}/api/v1/chats/{ragflowAssistantId}/completions";
+            string questionUrl = $"https://{ragflowHost}/api/v1/chats/{ragflowAssistantId}/completions";
 
             string escapedQuestion = EscapeJsonString(question);
             string jsonData = $"{{\"question\":\"{escapedQuestion}\",\"stream\":true,\"session_id\":\"{currentSessionId}\",\"lang\":\"{ragflowLanguage}\"}}";
@@ -1395,7 +1394,7 @@ namespace MATE_ENGINE___Scripts.Tools
 
         IEnumerator CreateRAGFlowSession()
         {
-            string sessionUrl = $"http://{ragflowHost}:{ragflowPort}/api/v1/chats/{ragflowAssistantId}/sessions";
+            string sessionUrl = $"https://{ragflowHost}/api/v1/chats/{ragflowAssistantId}/sessions";
             string sessionName = $"Unity_Session_{System.DateTime.Now:yyyyMMdd_HHmmss}";
             string jsonData = $"{{\"name\":\"{sessionName}\"}}";
 

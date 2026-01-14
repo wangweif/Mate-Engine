@@ -10,7 +10,7 @@ using System.Text;
 public static class KnowledgeBaseManager
 {
     // 知识库API配置
-    private const string RAGFLOW_API_URL = "https://know.baafs.net.cn/v1";
+    private const string RAGFLOW_API_URL = "https://llm.bjzntd.com/llmforward/v1";
     private const string RAGFLOW_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImI1ZWU1NDU3LWIxYmEtNDdmMS1hY2JmLTVlMzc2ZjNlZGIzMiJ9.FBxm0gwpI7WJhFvgNzskfYqN9Ddx_gsHVf-DuBn6aU4";
     private const string KB_ID = "728cfd04d56411f097ac578fc36c86e8";
     private const string KB_NAME = "数字人V3";
