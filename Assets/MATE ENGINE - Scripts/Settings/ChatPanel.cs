@@ -315,6 +315,9 @@ namespace MATE_ENGINE___Scripts.Tools
             mainPanel = new GameObject("ChatPanel");
             mainPanel.transform.SetParent(parentCanvas.transform, false);
 
+            DragHandler mainPanelDrag = mainPanel.AddComponent<DragHandler>();
+            mainPanelDrag.dragSmooth = 10f;
+
             Debug.Log("ChatPanel主面板已创建");
 
             RectTransform panelRect = mainPanel.AddComponent<RectTransform>();

@@ -492,6 +492,10 @@ namespace MATE_ENGINE___Scripts.Tools
                 Debug.Log("[SettingsPanel] 未找到mask.png，使用普通背景");
             }
 
+            // 主面板可拖动
+            DragHandler mainPanelDrag = mainPanel.AddComponent<DragHandler>();
+            mainPanelDrag.dragSmooth = 10f;
+
             // 确保主面板阻塞射线
             CanvasGroup panelCanvasGroup = mainPanel.AddComponent<CanvasGroup>();
             panelCanvasGroup.blocksRaycasts = true;
