@@ -52,6 +52,15 @@ public class PPTControlUI : MonoBehaviour
     // 数字人显示状态
     private bool isAvatarVisible = true;
 
+    // 保存动画状态
+    private AnimatorStateInfo savedAnimatorStateInfo;
+    private bool hasSavedAnimatorState = false;
+
+    // 保存Animator参数
+    private System.Collections.Generic.Dictionary<string, bool> savedBoolParams = new System.Collections.Generic.Dictionary<string, bool>();
+    private System.Collections.Generic.Dictionary<string, float> savedFloatParams = new System.Collections.Generic.Dictionary<string, float>();
+    private System.Collections.Generic.Dictionary<string, int> savedIntParams = new System.Collections.Generic.Dictionary<string, int>();
+
     private bool isVisible = false;
     private bool isMuted = false;
     
@@ -611,20 +620,135 @@ public class PPTControlUI : MonoBehaviour
     void ToggleAvatarVisibility(bool visible)
     {
         if (vrmLoader == null) return;
-        
+
         // 获取当前加载的自定义VRM模型
         GameObject currentModel = vrmLoader.GetCurrentModel();
-        
+
         // 只控制当前自定义模型,不影响默认小女孩模型
         if (currentModel != null)
         {
-            currentModel.SetActive(visible);
+            if (visible)
+            {
+                // 显示模型
+                currentModel.SetActive(true);
+
+                // 获取Animator并恢复状态
+                Animator animator = currentModel.GetComponentInChildren<Animator>();
+                if (animator != null && hasSavedAnimatorState)
+                {
+                    // 等待一帧确保Animator已经启用，然后恢复状态
+                    StartCoroutine(RestoreAnimatorState(animator));
+                }
+            }
+            else
+            {
+                // 隐藏前保存Animator状态和参数
+                Animator animator = currentModel.GetComponentInChildren<Animator>();
+                if (animator != null)
+                {
+                    // 保存动画状态
+                    savedAnimatorStateInfo = animator.GetCurrentAnimatorStateInfo(0);
+                    hasSavedAnimatorState = true;
+
+                    // 保存所有Animator参数
+                    SaveAnimatorParameters(animator);
+
+                    Debug.Log($"[PPTControlUI] 已保存Animator状态和参数");
+                }
+
+                // 隐藏模型
+                currentModel.SetActive(false);
+            }
+
             Debug.Log($"[PPTControlUI] 已{(visible ? "显示" : "隐藏")}自定义VRM模型: {currentModel.name}");
         }
         else
         {
             Debug.LogWarning("[PPTControlUI] 当前没有加载自定义VRM模型");
         }
+    }
+
+    /// <summary>
+    /// 保存Animator的所有参数
+    /// </summary>
+    private void SaveAnimatorParameters(Animator animator)
+    {
+        if (animator == null) return;
+
+        // 清空之前的保存
+        savedBoolParams.Clear();
+        savedFloatParams.Clear();
+        savedIntParams.Clear();
+
+        // 遍历所有参数并保存
+        foreach (AnimatorControllerParameter param in animator.parameters)
+        {
+            switch (param.type)
+            {
+                case AnimatorControllerParameterType.Bool:
+                    savedBoolParams[param.name] = animator.GetBool(param.name);
+                    break;
+                case AnimatorControllerParameterType.Float:
+                    savedFloatParams[param.name] = animator.GetFloat(param.name);
+                    break;
+                case AnimatorControllerParameterType.Int:
+                    savedIntParams[param.name] = animator.GetInteger(param.name);
+                    break;
+                case AnimatorControllerParameterType.Trigger:
+                    // Trigger不需要保存
+                    break;
+            }
+        }
+
+        Debug.Log($"[PPTControlUI] 已保存 {savedBoolParams.Count} 个bool参数, {savedFloatParams.Count} 个float参数, {savedIntParams.Count} 个int参数");
+    }
+
+    /// <summary>
+    /// 恢复Animator状态和参数的协程
+    /// </summary>
+    private System.Collections.IEnumerator RestoreAnimatorState(Animator animator)
+    {
+        // 等待一帧确保Animator已经启用
+        yield return null;
+
+        if (animator != null && hasSavedAnimatorState)
+        {
+            // 先恢复所有参数
+            RestoreAnimatorParameters(animator);
+
+            // 再恢复动画状态和时间点
+            animator.Play(savedAnimatorStateInfo.shortNameHash, 0, savedAnimatorStateInfo.normalizedTime);
+
+            Debug.Log($"[PPTControlUI] 已恢复Animator状态和参数");
+        }
+    }
+
+    /// <summary>
+    /// 恢复Animator的所有参数
+    /// </summary>
+    private void RestoreAnimatorParameters(Animator animator)
+    {
+        if (animator == null) return;
+
+        // 恢复bool参数
+        foreach (var kvp in savedBoolParams)
+        {
+            animator.SetBool(kvp.Key, kvp.Value);
+        }
+
+        // 恢复float参数
+        foreach (var kvp in savedFloatParams)
+        {
+            animator.SetFloat(kvp.Key, kvp.Value);
+        }
+
+        // 恢复int参数
+        foreach (var kvp in savedIntParams)
+        {
+            animator.SetInteger(kvp.Key, kvp.Value);
+        }
+
+        Debug.Log($"[PPTControlUI] 已恢复 {savedBoolParams.Count} 个bool参数, {savedFloatParams.Count} 个float参数, {savedIntParams.Count} 个int参数");
     }
 
     /// <summary>
