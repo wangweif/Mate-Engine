@@ -481,7 +481,7 @@ namespace MATE_ENGINE___Scripts.Tools
             titleRect.anchorMin = new Vector2(0, 1);
             titleRect.anchorMax = new Vector2(1, 1);
             titleRect.pivot = new Vector2(0.5f, 1);
-            titleRect.anchoredPosition = Vector2.zero;
+            titleRect.anchoredPosition = new Vector2(0, -2f);
             titleRect.sizeDelta = new Vector2(0, 60);
 
             GameObject titleText = new GameObject("TitleText");
@@ -505,11 +505,6 @@ namespace MATE_ENGINE___Scripts.Tools
             title.alignment = TextAlignmentOptions.Center;
             title.fontStyle = FontStyles.Bold;
             FontManager.ApplyFont(title);
-            
-            // 添加文字外发光效果
-            Shadow titleGlow = titleText.AddComponent<Shadow>();
-            titleGlow.effectColor = new Color(0.4f, 0.5f, 0.8f, 0.3f);
-            titleGlow.effectDistance = new Vector2(0, 0);
         }
 
         void CreateTabBar()
@@ -815,76 +810,9 @@ namespace MATE_ENGINE___Scripts.Tools
             configPanelRect.anchoredPosition = Vector2.zero;
             configPanelRect.sizeDelta = new Vector2(1000, 650);
 
-            // 添加圆角遮罩和边框(与主面板保持一致)
-            Sprite maskSprite = Resources.Load<Sprite>("mask");
-            if (maskSprite != null)
-            {
-                // 先创建边框层(必须在添加Mask之前)
-                GameObject configBorderLayer = new GameObject("ConfigBorderLayer");
-                configBorderLayer.transform.SetParent(configPanel.transform, false);
-                RectTransform configBorderRect = configBorderLayer.AddComponent<RectTransform>();
-                configBorderRect.anchorMin = Vector2.zero;
-                configBorderRect.anchorMax = Vector2.one;
-                configBorderRect.pivot = new Vector2(0.5f, 0.5f);
-                configBorderRect.anchoredPosition = Vector2.zero;
-                // 边框比面板大，向四周扩展
-                configBorderRect.sizeDelta = new Vector2(4, 4); // 比面板大4像素（每边2像素）
-
-                Image configBorderImg = configBorderLayer.AddComponent<Image>();
-                Sprite roundedRectSprite = Resources.Load<Sprite>("圆角矩形");
-                if (roundedRectSprite != null)
-                {
-                    configBorderImg.sprite = roundedRectSprite;
-                    configBorderImg.type = Image.Type.Sliced;
-                    configBorderImg.color = new Color(0.3f, 0.4f, 0.6f, 1f); // 边框颜色
-                }
-                else
-                {
-                    // 如果没有圆角矩形.png,使用mask.png作为边框
-                    configBorderImg.sprite = maskSprite;
-                    configBorderImg.type = Image.Type.Sliced;
-                    configBorderImg.color = new Color(0.3f, 0.4f, 0.6f, 1f);
-                }
-                configBorderImg.raycastTarget = false; // 边框层不接收点击事件
-                configBorderImg.maskable = false; // 关键：不参与Mask裁剪
-
-                // 直接在配置面板上添加Mask组件
-                Image configPanelBg = configPanel.AddComponent<Image>();
-                configPanelBg.sprite = maskSprite;
-                configPanelBg.type = Image.Type.Sliced;
-                configPanelBg.color = Color.white;
-                configPanelBg.raycastTarget = true;
-
-                Mask configPanelMask = configPanel.AddComponent<Mask>();
-                DragHandler configPanelMaskDrag = configPanelMask.AddComponent<DragHandler>();
-                configPanelMaskDrag.dragSmooth = 10f;
-                configPanelMask.showMaskGraphic = false; // 不显示遮罩图片
-
-                // 创建背景层显示原来的背景色
-                GameObject configBgLayerObj = new GameObject("ConfigBackgroundLayer");
-                configBgLayerObj.transform.SetParent(configPanel.transform, false);
-                RectTransform configBgLayerRect = configBgLayerObj.AddComponent<RectTransform>();
-                configBgLayerRect.anchorMin = Vector2.zero;
-                configBgLayerRect.anchorMax = Vector2.one;
-                configBgLayerRect.offsetMin = Vector2.zero;
-                configBgLayerRect.offsetMax = Vector2.zero;
-
-                Image configBgLayerImg = configBgLayerObj.AddComponent<Image>();
-                configBgLayerImg.color = new Color(0.1608f, 0.1922f, 0.3725f, 1f); // 与原背景色一致
-                configBgLayerImg.raycastTarget = false; // 背景层不接收点击事件
-
-                // 将边框层移到最底层
-                configBorderLayer.transform.SetAsFirstSibling();
-
-                Debug.Log("[SettingsPanel] 已为ConfigPanel添加圆角遮罩和边框");
-            }
-            else
-            {
-                // 如果没有mask.png，使用原来的方式
-                Image configPanelBg = configPanel.AddComponent<Image>();
-                configPanelBg.color = new Color(0.1608f, 0.1922f, 0.3725f, 1f);
-                Debug.Log("[SettingsPanel] 未找到mask.png，ConfigPanel使用普通背景");
-            }
+            Image configPanelBg = configPanel.AddComponent<Image>();
+            configPanelBg.sprite = Resources.Load<Sprite>("background");
+            configPanelBg.raycastTarget = true;
 
             // 演讲稿输入框标签和AI生成按钮容器
             GameObject labelContainer = new GameObject("LabelContainer");
@@ -898,7 +826,7 @@ namespace MATE_ENGINE___Scripts.Tools
             labelContainerRect.anchorMin = new Vector2(0, 1);
             labelContainerRect.anchorMax = new Vector2(1, 1);
             labelContainerRect.pivot = new Vector2(0.5f, 1);
-            labelContainerRect.anchoredPosition = new Vector2(0, -20);
+            labelContainerRect.anchoredPosition = new Vector2(0, -15);
             labelContainerRect.sizeDelta = new Vector2(-40, 40);
 
             HorizontalLayoutGroup labelLayout = labelContainer.AddComponent<HorizontalLayoutGroup>();
