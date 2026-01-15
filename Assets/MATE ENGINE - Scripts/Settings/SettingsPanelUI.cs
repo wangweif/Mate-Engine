@@ -119,10 +119,6 @@ namespace MATE_ENGINE___Scripts.Tools
         private Transform fullscreenOriginalParent;
         private int fullscreenOriginalSiblingIndex;
 
-        // configOverlay扩展功能备份的原始状态(仅用于configOverlay)
-        private Transform overlayOriginalParent;
-        private int overlayOriginalSiblingIndex;
-
         // 备份演讲稿内容，用于生成失败时恢复
         private string[] backupSpeechContent;
 
@@ -814,26 +810,31 @@ namespace MATE_ENGINE___Scripts.Tools
             configPanelBg.sprite = Resources.Load<Sprite>("background");
             configPanelBg.raycastTarget = true;
 
+            // 添加垂直布局组件
+            VerticalLayoutGroup configPanelLayout = configPanel.AddComponent<VerticalLayoutGroup>();
+            configPanelLayout.childAlignment = TextAnchor.UpperCenter;
+            configPanelLayout.childControlWidth = true;
+            configPanelLayout.childControlHeight = true;
+            configPanelLayout.childForceExpandWidth = true;
+            configPanelLayout.childForceExpandHeight = false;
+            configPanelLayout.spacing = 10;
+            configPanelLayout.padding = new RectOffset(5, 5, 10, 10);
+
             // 演讲稿输入框标签和AI生成按钮容器
             GameObject labelContainer = new GameObject("LabelContainer");
             labelContainer.transform.SetParent(configPanel.transform, false);
-            RectTransform labelContainerRect = labelContainer.GetComponent<RectTransform>();
-            if (labelContainerRect == null)
-            {
-                labelContainerRect = labelContainer.AddComponent<RectTransform>();
-            }
-            // 固定在顶部
-            labelContainerRect.anchorMin = new Vector2(0, 1);
-            labelContainerRect.anchorMax = new Vector2(1, 1);
-            labelContainerRect.pivot = new Vector2(0.5f, 1);
-            labelContainerRect.anchoredPosition = new Vector2(0, -15);
-            labelContainerRect.sizeDelta = new Vector2(-40, 40);
+
+            // 添加布局元素以控制高度
+            LayoutElement labelContainerLayout = labelContainer.AddComponent<LayoutElement>();
+            labelContainerLayout.preferredHeight = 50;
+            labelContainerLayout.minHeight = 50;
+            labelContainerLayout.flexibleHeight = 0;
 
             HorizontalLayoutGroup labelLayout = labelContainer.AddComponent<HorizontalLayoutGroup>();
             labelLayout.childForceExpandWidth = false;
-            labelLayout.childForceExpandHeight = true;
+            labelLayout.childForceExpandHeight = false;
             labelLayout.spacing = 10;
-            labelLayout.padding = new RectOffset(0, 0, 0, 0);
+            labelLayout.padding = new RectOffset(15, 15, 0, 0);
             labelLayout.childAlignment = TextAnchor.MiddleLeft;
 
             // 演讲稿输入框标签
@@ -900,12 +901,10 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 configInputRect = configInputObj.AddComponent<RectTransform>();
             }
-            // 固定在标签下方，底部留出空间给按钮
-            configInputRect.anchorMin = new Vector2(0, 0);
-            configInputRect.anchorMax = new Vector2(1, 1);
-            configInputRect.pivot = new Vector2(0.5f, 1);
-            configInputRect.anchoredPosition = new Vector2(0, -78); // 标签高度40 + 间距18 + 顶部边距20
-            configInputRect.sizeDelta = new Vector2(-40, -165); // 左右边距20，底部留出空间给按钮容器(70) + 顶部(78) + 底部边距(20)
+            
+            // 添加布局元素以控制输入框大小
+            LayoutElement configInputLayout = configInputObj.AddComponent<LayoutElement>();
+            configInputLayout.flexibleHeight = 1;
             
             // 添加背景图片组件（Outline需要Graphic组件才能工作）
             Image inputBackground = configInputObj.AddComponent<Image>();
@@ -1072,23 +1071,17 @@ namespace MATE_ENGINE___Scripts.Tools
             // 确认和取消按钮容器 - 固定在配置面板最底部
             GameObject configButtonContainer = new GameObject("ConfigButtonContainer");
             configButtonContainer.transform.SetParent(configPanel.transform, false);
-            RectTransform configButtonContainerRect = configButtonContainer.GetComponent<RectTransform>();
-            if (configButtonContainerRect == null)
-            {
-                configButtonContainerRect = configButtonContainer.AddComponent<RectTransform>();
-            }
-            // 固定在底部
-            configButtonContainerRect.anchorMin = new Vector2(0, 0);
-            configButtonContainerRect.anchorMax = new Vector2(1, 0);
-            configButtonContainerRect.pivot = new Vector2(0.5f, 0);
-            configButtonContainerRect.anchoredPosition = new Vector2(0, 20); // 底部边距20
-            configButtonContainerRect.sizeDelta = new Vector2(-40, 50); // 左右边距20，高度50
+            
+            // 添加布局元素以控制按钮容器高度
+            LayoutElement configButtonContainerLayout = configButtonContainer.AddComponent<LayoutElement>();
+            configButtonContainerLayout.preferredHeight = 50;
+            configButtonContainerLayout.flexibleHeight = 0;
 
             HorizontalLayoutGroup configButtonLayout = configButtonContainer.AddComponent<HorizontalLayoutGroup>();
             configButtonLayout.childForceExpandWidth = false;
             configButtonLayout.childForceExpandHeight = true;
             configButtonLayout.spacing = 10;
-            configButtonLayout.padding = new RectOffset(0, 0, 0, 0);
+            configButtonLayout.padding = new RectOffset(15, 15, 0, 4);
             configButtonLayout.childAlignment = TextAnchor.MiddleRight;
 
             // 确认按钮
@@ -2172,9 +2165,6 @@ namespace MATE_ENGINE___Scripts.Tools
             // 显示配置面板
             if (configOverlay != null)
             {
-                // 先扩展遮罩层到整个Canvas
-                ExpandConfigOverlay();
-
                 configOverlay.SetActive(true);
                 
                 // 再等待一帧，确保面板激活完成
@@ -2304,7 +2294,6 @@ namespace MATE_ENGINE___Scripts.Tools
                     // 直接关闭配置面板，不保存任何更改
                     if (configOverlay != null)
                     {
-                        RestoreConfigOverlay();
                         configOverlay.SetActive(false);
                     }
                 }
@@ -2328,7 +2317,6 @@ namespace MATE_ENGINE___Scripts.Tools
                 // 直接关闭配置面板，不保存任何更改
                 if (configOverlay != null)
                 {
-                    RestoreConfigOverlay();
                     configOverlay.SetActive(false);
                 }
             }
@@ -2342,7 +2330,6 @@ namespace MATE_ENGINE___Scripts.Tools
             yield return null;
             if (configOverlay != null)
             {
-                RestoreConfigOverlay();
                 configOverlay.SetActive(false);
             }
         }
@@ -2795,55 +2782,6 @@ namespace MATE_ENGINE___Scripts.Tools
             Vector2 numberPos = numberRect.anchoredPosition;
             numberPos.y = configNumberScrollBaseAnchoredPos.y + deltaY;
             numberRect.anchoredPosition = numberPos;
-        }
-
-        /// <summary>
-        /// 扩大configOverlay的遮罩范围,使其超出mainPanel的边界
-        /// </summary>
-        private void ExpandConfigOverlay()
-        {
-            if (configOverlayRect == null || configOverlayExpanded)
-                return;
-
-            // 备份configOverlay的原始父对象和位置
-            overlayOriginalParent = configOverlay.transform.parent;
-            overlayOriginalSiblingIndex = configOverlay.transform.GetSiblingIndex();
-
-            // 将configOverlay临时提升到parentCanvas,使其可以覆盖整个Canvas
-            configOverlay.transform.SetParent(parentCanvas.transform, false);
-
-            // 设置为覆盖整个Canvas
-            configOverlayRect.anchorMin = Vector2.zero;
-            configOverlayRect.anchorMax = Vector2.one;
-            configOverlayRect.sizeDelta = Vector2.zero;
-            configOverlayRect.anchoredPosition = Vector2.zero;
-
-            configOverlayExpanded = true;
-
-            Debug.Log("[SettingsPanel] ConfigOverlay已扩展到整个Canvas");
-        }
-
-        /// <summary>
-        /// 恢复configOverlay的原始遮罩范围
-        /// </summary>
-        private void RestoreConfigOverlay()
-        {
-            if (configOverlayRect == null || !configOverlayExpanded)
-                return;
-
-            // 恢复到mainPanel下的原始位置
-            configOverlay.transform.SetParent(overlayOriginalParent, false);
-            configOverlay.transform.SetSiblingIndex(overlayOriginalSiblingIndex);
-
-            // 恢复原始anchor
-            configOverlayRect.anchorMin = configOverlayOriginalAnchorMin;
-            configOverlayRect.anchorMax = configOverlayOriginalAnchorMax;
-            configOverlayRect.offsetMin = Vector2.zero;
-            configOverlayRect.offsetMax = Vector2.zero;
-
-            configOverlayExpanded = false;
-
-            Debug.Log("[SettingsPanel] ConfigOverlay已恢复到原始范围");
         }
     }
 }
