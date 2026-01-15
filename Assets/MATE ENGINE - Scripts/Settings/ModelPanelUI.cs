@@ -667,13 +667,13 @@ namespace MATE_ENGINE___Scripts.Tools
 
             // 添加圆角矩形背景
             Image scrollBg = scrollObj.AddComponent<Image>();
-            Sprite roundedCornerSprite = Resources.Load<Sprite>("圆角矩形");
+            Sprite roundedCornerSprite = Resources.Load<Sprite>("rectangle");
             if (roundedCornerSprite != null)
             {
                 scrollBg.sprite = roundedCornerSprite;
                 scrollBg.type = Image.Type.Sliced;
             }
-            scrollBg.color = new Color(41f/255f, 58f/255f, 108f/255f, 1f);
+            scrollBg.color = new Color(1,1,1,1);
             scrollBg.raycastTarget = false;
 
             // 创建ScrollRect
