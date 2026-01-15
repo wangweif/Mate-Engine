@@ -911,7 +911,7 @@ namespace MATE_ENGINE___Scripts.Tools
             
             // 添加背景图片组件（Outline需要Graphic组件才能工作）
             Image inputBackground = configInputObj.AddComponent<Image>();
-            inputBackground.color = new Color(0.1608f, 0.1922f, 0.3725f, 1f); // 半透明白色背景
+            inputBackground.color = new Color(6f / 255f, 14f / 255f, 36f / 255f, 1f); 
             
             // 添加输入框边框效果
             Outline inputOutline = configInputObj.AddComponent<Outline>();
