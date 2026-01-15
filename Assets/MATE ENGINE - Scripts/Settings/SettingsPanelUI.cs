@@ -85,6 +85,7 @@ namespace MATE_ENGINE___Scripts.Tools
         private RectTransform configContentTextRect;
         private RectTransform configPlaceholderRect;
         private int lastConfigTextLength = 0;
+        private Button _configCloseButton;
 
         // 全屏按钮引用
         private Button configFullscreenButton;
@@ -881,9 +882,10 @@ namespace MATE_ENGINE___Scripts.Tools
             });
 
             // 关闭按钮
-            GameObject configCloseButtonObj = new GameObject("ConfigCloseButton"); 
+            GameObject configCloseButtonObj = new GameObject("ConfigCloseButton");
             configCloseButtonObj.transform.SetParent(labelContainer.transform, false); 
-            Button configCloseButton = configCloseButtonObj.AddComponent<Button>(); 
+            Button configCloseButton = configCloseButtonObj.AddComponent<Button>();
+            this._configCloseButton = configCloseButton;
             Image configCloseButtonImage = configCloseButtonObj.AddComponent<Image>(); 
             configCloseButtonImage.sprite = Resources.Load<Sprite>("close@2x"); 
             configCloseButtonImage.preserveAspect = true;
@@ -2361,9 +2363,9 @@ namespace MATE_ENGINE___Scripts.Tools
                 confirmConfigButton.interactable = false;
             }
             
-            if (cancelConfigButton != null)
+            if (_configCloseButton != null)
             {
-                cancelConfigButton.interactable = false;
+                _configCloseButton.interactable = false;
             }
             
             if (configInputField != null)
@@ -2428,9 +2430,9 @@ namespace MATE_ENGINE___Scripts.Tools
                 confirmConfigButton.interactable = true;
             }
             
-            if (cancelConfigButton != null)
+            if (_configCloseButton != null)
             {
-                cancelConfigButton.interactable = true;
+                _configCloseButton.interactable = true;
             }
             
             if (configInputField != null)
