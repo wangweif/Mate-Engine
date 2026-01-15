@@ -673,7 +673,7 @@ namespace MATE_ENGINE___Scripts.Tools
                 scrollBg.sprite = roundedCornerSprite;
                 scrollBg.type = Image.Type.Sliced;
             }
-            scrollBg.color = new Color(1,1,1,0);
+            scrollBg.color = new Color(1,1,1,1);
             scrollBg.raycastTarget = false;
 
             // 创建ScrollRect
@@ -710,15 +710,6 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 contentRect = contentObj.AddComponent<RectTransform>();
             }
-            // 添加内容矩形背景
-            Image contentBg = contentObj.AddComponent<Image>();
-            if (roundedCornerSprite != null)
-            {
-                contentBg.sprite = roundedCornerSprite;
-                contentBg.type = Image.Type.Sliced;
-            }
-            contentBg.color = new Color(1,1,1,1);
-            contentBg.raycastTarget = false;
 
             ContentSizeFitter contentFitter = contentObj.AddComponent<ContentSizeFitter>();
             contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
