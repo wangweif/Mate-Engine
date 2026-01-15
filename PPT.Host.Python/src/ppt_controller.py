@@ -184,6 +184,9 @@ class PowerPointController:
             from win32com.client import gencache
             self.app = gencache.EnsureDispatch(prog_id)
             
+            # 先设置 Visible 属性 (在事件订阅之前)
+            self.app.Visible = True
+            
             # 包装事件 (保存到 app_events,不覆盖 app)
             try:
                 self.app_events = win32com.client.DispatchWithEvents(self.app, PPTAppEvents)
@@ -194,9 +197,8 @@ class PowerPointController:
         except Exception as e:
             # 降级到普通 Dispatch
             self.app = win32com.client.Dispatch(prog_id)
+            self.app.Visible = True
             logger.warning(f"PowerPoint 实例已创建 (无事件): {e}")
-        
-        self.app.Visible = True
     
     def _record_process_id(self):
         """记录 PowerPoint 进程 ID,用于后续强制终止"""

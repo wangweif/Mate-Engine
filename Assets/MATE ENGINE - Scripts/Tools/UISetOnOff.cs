@@ -562,9 +562,9 @@ public class UISetOnOff : MonoBehaviour
                 }
                 else
                 {
-                    // 播放完成，重置状态
+                    // 播放完成，重置页面索引但保持count不变
                     currentPageIndex = 0;
-                    count = 0;
+                    // 不重置count,保持播放状态,避免用户切换页面后再次播放时出现"第一次播放"的错误
                     pageResumeTimes.Clear();
                     Debug.Log("🎉 所有页面播放完成");
                 }
@@ -593,6 +593,19 @@ public class UISetOnOff : MonoBehaviour
         }
 
         isPlayingSequence = false;
+        
+        // 更新按钮为播放图标
+        if (play != null && playImage != null)
+        {
+            play.image = playImage;
+        }
+        
+        // 更新PPTControlUI的播放/暂停图标
+        if (pptControlUI != null)
+        {
+            pptControlUI.UpdatePlayPauseButton(false);
+        }
+        
         Debug.Log("🎉 演示序列播放完成");
     }
 
@@ -704,9 +717,9 @@ public class UISetOnOff : MonoBehaviour
                 }
                 else
                 {
-                    // 播放完成，重置状态
+                    // 播放完成，重置页面索引但保持count不变
                     currentPageIndex = 0;
-                    count = 0;
+                    // 不重置count,保持播放状态,避免用户切换页面后再次播放时出现"第一次播放"的错误
                     pageResumeTimes.Clear();
                     Debug.Log("🎉 所有页面播放完成");
                 }
@@ -735,6 +748,19 @@ public class UISetOnOff : MonoBehaviour
         }
 
         isPlayingSequence = false;
+        
+        // 更新按钮为播放图标
+        if (play != null && playImage != null)
+        {
+            play.image = playImage;
+        }
+        
+        // 更新PPTControlUI的播放/暂停图标
+        if (pptControlUI != null)
+        {
+            pptControlUI.UpdatePlayPauseButton(false);
+        }
+        
         Debug.Log("🎉 演示序列播放完成");
     }
 

@@ -13,23 +13,27 @@ from typing import Optional
 def get_device_id() -> str:
     """
     获取设备唯一标识
-    优先使用 wmic csproduct get uuid 获取系统 UUID    
+    优先使用 PowerShell Get-CimInstance 获取系统 UUID
+    
     Returns:
         设备唯一标识字符串
     """
     try:
-        # 尝试通过 wmic 获取 UUID
-        cmd = "wmic csproduct get uuid"
+        # 使用 PowerShell Get-CimInstance 获取 UUID (兼容性更好)
+        cmd = "powershell -Command \"Get-CimInstance Win32_ComputerSystemProduct | Select-Object -ExpandProperty UUID\""
         creationflags = 0x08000000 if platform.system() == "Windows" else 0
         
         output = subprocess.check_output(
             cmd, 
             shell=True, 
-            creationflags=creationflags
+            creationflags=creationflags,
+            stderr=subprocess.DEVNULL
         ).decode().strip()
         
-        lines = [line.strip() for line in output.split('\n') if line.strip()][1].replace('-','')
-        return lines
+        # 移除 UUID 中的连字符
+        uuid_str = output.replace('-', '')
+        if uuid_str:
+            return uuid_str
     except Exception:
         pass
 
