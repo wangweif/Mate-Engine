@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.NetworkInformation;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -379,29 +380,17 @@ namespace MATE_ENGINE___Scripts.Tools
         {
             try
             {
-                ProcessStartInfo startInfo = new ProcessStartInfo
-                {
-                    FileName = "cmd.exe",
-                    Arguments = "/c \"wmic csproduct get uuid\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true
-                };
-
-                using (Process process = Process.Start(startInfo))
-                {
-                    string output = process.StandardOutput.ReadToEnd();
-                    process.WaitForExit();
+                string output = ExecutePowerShellCommand("Get-CimInstance Win32_ComputerSystemProduct | Select UUID");
                 
-                    // 使用正则表达式提取UUID
-                    string pattern = @"[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}";
-                    Match match = Regex.Match(output, pattern);
-                
-                    if (match.Success)
-                    {
-                        // 去掉所有"-"分隔符
-                        return match.Value.Replace("-", "");
-                    }
+                // 使用正则表达式提取UUID
+                string pattern = @"[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}";
+                Debug.Log("[powershell]执行结果: " + output);
+                Match match = Regex.Match(output, pattern);
+                if (match.Success)
+                {
+                    // 去掉所有"-"分隔符
+                    Debug.Log("[powershell]返回结果: " + match.Value.Replace("-", ""));
+                    return match.Value.Replace("-", "");
                 }
             }
             catch
@@ -410,6 +399,55 @@ namespace MATE_ENGINE___Scripts.Tools
             }
         
             return string.Empty;
+        }
+        
+        // 同步执行PowerShell命令
+        public static string ExecutePowerShellCommand(string command)
+        {
+            string output = "";
+            string error = "";
+        
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo();
+                psi.FileName = "powershell.exe";
+            
+                // 使用 -Command 参数执行命令
+                psi.Arguments = $"-Command \"{command}\"";
+            
+                // 配置重定向
+                psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
+                psi.UseShellExecute = false;
+                psi.CreateNoWindow = true;
+                psi.StandardOutputEncoding = Encoding.UTF8;
+                psi.StandardErrorEncoding = Encoding.UTF8;
+
+                using (Process process = new Process())
+                {
+                    process.StartInfo = psi;
+                    process.Start();
+                
+                    // 读取输出
+                    output = process.StandardOutput.ReadToEnd();
+                    error = process.StandardError.ReadToEnd();
+                
+                    process.WaitForExit();
+                
+                    // 如果有错误，合并输出
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        output += "\n[Error]: " + error;
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogError($"执行PowerShell失败: {ex.Message}");
+                output = $"Error: {ex.Message}";
+            }
+        
+            return output;
         }
     }
 }
