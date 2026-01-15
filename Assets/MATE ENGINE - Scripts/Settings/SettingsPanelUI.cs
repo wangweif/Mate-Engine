@@ -806,6 +806,9 @@ namespace MATE_ENGINE___Scripts.Tools
             configPanelRect.anchoredPosition = Vector2.zero;
             configPanelRect.sizeDelta = new Vector2(1000, 650);
 
+            DragHandler dragHandler = configPanel.AddComponent<DragHandler>();
+            dragHandler.dragSmooth = 10f;
+
             Image configPanelBg = configPanel.AddComponent<Image>();
             configPanelBg.sprite = Resources.Load<Sprite>("background");
             configPanelBg.raycastTarget = true;
