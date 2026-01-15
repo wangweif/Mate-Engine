@@ -2666,6 +2666,21 @@ namespace MATE_ENGINE___Scripts.Tools
             }
         }
 
+        private IEnumerator ResetTMPScrollOffset(TMP_InputField input)
+        {
+            if (input == null || input.textComponent == null)
+                yield break;
+
+            // 强制 TMP 重算文本几何
+            input.textComponent.ForceMeshUpdate();
+
+            // 清除裁剪偏移（这是关键）
+            input.textComponent.rectTransform.anchoredPosition = Vector2.zero;
+
+            Canvas.ForceUpdateCanvases();
+        }
+
+
         /// <summary>
         /// 进入全屏模式
         /// </summary>
@@ -2694,6 +2709,7 @@ namespace MATE_ENGINE___Scripts.Tools
             yield return null;
             yield return null;
 
+            StartCoroutine(ResetTMPScrollOffset(configInputField));
             // 设置为全屏 - 占满整个Canvas
             panelRect.SetParent(parentCanvas.transform, true);
             panelRect.anchorMin = Vector2.zero;
@@ -2728,6 +2744,7 @@ namespace MATE_ENGINE___Scripts.Tools
             Canvas.ForceUpdateCanvases();
             yield return null;
             yield return null;
+            StartCoroutine(ResetTMPScrollOffset(configInputField));
             // 恢复原始状态
             panelRect.SetParent(fullscreenOriginalParent, true);
             panelRect.anchorMin = fullscreenOriginalAnchorMin;
