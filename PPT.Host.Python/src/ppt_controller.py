@@ -17,6 +17,16 @@ import tempfile
 import win32com
 if not hasattr(win32com, '__path__'):
     gen_py_dir = os.path.join(tempfile.gettempdir(), "gen_py")
+    
+    # 方案一: 清理可能残缺的 gen_py 缓存,让它重新生成
+    if os.path.exists(gen_py_dir):
+        try:
+            import shutil
+            shutil.rmtree(gen_py_dir)
+            print(f"已清理 gen_py 缓存: {gen_py_dir}")
+        except Exception as e:
+            print(f"清理 gen_py 缓存失败(可忽略): {e}")
+    
     os.makedirs(gen_py_dir, exist_ok=True)
     win32com.__path__ = [gen_py_dir]
 

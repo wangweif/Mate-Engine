@@ -2205,11 +2205,19 @@ namespace MATE_ENGINE___Scripts.Tools
                 return;
             }
 
+            // 校验PPT路径是否存在
+            if (string.IsNullOrEmpty(selectedPPTItem.pptInfo.file_path) || !System.IO.File.Exists(selectedPPTItem.pptInfo.file_path))
+            {
+                Debug.LogError($"❌ PPT路径不存在: {selectedPPTItem.pptInfo.file_path}");
+                ShowPathErrorDialog();
+                return; // 终止播放,不关闭配置页面,不显示PPT控件
+            }
+
             // 查找UISetOnOff组件并调用ToggleBubbleFeature方法
             UISetOnOff uiSetOnOff = FindObjectOfType<UISetOnOff>();
             if (uiSetOnOff != null)
             {
-                Debug.Log("调用UISetOnOff.ToggleBubbleFeature开始播放PPT");
+                Debug.Log("✅ PPT路径校验通过,调用UISetOnOff.ToggleBubbleFeature开始播放PPT");
                 uiSetOnOff.ToggleBubbleFeature(selectedPPTItem.pptInfo.filename);
                 
                 // 显示PPT控制UI
@@ -2231,6 +2239,87 @@ namespace MATE_ENGINE___Scripts.Tools
             
             // 关闭UI界面
             mainPanel.SetActive(false);
+        }
+
+        /// <summary>
+        /// 显示PPT路径错误提示框
+        /// </summary>
+        void ShowPathErrorDialog()
+        {
+            // 创建错误对话框遮罩层 - 直接放在parentCanvas下以置顶显示
+            GameObject errorOverlay = new GameObject("PathErrorDialogOverlay");
+            errorOverlay.transform.SetParent(parentCanvas.transform, false);
+            RectTransform overlayRect = errorOverlay.AddComponent<RectTransform>();
+            overlayRect.anchorMin = Vector2.zero;
+            overlayRect.anchorMax = Vector2.one;
+            overlayRect.offsetMin = Vector2.zero;
+            overlayRect.offsetMax = Vector2.zero;
+            overlayRect.localScale = Vector3.one; // 确保不被缩放
+
+            // 设置更高的sortingOrder以确保在最上层
+            Canvas overlayCanvas = errorOverlay.AddComponent<Canvas>();
+            overlayCanvas.overrideSorting = true;
+            overlayCanvas.sortingOrder = canvasSortingOrder + 100; // 比主面板更高
+
+            GraphicRaycaster raycaster = errorOverlay.AddComponent<GraphicRaycaster>();
+
+            Image overlayBg = errorOverlay.AddComponent<Image>();
+            overlayBg.color = new Color(0f, 0f, 0f, 0.7f);
+
+            // 创建错误对话框面板
+            GameObject errorPanel = new GameObject("ErrorPanel");
+            errorPanel.transform.SetParent(errorOverlay.transform, false);
+            RectTransform errorPanelRect = errorPanel.AddComponent<RectTransform>();
+            errorPanelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            errorPanelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            errorPanelRect.pivot = new Vector2(0.5f, 0.5f);
+            errorPanelRect.anchoredPosition = Vector2.zero;
+            errorPanelRect.sizeDelta = new Vector2(400, 200);
+
+            Image errorPanelBg = errorPanel.AddComponent<Image>();
+            errorPanelBg.sprite = Resources.Load<Sprite>("settingsBackground");
+
+            // 创建提示文本
+            GameObject messageObj = new GameObject("Message");
+            messageObj.transform.SetParent(errorPanel.transform, false);
+            RectTransform messageRect = messageObj.AddComponent<RectTransform>();
+            messageRect.anchorMin = new Vector2(0, 0.4f);
+            messageRect.anchorMax = new Vector2(1, 0.9f);
+            messageRect.offsetMin = new Vector2(20, 0);
+            messageRect.offsetMax = new Vector2(-20, -20);
+
+            TMP_Text messageText = messageObj.AddComponent<TextMeshProUGUI>();
+            messageText.text = "PPT路径存在问题,请删除后重新上传";
+            messageText.fontSize = 20;
+            messageText.color = textColor;
+            messageText.alignment = TextAlignmentOptions.Center;
+            messageText.enableWordWrapping = true;
+            FontManager.ApplyFont(messageText);
+
+            // 创建按钮容器
+            GameObject buttonContainer = new GameObject("ButtonContainer");
+            buttonContainer.transform.SetParent(errorPanel.transform, false);
+            RectTransform buttonContainerRect = buttonContainer.AddComponent<RectTransform>();
+            buttonContainerRect.anchorMin = new Vector2(0, 0);
+            buttonContainerRect.anchorMax = new Vector2(1, 0.4f);
+            buttonContainerRect.offsetMin = new Vector2(20, 20);
+            buttonContainerRect.offsetMax = new Vector2(-20, 0);
+
+            HorizontalLayoutGroup buttonLayout = buttonContainer.AddComponent<HorizontalLayoutGroup>();
+            buttonLayout.childForceExpandWidth = false;
+            buttonLayout.childForceExpandHeight = false;
+            buttonLayout.spacing = 20;
+            buttonLayout.padding = new RectOffset(0, 0, 0, 0);
+            buttonLayout.childAlignment = TextAnchor.MiddleCenter;
+
+            // 创建确定按钮
+            Button okBtn = CreateButton(buttonContainer.transform, "确定", new Vector2(100, 50), "buttonBackgroundRed");
+            okBtn.onClick.AddListener(() => {
+                Destroy(errorOverlay);
+            });
+
+            // 确保对话框在最上层
+            errorOverlay.transform.SetAsLastSibling();
         }
 
         /// <summary>
