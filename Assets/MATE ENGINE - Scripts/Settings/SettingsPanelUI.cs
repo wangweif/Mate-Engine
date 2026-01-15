@@ -1943,7 +1943,7 @@ namespace MATE_ENGINE___Scripts.Tools
             confirmPanelRect.sizeDelta = new Vector2(400, 200);
 
             Image confirmPanelBg = confirmPanel.AddComponent<Image>();
-            confirmPanelBg.sprite = Resources.Load<Sprite>("settingsBackground");
+            confirmPanelBg.sprite = Resources.Load<Sprite>("errorDialog");
 
             // 创建提示文本
             GameObject messageObj = new GameObject("Message");
@@ -2032,50 +2032,33 @@ namespace MATE_ENGINE___Scripts.Tools
             errorPanelRect.sizeDelta = new Vector2(400, 200);
 
             Image errorPanelBg = errorPanel.AddComponent<Image>();
-            errorPanelBg.sprite = Resources.Load<Sprite>("settingsBackground");
+            errorPanelBg.sprite = Resources.Load<Sprite>("errorDialog");
 
-            // 创建标题文本 - 调整位置避免超出
-            GameObject titleObj = new GameObject("Title");
-            titleObj.transform.SetParent(errorPanel.transform, false);
-            RectTransform titleRect = titleObj.AddComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(0, 0.6f); // 从0.5调整到0.6
-            titleRect.anchorMax = new Vector2(1, 0.9f);
-            titleRect.offsetMin = new Vector2(20, 0);
-            titleRect.offsetMax = new Vector2(-20, -5); // 从-10调整到-5
-
-            TMP_Text titleText = titleObj.AddComponent<TextMeshProUGUI>();
-            titleText.text = "生成演讲稿失败";
-            titleText.fontSize = 20; // 从22调整到20
-            titleText.color = new Color(0.85f, 0.25f, 0.25f, 1f);
-            titleText.alignment = TextAlignmentOptions.Center;
-            titleText.fontStyle = FontStyles.Bold;
-            FontManager.ApplyFont(titleText);
-
-            // 创建错误信息文本 - 调整位置避免超出
+            // 创建错误信息文本 - 居中显示
             GameObject messageObj = new GameObject("Message");
             messageObj.transform.SetParent(errorPanel.transform, false);
             RectTransform messageRect = messageObj.AddComponent<RectTransform>();
-            messageRect.anchorMin = new Vector2(0, 0.25f); // 从0.1调整到0.25
-            messageRect.anchorMax = new Vector2(1, 0.6f); // 从0.5调整到0.6
+            messageRect.anchorMin = new Vector2(0, 0.35f);
+            messageRect.anchorMax = new Vector2(1, 0.75f);
             messageRect.offsetMin = new Vector2(20, 0);
             messageRect.offsetMax = new Vector2(-20, 0);
 
             TMP_Text messageText = messageObj.AddComponent<TextMeshProUGUI>();
             messageText.text = errorMessage;
-            messageText.fontSize = 16; // 从18调整到16
+            messageText.fontSize = 20;
             messageText.color = textColor;
             messageText.alignment = TextAlignmentOptions.Center;
             messageText.enableWordWrapping = true;
             FontManager.ApplyFont(messageText);
 
-            // 创建按钮容器 - 调整位置避免超出
+            // 创建按钮容器
             GameObject buttonContainer = new GameObject("ButtonContainer");
             buttonContainer.transform.SetParent(errorPanel.transform, false);
             RectTransform buttonContainerRect = buttonContainer.AddComponent<RectTransform>();
             buttonContainerRect.anchorMin = new Vector2(0, 0);
-            buttonContainerRect.anchorMax = new Vector2(1, 0.25f); // 从0.1调整到0.25
-            buttonContainerRect.offsetMin = new Vector2(20, 15); // 从20调整到15
-            buttonContainerRect.offsetMax = new Vector2(-20, 5); // 添加底部偏移5
+            buttonContainerRect.anchorMax = new Vector2(1, 0.3f);
+            buttonContainerRect.offsetMin = new Vector2(20, 20);
+            buttonContainerRect.offsetMax = new Vector2(-20, 0);
 
             HorizontalLayoutGroup buttonLayout = buttonContainer.AddComponent<HorizontalLayoutGroup>();
             buttonLayout.childForceExpandWidth = false;
@@ -2084,8 +2067,8 @@ namespace MATE_ENGINE___Scripts.Tools
             buttonLayout.padding = new RectOffset(0, 0, 0, 0);
             buttonLayout.childAlignment = TextAnchor.MiddleCenter;
 
-            // 创建确定按钮 - 调整大小
-            Button okBtn = CreateButton(buttonContainer.transform, "确定", new Vector2(80, 40), "buttonBackgroundRed"); // 从100x50调整到80x40
+            // 创建确定按钮
+            Button okBtn = CreateButton(buttonContainer.transform, "确定", new Vector2(100, 50), "buttonBackgroundRed");
             okBtn.onClick.AddListener(() => {
                 Destroy(errorOverlay);
             });
@@ -2212,7 +2195,7 @@ namespace MATE_ENGINE___Scripts.Tools
             if (string.IsNullOrEmpty(selectedPPTItem.pptInfo.file_path) || !System.IO.File.Exists(selectedPPTItem.pptInfo.file_path))
             {
                 Debug.LogError($"❌ PPT路径不存在: {selectedPPTItem.pptInfo.file_path}");
-                ShowPathErrorDialog();
+                ShowErrorDialog("ppt文件无法打开，请检查文件是否存在");
                 return; // 终止播放,不关闭配置页面,不显示PPT控件
             }
 
@@ -2242,87 +2225,6 @@ namespace MATE_ENGINE___Scripts.Tools
             
             // 关闭UI界面
             mainPanel.SetActive(false);
-        }
-
-        /// <summary>
-        /// 显示PPT路径错误提示框
-        /// </summary>
-        void ShowPathErrorDialog()
-        {
-            // 创建错误对话框遮罩层 - 直接放在parentCanvas下以置顶显示
-            GameObject errorOverlay = new GameObject("PathErrorDialogOverlay");
-            errorOverlay.transform.SetParent(parentCanvas.transform, false);
-            RectTransform overlayRect = errorOverlay.AddComponent<RectTransform>();
-            overlayRect.anchorMin = Vector2.zero;
-            overlayRect.anchorMax = Vector2.one;
-            overlayRect.offsetMin = Vector2.zero;
-            overlayRect.offsetMax = Vector2.zero;
-            overlayRect.localScale = Vector3.one; // 确保不被缩放
-
-            // 设置更高的sortingOrder以确保在最上层
-            Canvas overlayCanvas = errorOverlay.AddComponent<Canvas>();
-            overlayCanvas.overrideSorting = true;
-            overlayCanvas.sortingOrder = canvasSortingOrder + 100; // 比主面板更高
-
-            GraphicRaycaster raycaster = errorOverlay.AddComponent<GraphicRaycaster>();
-
-            Image overlayBg = errorOverlay.AddComponent<Image>();
-            overlayBg.color = new Color(0f, 0f, 0f, 0.7f);
-
-            // 创建错误对话框面板
-            GameObject errorPanel = new GameObject("ErrorPanel");
-            errorPanel.transform.SetParent(errorOverlay.transform, false);
-            RectTransform errorPanelRect = errorPanel.AddComponent<RectTransform>();
-            errorPanelRect.anchorMin = new Vector2(0.5f, 0.5f);
-            errorPanelRect.anchorMax = new Vector2(0.5f, 0.5f);
-            errorPanelRect.pivot = new Vector2(0.5f, 0.5f);
-            errorPanelRect.anchoredPosition = Vector2.zero;
-            errorPanelRect.sizeDelta = new Vector2(400, 200);
-
-            Image errorPanelBg = errorPanel.AddComponent<Image>();
-            errorPanelBg.sprite = Resources.Load<Sprite>("settingsBackground");
-
-            // 创建提示文本
-            GameObject messageObj = new GameObject("Message");
-            messageObj.transform.SetParent(errorPanel.transform, false);
-            RectTransform messageRect = messageObj.AddComponent<RectTransform>();
-            messageRect.anchorMin = new Vector2(0, 0.4f);
-            messageRect.anchorMax = new Vector2(1, 0.9f);
-            messageRect.offsetMin = new Vector2(20, 0);
-            messageRect.offsetMax = new Vector2(-20, -20);
-
-            TMP_Text messageText = messageObj.AddComponent<TextMeshProUGUI>();
-            messageText.text = "PPT路径存在问题,请删除后重新上传";
-            messageText.fontSize = 20;
-            messageText.color = textColor;
-            messageText.alignment = TextAlignmentOptions.Center;
-            messageText.enableWordWrapping = true;
-            FontManager.ApplyFont(messageText);
-
-            // 创建按钮容器
-            GameObject buttonContainer = new GameObject("ButtonContainer");
-            buttonContainer.transform.SetParent(errorPanel.transform, false);
-            RectTransform buttonContainerRect = buttonContainer.AddComponent<RectTransform>();
-            buttonContainerRect.anchorMin = new Vector2(0, 0);
-            buttonContainerRect.anchorMax = new Vector2(1, 0.4f);
-            buttonContainerRect.offsetMin = new Vector2(20, 20);
-            buttonContainerRect.offsetMax = new Vector2(-20, 0);
-
-            HorizontalLayoutGroup buttonLayout = buttonContainer.AddComponent<HorizontalLayoutGroup>();
-            buttonLayout.childForceExpandWidth = false;
-            buttonLayout.childForceExpandHeight = false;
-            buttonLayout.spacing = 20;
-            buttonLayout.padding = new RectOffset(0, 0, 0, 0);
-            buttonLayout.childAlignment = TextAnchor.MiddleCenter;
-
-            // 创建确定按钮
-            Button okBtn = CreateButton(buttonContainer.transform, "确定", new Vector2(100, 50), "buttonBackgroundRed");
-            okBtn.onClick.AddListener(() => {
-                Destroy(errorOverlay);
-            });
-
-            // 确保对话框在最上层
-            errorOverlay.transform.SetAsLastSibling();
         }
 
         /// <summary>
