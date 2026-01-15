@@ -2450,6 +2450,9 @@ namespace MATE_ENGINE___Scripts.Tools
                         configInputField.text = string.Join("\n", generatedContent);
                         RefreshConfigParagraphNumbers();
                         configNumberScrollOffsetInitialized = false;
+                        // 移动到顶部
+                        configInputField.ActivateInputField();
+                        configInputField.MoveTextStart(false);
                     }
 
                     // 更新PPTInfo中的desc字段
