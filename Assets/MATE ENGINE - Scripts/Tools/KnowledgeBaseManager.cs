@@ -29,7 +29,7 @@ public static class KnowledgeBaseManager
     {
         // 初始化状态
         LastUploadSuccess = false;
-        
+
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
         {
             Debug.LogError($"文件不存在或路径为空: {filePath}");
@@ -39,9 +39,40 @@ public static class KnowledgeBaseManager
         string url = $"{RAGFLOW_API_URL}/document/upload";
         Debug.Log($"开始上传文件到知识库: {filePath}");
 
-        // 读取文件字节
-        byte[] fileBytes = File.ReadAllBytes(filePath);
+        // 异步读取文件字节，避免阻塞UI线程
+        byte[] fileBytes = null;
         string fileName = Path.GetFileName(filePath);
+        bool readComplete = false;
+
+        // 使用后台线程读取文件
+        System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+        {
+            try
+            {
+                fileBytes = File.ReadAllBytes(filePath);
+                Debug.Log($"文件读取完成: {fileName}, 大小: {fileBytes.Length} 字节");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"异步读取文件失败: {e.Message}");
+            }
+            finally
+            {
+                readComplete = true;
+            }
+        });
+
+        // 等待文件读取完成
+        while (!readComplete)
+        {
+            yield return null;
+        }
+
+        if (fileBytes == null)
+        {
+            Debug.LogError($"文件读取失败: {fileName}");
+            yield break;
+        }
 
         // 创建multipart/form-data请求
         List<IMultipartFormSection> formData = new List<IMultipartFormSection>();

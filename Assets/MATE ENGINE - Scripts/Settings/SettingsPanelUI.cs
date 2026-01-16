@@ -1847,8 +1847,8 @@ namespace MATE_ENGINE___Scripts.Tools
                 PPTDataManager.SavePPTInfoToJson(newInfo, Path.ChangeExtension(newFileName, ".json"));
 
                 // 等待一帧后再刷新列表，避免在渲染过程中修改UI
-                yield return null;
-                RefreshPPTList();
+                // yield return null;
+                // RefreshPPTList();
 
                 // 上传PPT到知识库
                 Debug.Log($"开始上传PPT到知识库: {newFileName}");
@@ -1875,7 +1875,10 @@ namespace MATE_ENGINE___Scripts.Tools
 
             Debug.Log($"[SettingsPanelUI] 调用KnowledgeBaseManager上传PPT: {filePath}");
 
-            // 调用KnowledgeBaseManager的上传方法
+            // 显示上传中提示框
+            GameObject uploadProgressOverlay = ShowUploadProgressDialog(Path.GetFileName(filePath));
+
+            // 调用KnowledgeBaseManager的上传方法（已在后台异步读取文件）
             yield return StartCoroutine(KnowledgeBaseManager.UploadFileToKnowledgeBase(filePath, null, 1));
 
             // 上传完成后，根据上传和解析结果更新PPTInfo的状态
@@ -1889,6 +1892,12 @@ namespace MATE_ENGINE___Scripts.Tools
             {
                 pptInfo.is_uploaded = KnowledgeBaseManager.LastUploadSuccess;
                 Debug.LogWarning($"[SettingsPanelUI] PPT上传或解析失败 - 上传: {KnowledgeBaseManager.LastUploadSuccess}");
+            }
+
+            // 关闭上传进度框
+            if (uploadProgressOverlay != null)
+            {
+                Destroy(uploadProgressOverlay);
             }
 
             // 保存更新后的PPTInfo到JSON
@@ -1995,6 +2004,105 @@ namespace MATE_ENGINE___Scripts.Tools
 
             // 确保对话框在最上层
             confirmOverlay.transform.SetAsLastSibling();
+        }
+
+        /// <summary>
+        /// 显示上传进度对话框
+        /// </summary>
+        /// <param name="fileName">正在上传的文件名</param>
+        /// <returns>对话框GameObject，用于后续关闭</returns>
+        GameObject ShowUploadProgressDialog(string fileName)
+        {
+            // 创建上传进度对话框遮罩层
+            GameObject uploadOverlay = new GameObject("UploadProgressOverlay");
+            uploadOverlay.transform.SetParent(parentCanvas.transform, false);
+            RectTransform overlayRect = uploadOverlay.AddComponent<RectTransform>();
+            overlayRect.anchorMin = Vector2.zero;
+            overlayRect.anchorMax = Vector2.one;
+            overlayRect.offsetMin = Vector2.zero;
+            overlayRect.offsetMax = Vector2.zero;
+
+            Image overlayBg = uploadOverlay.AddComponent<Image>();
+            overlayBg.color = new Color(0f, 0f, 0f, 0.7f);
+
+            // 创建上传进度对话框面板
+            GameObject uploadPanel = new GameObject("UploadProgressPanel");
+            uploadPanel.transform.SetParent(uploadOverlay.transform, false);
+            RectTransform uploadPanelRect = uploadPanel.AddComponent<RectTransform>();
+            uploadPanelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            uploadPanelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            uploadPanelRect.pivot = new Vector2(0.5f, 0.5f);
+            uploadPanelRect.anchoredPosition = Vector2.zero;
+            uploadPanelRect.sizeDelta = new Vector2(400, 200);
+
+            Image uploadPanelBg = uploadPanel.AddComponent<Image>();
+            uploadPanelBg.sprite = Resources.Load<Sprite>("errorDialog");
+
+            // 创建加载动画图标（旋转效果）
+            GameObject loadingIconObj = new GameObject("LoadingIcon");
+            loadingIconObj.transform.SetParent(uploadPanel.transform, false);
+            RectTransform loadingIconRect = loadingIconObj.AddComponent<RectTransform>();
+            loadingIconRect.anchorMin = new Vector2(0.5f, 0.6f);
+            loadingIconRect.anchorMax = new Vector2(0.5f, 0.6f);
+            loadingIconRect.pivot = new Vector2(0.5f, 0.5f);
+            loadingIconRect.sizeDelta = new Vector2(50, 50);
+
+            Image loadingIcon = loadingIconObj.AddComponent<Image>();
+            loadingIcon.sprite = Resources.Load<Sprite>("ppt"); // 使用PPT图标作为加载图标
+            loadingIcon.color = new Color(0.23f, 0.45f, 0.85f, 1f);
+
+            // 添加旋转动画协程
+            StartCoroutine(RotateLoadingIcon(loadingIconRect));
+
+            // 创建提示文本
+            GameObject messageObj = new GameObject("Message");
+            messageObj.transform.SetParent(uploadPanel.transform, false);
+            RectTransform messageRect = messageObj.AddComponent<RectTransform>();
+            messageRect.anchorMin = new Vector2(0, 0.3f);
+            messageRect.anchorMax = new Vector2(1, 0.6f);
+            messageRect.offsetMin = new Vector2(20, 0);
+            messageRect.offsetMax = new Vector2(-20, 0);
+
+            TMP_Text messageText = messageObj.AddComponent<TextMeshProUGUI>();
+            messageText.text = $"正在上传PPT到知识库\n{fileName}";
+            messageText.fontSize = 18;
+            messageText.color = textColor;
+            messageText.alignment = TextAlignmentOptions.Center;
+            messageText.enableWordWrapping = true;
+            FontManager.ApplyFont(messageText);
+
+            // 创建副标题文本
+            GameObject subMessageObj = new GameObject("SubMessage");
+            subMessageObj.transform.SetParent(uploadPanel.transform, false);
+            RectTransform subMessageRect = subMessageObj.AddComponent<RectTransform>();
+            subMessageRect.anchorMin = new Vector2(0, 0.1f);
+            subMessageRect.anchorMax = new Vector2(1, 0.3f);
+            subMessageRect.offsetMin = new Vector2(20, 0);
+            subMessageRect.offsetMax = new Vector2(-20, 0);
+
+            TMP_Text subMessageText = subMessageObj.AddComponent<TextMeshProUGUI>();
+            subMessageText.text = "请稍候，这可能需要几分钟...";
+            subMessageText.fontSize = 14;
+            subMessageText.color = new Color(0.6f, 0.6f, 0.6f, 1f);
+            subMessageText.alignment = TextAlignmentOptions.Center;
+            FontManager.ApplyFont(subMessageText);
+
+            // 确保对话框在最上层
+            uploadOverlay.transform.SetAsLastSibling();
+
+            return uploadOverlay;
+        }
+
+        /// <summary>
+        /// 旋转加载图标动画
+        /// </summary>
+        IEnumerator RotateLoadingIcon(RectTransform iconRect)
+        {
+            while (iconRect != null)
+            {
+                iconRect.Rotate(0f, 0f, -2f); // 顺时针旋转
+                yield return null;
+            }
         }
 
         /// <summary>
@@ -2488,6 +2596,7 @@ namespace MATE_ENGINE___Scripts.Tools
                     // 恢复desc字段
                     if (backupSpeechContent != null)
                     {
+                        Debug.Log("[PPT]:恢复演讲稿！"+backupSpeechContent);
                         selectedPPTItem.pptInfo.desc = backupSpeechContent;
                     }
 
