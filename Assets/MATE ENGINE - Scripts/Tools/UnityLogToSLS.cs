@@ -72,6 +72,8 @@ namespace MATE_ENGINE___Scripts.Tools
         // 上传定时器
         private float uploadTimer;
 
+        private string uuid;
+
         /// <summary>
         /// 从配置文件加载AccessKey
         /// </summary>
@@ -106,6 +108,7 @@ namespace MATE_ENGINE___Scripts.Tools
         {
             // 在Awake时加载配置
             LoadConfig();
+            uuid = GetUUID();
         }
 
         private void OnEnable()
@@ -177,7 +180,7 @@ namespace MATE_ENGINE___Scripts.Tools
                     {"LogType", logType},
                     {"Message", logString},
                     {"Timestamp", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")},
-                    {"DeviceId", GetUUID()},
+                    {"DeviceId", uuid ?? GetUUID()},
                     {"DeviceModel", SystemInfo.deviceModel + SystemInfo.deviceName}
                 }
             };
@@ -384,12 +387,10 @@ namespace MATE_ENGINE___Scripts.Tools
                 
                 // 使用正则表达式提取UUID
                 string pattern = @"[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}";
-                Debug.Log("[powershell]执行结果: " + output);
                 Match match = Regex.Match(output, pattern);
                 if (match.Success)
                 {
                     // 去掉所有"-"分隔符
-                    Debug.Log("[powershell]返回结果: " + match.Value.Replace("-", ""));
                     return match.Value.Replace("-", "");
                 }
             }

@@ -2023,7 +2023,7 @@ namespace MATE_ENGINE___Scripts.Tools
             overlayRect.offsetMax = Vector2.zero;
 
             Image overlayBg = uploadOverlay.AddComponent<Image>();
-            overlayBg.color = new Color(0f, 0f, 0f, 0.7f);
+            overlayBg.color = new Color(0f, 0f, 0f, 0f);
 
             // 创建上传进度对话框面板
             GameObject uploadPanel = new GameObject("UploadProgressPanel");

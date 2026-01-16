@@ -21,6 +21,7 @@ namespace MATE_ENGINE___Scripts.Tools
 
         // 版本信息列表
         private List<VersionInfo> versionInfos = new List<VersionInfo>();
+        private string uuid = UnityLogToSLS.GetUUID();
 
         /// <summary>
         /// 设置设置面板
@@ -70,7 +71,7 @@ namespace MATE_ENGINE___Scripts.Tools
             deviceIdLayoutElem.flexibleWidth = 1;
 
             // 设备ID标签
-            GameObject deviceIdLabel = createLabelFunc(deviceIdRow.transform, $"设备ID:{UnityLogToSLS.GetUUID()}", 16);
+            GameObject deviceIdLabel = createLabelFunc(deviceIdRow.transform, $"设备ID:{uuid}", 16);
             RectTransform deviceIdLabelRect = deviceIdLabel.GetComponent<RectTransform>();
             if (deviceIdLabelRect != null)
             {
