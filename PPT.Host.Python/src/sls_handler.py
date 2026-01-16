@@ -84,9 +84,9 @@ class SLSHandler(logging.Handler):
             record: 日志记录对象
         """
         try:
-            from device_info import get_cached_device_id, get_device_info
+            from device_info import get_cached_device_id, get_cached_device_info
             device_id = get_cached_device_id()
-            device_info = get_device_info()
+            device_info = get_cached_device_info()
             
             log_level_map = {
                 "DEBUG": "INFO",

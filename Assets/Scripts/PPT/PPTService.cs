@@ -323,7 +323,7 @@ namespace MateEngine.PPT
                 };
 
                 _hostProcess = Process.Start(startInfo);
-                UnityEngine.Debug.Log($"[PPT] Host 进程已以管理员身份启动 (PID: {_hostProcess.Id})");
+                UnityEngine.Debug.Log($"[PPT] Host 进程已启动 (PID: {_hostProcess.Id})");
             }
             catch (System.ComponentModel.Win32Exception ex)
             {

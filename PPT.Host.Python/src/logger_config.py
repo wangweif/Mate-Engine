@@ -43,6 +43,11 @@ except Exception:
     pass
 
 
+# 全局 SLS Handler 单例
+_sls_handler = None
+_sls_handler_initialized = False
+
+
 def _get_log_directory() -> Path:
     """
     获取日志目录路径
@@ -100,6 +105,57 @@ def _get_sls_config() -> Optional[Dict[str, str]]:
     return config
 
 
+def _get_or_create_sls_handler(formatter: logging.Formatter):
+    """
+    获取或创建全局 SLS Handler 单例
+    
+    Args:
+        formatter: 日志格式化器
+        
+    Returns:
+        SLS Handler 实例,如果未启用或初始化失败则返回 None
+    """
+    global _sls_handler, _sls_handler_initialized
+    
+    # 如果已经尝试过初始化,直接返回结果
+    if _sls_handler_initialized:
+        return _sls_handler
+    
+    # 标记为已初始化(无论成功与否)
+    _sls_handler_initialized = True
+    
+    try:
+        sls_config = _get_sls_config()
+        if not sls_config:
+            return None
+        
+        from sls_handler import SLSHandler
+        
+        # 解析日志级别
+        min_level_str = sls_config.get("min_level", "INFO")
+        min_level = getattr(logging, min_level_str.upper(), logging.INFO)
+        
+        # 创建 SLS Handler
+        _sls_handler = SLSHandler(
+            access_key_id=sls_config["access_key_id"],
+            access_key_secret=sls_config["access_key_secret"],
+            endpoint=sls_config["endpoint"],
+            project=sls_config["project"],
+            logstore=sls_config["logstore"],
+            topic=sls_config.get("topic", ""),
+            source=sls_config.get("source", "PPTHost"),
+            batch_size=sls_config.get("batch_size", 10),
+            flush_interval=sls_config.get("flush_interval", 5.0)
+        )
+        _sls_handler.setLevel(min_level)
+        _sls_handler.setFormatter(formatter)
+        
+        return _sls_handler
+    except Exception:
+        # SLS 初始化失败,返回 None
+        return None
+
+
 def setup_logger(name: str = "PPTHost", log_level: int = logging.INFO) -> logging.Logger:
     """
     配置并返回日志记录器
@@ -153,33 +209,17 @@ def setup_logger(name: str = "PPTHost", log_level: int = logging.INFO) -> loggin
         # 如果创建日志文件失败,只输出到控制台
         logger.warning(f"无法创建日志文件: {e},日志将仅输出到控制台")
     
-    # SLS 处理器 (可选)
+    # SLS 处理器 (可选,使用全局单例)
     try:
-        sls_config = _get_sls_config()
-        if sls_config:
-            from sls_handler import SLSHandler
-            
-            # 解析日志级别
-            min_level_str = sls_config.get("min_level", "INFO")
-            min_level = getattr(logging, min_level_str.upper(), logging.INFO)
-            
-            # 创建 SLS Handler
-            sls_handler = SLSHandler(
-                access_key_id=sls_config["access_key_id"],
-                access_key_secret=sls_config["access_key_secret"],
-                endpoint=sls_config["endpoint"],
-                project=sls_config["project"],
-                logstore=sls_config["logstore"],
-                topic=sls_config.get("topic", ""),
-                source=sls_config.get("source", "PPTHost"),
-                batch_size=sls_config.get("batch_size", 10),
-                flush_interval=sls_config.get("flush_interval", 5.0)
-            )
-            sls_handler.setLevel(min_level)
-            sls_handler.setFormatter(formatter)
+        sls_handler = _get_or_create_sls_handler(formatter)
+        if sls_handler:
             logger.addHandler(sls_handler)
             
-            logger.info(f"SLS 日志已启用: {sls_config['project']}/{sls_config['logstore']}")
+            # 只在第一个 logger 初始化时输出 SLS 信息
+            if name == "PPTHost.Main":
+                sls_config = _get_sls_config()
+                if sls_config:
+                    logger.info(f"SLS 日志已启用: {sls_config['project']}/{sls_config['logstore']}")
     except Exception as e:
         # SLS 初始化失败不影响其他日志输出
         logger.warning(f"SLS 日志初始化失败: {e},将仅使用本地日志")

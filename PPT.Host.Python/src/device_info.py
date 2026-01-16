@@ -58,6 +58,8 @@ def get_device_info() -> dict:
 
 # 缓存设备 ID,避免重复计算
 _cached_device_id: Optional[str] = None
+# 缓存设备信息,避免重复获取
+_cached_device_info: Optional[dict] = None
 
 
 def get_cached_device_id() -> str:
@@ -71,6 +73,19 @@ def get_cached_device_id() -> str:
     if _cached_device_id is None:
         _cached_device_id = get_device_id()
     return _cached_device_id
+
+
+def get_cached_device_info() -> dict:
+    """
+    获取缓存的设备信息
+    
+    Returns:
+        包含设备信息的字典
+    """
+    global _cached_device_info
+    if _cached_device_info is None:
+        _cached_device_info = get_device_info()
+    return _cached_device_info
 
 
 if __name__ == "__main__":
